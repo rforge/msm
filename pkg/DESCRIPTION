@@ -1,6 +1,6 @@
 Package: msm
-Version: 1.1.4
-Date: 2012-12-10
+Version: 1.1.5
+Date: 2013-??
 Title: Multi-state Markov and hidden Markov models in continuous time
 Author: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
@@ -14,4 +14,3 @@ Description: Functions for fitting general continuous-time Markov and hidden
 License: GPL (>= 2)
 Imports: survival,mvtnorm
 Suggests: mstate,diagram
-Packaged: 2012-12-10 15:44:26 UTC; chris

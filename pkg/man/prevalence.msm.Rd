@@ -12,7 +12,7 @@
 prevalence.msm(x, times=NULL, timezero=NULL, initstates=NULL, covariates="mean",
                misccovariates="mean", piecewise.times=NULL, piecewise.covariates=NULL,
 	       ci=c("none","normal","bootstrap"), cl=0.95, B=1000,
-               interp=c("start","midpoint"), plot=FALSE, ...)
+               interp=c("start","midpoint"), censtime=Inf, plot=FALSE, ...)
 }
 \arguments{
   \item{x}{A fitted multi-state model produced by \code{\link{msm}}.}
@@ -74,6 +74,16 @@ prevalence.msm(x, times=NULL, timezero=NULL, initstates=NULL, covariates="mean",
      generally more reasonable for "progressive" models. 
    }  	    
 
+   \item{censtime}{If the time is greater than \code{censtime} and the
+     patient has reached an absorbing state, then that subject will be
+     removed from the risk set.  For example, if patients have died but
+     would only have been observed up to this time, then this avoids
+     overestimating the proportion of people who are dead at later
+     times.  This can be supplied as a single value, or as a vector with
+     one element per subject, in the same order as the original data.
+     This is ignored if it is less than the subject's maximum
+     observation time.  }
+   
    \item{plot}{Generate a plot of observed against expected
      prevalences. See \code{\link{plot.prevalence.msm}}}
 
@@ -144,6 +154,10 @@ The component
   Markov models for analysing incomplete disease history data with
   illustrations for HIV disease.  \emph{Statistics in Medicine} (1994) 13(3):
   805--821.
+
+  Titman, A.C., Sharples, L. D.  Model diagnostics for multi-state
+  models. \emph{Statistical Methods in Medical Research} (2010)
+  19(6):621-651. 
 }
 
 \seealso{

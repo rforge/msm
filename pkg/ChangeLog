@@ -1,7 +1,29 @@
+2013-02-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(observed.msm): Add a censoring time facility to
+	optionally remove subjects from the risk set a certain time after
+	they have reached an absorbing state.  Thanks to Andrew Titman.
+
+2013-02-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c: Bug fix for Viterbi with obstrue. Thanks to Linda
+	Sharples.
+
+	* R/outputs.R(print.msm): Don't print message about baseline
+	covariate values in misclassification model outputs if there are
+	no covariates.
+
+2013-01-14 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(observed.msm): Bug fix for interp="midpoint" method
+	in observed prevalence calculation.  Thanks to Erica Liu.
+
 2012-12-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* tests/simple.R: Modified pmatrix.msm normal bootstrap test
 	output to work with new seeding behaviour of rmvnorm.
+
+	* DESCRIPTION: Version 1.1.4 released
 
 2012-09-28 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

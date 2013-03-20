@@ -47,12 +47,19 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{misccovariates}, \code{hcovariates}, \code{obstype} and
     \code{obstrue}.}
 
-  \item{qmatrix}{Initial transition intensity matrix of the Markov
-    chain.  If an instantaneous transition is not allowed  from state
+  \item{qmatrix}{Matrix which indicates the allowed transitions in
+    the continuous-time Markov chain, and optionally also the initial
+    values of those transitions. If an instantaneous transition is not allowed  from state
     \eqn{r} to state \eqn{s}, then \code{qmatrix} should have
-    \eqn{(r,s)} entry 0, otherwise it should be non-zero. Any
-    diagonal entry of \code{qmatrix} is ignored, as it is constrained to
-    be equal to minus the sum of the rest of the row. For example,\cr
+    \eqn{(r,s)} entry 0, otherwise it should be non-zero.
+
+    If supplying initial values yourself, then the non-zero entries
+    should be those values.  If using \code{gen.inits=TRUE} then the
+    non-zero entries can be anything you like (conventionally 1).
+    Any diagonal entry of \code{qmatrix} is ignored, as it is
+    constrained to be equal to minus the sum of the rest of the row.
+
+    For example,\cr
 
     \code{
     rbind(
@@ -62,14 +69,15 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     )
   }\cr
 
-    represents a 'health - disease - death' model, with transition intensities
+    represents a 'health - disease - death' model, with initial transition intensities
     0.1 from health to disease, 0.01 from health to death, 0.1 from disease to health,
-    and 0.2 from disease to death.  The initial intensities given here
-    are with any covariates set to their means in the data (or set to
-    zero, if \code{center} = FALSE). If any intensities are constrained
-    to be equal using \code{qconstraint}, then the initial value is
-    taken from the first of these (reading across rows).
-  }
+    and 0.2 from disease to death.
+
+    The initial intensities given here are with any covariates set to
+    their means in the data (or set to zero, if \code{center =
+    FALSE}). If any intensities are constrained to be equal using
+    \code{qconstraint}, then the initial value is taken from the first
+    of these (reading across rows).  }
 
   \item{gen.inits}{If \code{TRUE}, then initial values for the
     transition intensities are generated automatically using the method
@@ -276,13 +284,16 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{list(..., covnameVALUE1 = c(...), covnameVALUE2 = c(...), ...)}\cr
 
     where \code{covname} is the name of the factor, and \code{VALUE1},
-    \code{VALUE2}, ... are the levels of the factor.
+    \code{VALUE2}, ... are the labels of the factor levels (usually
+    excluding the baseline, if using the default contrasts).
+    
     Make sure the \code{contrasts} option is set appropriately, for
     example, the default
 
     \code{options(contrasts=c(contr.treatment, contr.poly))}
 
-    sets the first (baseline) level of unordered factors to zero.
+    sets the first (baseline) level of unordered factors to zero,
+    then the baseline level is ignored in this specification.
 
     To assume no covariate effect on a certain transition, use the
     \code{fixedpars} argument to fix it at its initial value (which
@@ -382,16 +393,10 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     occupancy probabilities at the first observation will be estimated,
     starting from initial values taken from the \code{initprobs}
     argument.  Structural zeroes are allowed: if any of these initial
-    values are zero they will be fixed at zero during optimisation, and
-    no covariate effects on them are estimated.  The exception is
-    state 1, which should have non-zero occupancy probability.
-
-    Be warned that if any of these initial values are 1,
-    then \code{\link{optim}} will give an "non-finite value" error,
-    since these are logit-transformed during estimation.  If you wish to
-    fix any initial probabilities to 1, then that implies all the others are
-    fixed to zero, and there is no need to use \code{est.initprobs} at
-    all.
+    values are zero they will be fixed at zero during optimisation,
+    even if \code{est.initprobs=TRUE}, and no covariate effects on
+    them are estimated.  The exception is state 1, which should have
+    non-zero occupancy probability.
 
     Note that the free parameters during this estimation exclude the state 1
     occupancy probability, which is fixed at one minus the sum of the
@@ -429,14 +434,15 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{obstype=3}. \code{death = TRUE} indicates that the final
     absorbing state is of this kind, and \code{death = FALSE} (the
     default) indicates that there is no state of this kind.
-
+    
     The \code{death} argument is overridden by \code{obstype} or
     \code{exacttimes}.  Note that times of death do not necessarily have
     \code{obstype=3}.  If the state is known between the time of death
     and the previous observation, then you should specify
     \code{obstype=2} for the death times, or \code{exacttimes=TRUE} if
     the state is known at all times, and the \code{death} argument is
-    ignored.  }
+    ignored.   
+  }
 
   \item{censor}{ A state, or vector of states, which indicates
     censoring.  Censoring means that the observed state is known only to be

@@ -280,7 +280,14 @@ if (interactive())
       plot.prevalence.msm(psor.msm)
       plot.prevalence.msm(psor.msm, col.obs="green", col.exp="brown", lty.obs=2, lty.exp=3, lwd.obs=2, lwd.exp=4, cex.axis=2)
 
-      ##
+      ## censtime facility in prevalence.msm
+      try(plot.prevalence.msm(psor.msm, censtime=c(2,3)))
+      try(plot.prevalence.msm(psor.msm, censtime="foo"))
+      plot.prevalence.msm(psor.msm, censtime=5)     
+      plot.prevalence.msm(psor.msm, censtime=10)
+      ## 1 month after last obs time
+      plot.prevalence.msm(psor.msm, censtime = psor$months[tapply(1:nrow(psor), psor$ptnum, max)] + 1)
+      
       plotprog.msm(state ~ months, subject=ptnum, data=psor, legend.pos=c(20,0.99), lwd=3, xlab="Months")
       plotprog.msm(state ~ months, subject=ptnum, data=psor, legend.pos=c(20,0.99), lwd=1, mark.time=FALSE, xlab="Months")
       plot.survfit.msm(psor.msm, lwd=3, xlab="Months")

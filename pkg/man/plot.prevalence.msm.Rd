@@ -11,6 +11,7 @@
 \usage{
 \method{plot}{prevalence.msm}(x, mintime=NULL, maxtime=NULL, timezero=NULL,
                     initstates=NULL, interp=c("start","midpoint"),
+                    censtime=Inf,
                     covariates="mean", misccovariates="mean",
                     piecewise.times=NULL, piecewise.covariates=NULL,
                     xlab="Times",ylab="Prevalence (\%)", lwd.obs=1,
@@ -33,7 +34,8 @@
     The default is those observed in the data.  These should add up to
     the actual number of people in the study at the start. }
   \item{interp}{Interpolation method for observed states, see
-    \code{\link{prevalence.msm}}}
+    \code{\link{prevalence.msm}}.}
+  \item{censtime}{Patient-specific maximum follow-up times, see \code{\link{prevalence.msm}}.} 
   \item{covariates}{Covariate values for which to forecast expected
     state occupancy.  See \code{\link{qmatrix.msm}}.  Defaults to the
     mean values of the covariates in the data set.}

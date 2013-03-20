@@ -8,7 +8,7 @@ print.msm <- function(x, ...)
         cat ("Maximum likelihood estimates: \n")
         covmessage <-
             if (x$qcmodel$ncovs == 0) ""
-            else paste("with covariates set to ", (if (x$center) "their means" else "0"))
+            else paste("with covariates set to", (if (x$center) "their means" else "0"))
         for (i in c("baseline", x$qcmodel$covlabels)) {
             title <-
                 if (i == "baseline") paste("Transition intensity matrix",covmessage,"\n")
@@ -18,9 +18,12 @@ print.msm <- function(x, ...)
             cat("\n")
         }
         if (x$emodel$misc) {
+            misccovmessage <-
+                if (x$ecmodel$ncovs == 0) ""
+                else paste("with covariates set to", (if (x$center) "their means" else "0"))
             for (i in c("baseline", x$ecmodel$covlabels)) {
                 title <-
-                    if (i == "baseline") paste("Misclassification matrix",covmessage,"\n")
+                    if (i == "baseline") paste("Misclassification matrix",misccovmessage,"\n")
                     else paste("Effects of", i, "on log (P(state r)/P(baseline state))\n")
                 cat (title, "\n")
                 print.ci(x$Ematrices[[i]], x$EmatricesL[[i]], x$EmatricesU[[i]])
@@ -1148,7 +1151,7 @@ intervaltrans.msm <- function(x=NULL, qmatrix=NULL, ematrix=NULL, exclude.absabs
 ### Assume previous observed state is retained until next observation time
 ### Assumes times are sorted within patient (they are in data in msm objects)
 
-observed.msm <- function(x, times=NULL, interp=c("start","midpoint"))
+observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=Inf)
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
     ## For general HMMs use the Viterbi estimate of the observed state.
@@ -1162,9 +1165,12 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"))
     pts <- unique(subject)
     absorb <- absorbing.msm(x)
     interp <- match.arg(interp)
+    if (!is.numeric(censtime)) stop("censtime should be numeric")
+    if (length(censtime)==1) censtime <- rep(censtime, length(pts))
+    else if (length(censtime)!=length(pts)) stop("censtime of length ", length(censtime), ", should be 1 or ", length(pts))
     for (i in seq(along=pts)){
-        state.i <- state[subject==pts[i]]
-        time.i <- time[subject==pts[i]]
+        state.i <- state[(subject==pts[i])]
+        time.i <- time[(subject==pts[i])]
         j <- 1
         while(j <= length(times)) {
             if (times[j] < time.i[1]) {
@@ -1174,22 +1180,23 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"))
                 next;
             }
             else if (times[j] > time.i[length(time.i)]) {
-                if (state.i[length(time.i)] %in% absorb) {
+                if (state.i[length(time.i)] %in% absorb && (times[j] <= censtime[i])) {
                     states.expand[i, j:(length(times))] <-  state.i[length(time.i)]
                 }
                 else states.expand[i, j:(length(times))] <-  NA
                 break;
             }
             else {
-                prevtime <- max(which(time.i <= times[j]))
+                prevtime.ind <- max(which(time.i <= times[j]))
+                prevtime <- time.i[prevtime.ind]
                 if (interp=="midpoint") {
-                    nexttime <- min(which(time.i >= times[j]))
+                    nexttime.ind <- min(which(time.i >= times[j]))
+                    nexttime <- time.i[nexttime.ind]
                     midpoint <- (prevtime + nexttime) / 2
-                    states.expand[i,j] <- state.i[if (times[j] <= midpoint) prevtime else nexttime]
+                    states.expand[i,j] <- state.i[if (times[j] <= midpoint) prevtime.ind else nexttime.ind]
                 }
                 else
-                    states.expand[i,j] <- state.i[prevtime]
-
+                    states.expand[i,j] <- state.i[prevtime.ind]
             }
             j <- j+1
         }
@@ -1288,6 +1295,7 @@ prevalence.msm <- function(x,
                            cl = 0.95,
                            B = 1000,
                            interp=c("start","midpoint"),
+                           censtime=Inf,
                            plot = FALSE, ...
                            )
 {
@@ -1295,7 +1303,7 @@ prevalence.msm <- function(x,
     time <- x$data$time
     if (is.null(times))
         times <- seq(min(time), max(time), (max(time) - min(time))/10)
-    obs <- observed.msm(x, times, interp)
+    obs <- observed.msm(x, times, interp, censtime)
     risk <- obs$obstab[,ncol(obs$obstab)]
     ## Work out expected state occupancies by forecasting from transition probabilities
     expec <- expected.msm(x, times, timezero, initstates, covariates, misccovariates,
@@ -1303,13 +1311,13 @@ prevalence.msm <- function(x,
     res <- list(observed=obs$obstab, expected=expec[[1]], obsperc=obs$obsperc, expperc=expec[[2]])
     names(res) <- c("Observed", "Expected", "Observed percentages", "Expected percentages")
     if (plot) plot.prevalence.msm(x, mintime=min(times), maxtime=max(times), timezero=timezero, initstates=initstates,
-                                  interp=interp, covariates=covariates, misccovariates=misccovariates,
+                                  interp=interp, censtime=censtime, covariates=covariates, misccovariates=misccovariates,
                                   piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, ...)
     res
 }
 
 plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, initstates=NULL,
-                                interp=c("start","midpoint"), covariates="mean", misccovariates="mean",
+                                interp=c("start","midpoint"), censtime=Inf, covariates="mean", misccovariates="mean",
                                 piecewise.times=NULL, piecewise.covariates=NULL, xlab="Times",ylab="Prevalence (%)",
                                 lwd.obs=1, lwd.exp=1, lty.obs=1, lty.exp=2,
                                 col.obs="blue", col.exp="red", legend.pos=NULL,...){
@@ -1317,7 +1325,7 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
     if (is.null(mintime)) mintime <- min(time)
     if (is.null(maxtime)) maxtime <- max(time)
     t <- seq(mintime, maxtime, length=100)
-    obs <- observed.msm(x, t, interp)
+    obs <- observed.msm(x, t, interp, censtime)
     expec <- expected.msm(x, t, timezero=timezero, initstates=initstates, covariates=covariates, misccovariates=misccovariates,
                           piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, risk=obs$risk)[[2]]
     states <- seq(length=x$qmodel$nstates)
@@ -1506,7 +1514,7 @@ viterbi.msm <- function(x)
     }
     if (x$hmodel$hidden)
     {
-        do.what <- 2
+        do.what <- 4
 
         x$data$fromstate <- x$data$fromstate - 1
         x$data$tostate <- x$data$tostate - 1

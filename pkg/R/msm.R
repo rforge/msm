@@ -437,6 +437,10 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
         if (!is.numeric(initprobs)) stop("initprobs should be numeric")
         if (length(initprobs) != qmodel$nstates) stop("initprobs of length ", length(initprobs), ", should be ", qmodel$nstates)
         initprobs <- initprobs / sum(initprobs)
+        if (est.initprobs && any(initprobs==1)) {
+            est.initprobs <- FALSE
+            warning("Not estimating initial state occupancy probabilities, since some are fixed to 1")
+        }
     }
     nipars <- qmodel$nstates - 1
     if (!is.null(econstraint)) {
@@ -1171,7 +1175,7 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
     initprobs <- c(1 - sum(pars[plabs=="initp"]), pars[plabs %in% c("initp","initp0")])
     initprobs <- initprobs / initprobs[1] ## initprobs[1] documented as not allowed to be zero.
 
-    if (!do.what %in% c(0,1,3)) stop("deriv should be 0, 1 or 3")
+    if (!do.what %in% c(0,1,2,3)) stop("deriv should be 0, 1, 2 or 3")
     lik <- .C("msmCEntry",
               as.integer(do.what),
               as.integer(as.vector(t(qmodel$imatrix))),
@@ -1236,7 +1240,9 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
               as.integer(qcmodel$constr),
               as.integer(qcmodel$whichdcov),
 
-              returned = double(if (deriv==1) qmodel$ndpars + qcmodel$ndpars
+              returned = double(
+              if (deriv==1) qmodel$ndpars + qcmodel$ndpars
+              else if (deriv==2) (qmodel$ndpars + qcmodel$ndpars) ^ 2
               else if (deriv==3) msmdata$npts*(qmodel$ndpars + qcmodel$ndpars)
               else 1),
               ## so that Inf values are allowed for parameters denoting truncation points of truncated distributions
@@ -1251,7 +1257,9 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
             else lik$returned[1:qmodel$ndpars]*exp(params[1:qmodel$ndpars])
         lik$returned <- lik$returned[setdiff(seq(along=lik$returned), p$constr[p$fixedpars])]
     }
-
+    else if (deriv==2) {
+        ## Fisher information matrix TODO transform output vector to matrix.
+    }
     ## subject-specific derivatives, to use for score residuals
     else if (deriv==3) {
         lik$returned <- matrix(lik$returned, nrow=msmdata$npts)
@@ -1271,6 +1279,11 @@ lik.msm <- function(params, ...)
 deriv.msm <- function(params, ...)
 {
     likderiv.msm(params, deriv=1, ...)
+}
+
+information.msm <- function(params, ...)
+{
+    likderiv.msm(params, deriv=2, ...)
 }
 
 ## Convert vector of MLEs into matrices

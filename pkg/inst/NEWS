@@ -3,6 +3,20 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.1.5 (2013-??)
+-------------
+
+o In prevalence.msm and plot.prevalence.msm, subjects reaching the
+  absorbing state can be removed from the risk set after they have
+  reached an optional censoring time.  Thanks to Andrew Titman.
+
+o Bug fix for interp="midpoint" method in calculation of observed
+  prevalences (prevalence.msm). Thanks to Erica Liu.
+
+o Bug fix for Viterbi algorithm with obstrue.  Thanks to Linda
+  Sharples.
+
+
 Version 1.1.4 (2012-12-10)
 -------------
 

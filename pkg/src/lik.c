@@ -457,7 +457,7 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
     i = 0;
     if (d->obstrue[i]) {
       for (k = 0; k < qm->nst; ++k)
-	lvold[k] = (k+1 == d->obs[i] ? 1 : R_NegInf);
+	lvold[k] = (k+1 == d->obs[i] ? 0 : R_NegInf);
     }
     else {
       GetCensored(d->obs[i], cm, &nc, &curr);
@@ -465,7 +465,7 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
       if (nc > 1) {
 	for (k = 0, j = 0; k < qm->nst; ++k) {
 	  if (k+1 == curr[j]) {
-	    lvold[k] = 1;
+	    lvold[k] = 0;
 	    ++j;
 	  }
 	  else lvold[k] = R_NegInf;
@@ -490,7 +490,7 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 	    if ((i < d->nobs) && (d->subject[i] == d->subject[i-1]))
 		{
 #ifdef VITDEBUG
-		    printf("subject %d\n ", d->subject[i]);
+		    printf("subject %d\n", d->subject[i]);
 #endif
 		    dt = d->time[i] - d->time[i-1];
 		    AddCovs(i - 1, d->nobs, qm->npars, qcm->ncovs, qm->intens, newintens,
@@ -507,33 +507,26 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 		    GetOutcomeProb(pout, curr, nc, newpars, hm, qm, d->obstrue[i]);
 #ifdef VITDEBUG
 		    for (tru=0;tru<nc;++tru) printf("curr[%d] = %1.0lf, ",tru, curr[tru]); printf("\n");
-		    for (k=0; k<qm->npars; ++k) printf("intens[%d] = %f", k, qm->intens[k]); printf("\n");
-		    for (k=0; k<qcm->ncovs[0]; ++k) printf("cov[%d] = %f", k, d->cov[MI(i-1,k,d->nobs)]); printf("\n");
-		    for (k=0; k<qm->npars; ++k) printf("newintens[%d] = %f", k, newintens[k]); printf("\n");
-		    for (j = 0; j < qm->nst; ++j) {
-		      for (k=0; k<hm->npars[j]; ++k) printf("hpar[%d] = %f", k, hm->pars[k]);
-		      printf("\n");
-		    }
 #endif
 		    Pmat(pmat, dt, newintens, qm->npars, qm->ivector, qm->nst,
 			 (d->obstype[i] == OBS_EXACT), qm->analyticp, qm->iso, qm->perm,  qm->qperm, 0);
 
 		    for (tru = 0; tru < qm->nst; ++tru)
 			{
-			  if (d->obstrue[i-1]) {
-			    lvnew[tru] = (tru == d->obs[i-1] - 1 ? 1 : R_NegInf);
-			    ptr[MI(i, tru, d->nobs)] = kmax = d->obs[i-1] - 1;
-			  }
-			  else {
-			    for (k = 0; k < qm->nst; ++k)
+/* lvnew =  log prob of most likely path ending in tru at current obs.
+   kmax  = most likely state at the previous obs 
+*/
+			    for (k = 0; k < qm->nst; ++k) { 
 				lvp[k] = lvold[k] + log(pmat[MI(k, tru, qm->nst)]);
-			    pmax(lvp, qm->nst, &kmax);
+			    }
+			    if (d->obstrue[i-1])
+				kmax = d->obs[i-1] - 1;
+			    else pmax(lvp, qm->nst, &kmax);
 			    lvnew[tru] = log ( pout[tru] )  +  lvp[kmax];
 			    ptr[MI(i, tru, d->nobs)] = kmax;
-			  }
 #ifdef VITDEBUG
-			    printf("true %d, pout[%d] = %lf, lvold = %lf, pmat = %lf, lvnew = %lf, mi = %d, ptr=%d\n",
-				   tru, tru, pout[tru], lvold[tru], pmat[MI(kmax, tru, qm->nst)], lvnew[tru], MI(i, tru, d->nobs), ptr[MI(i, tru, d->nobs)]);
+			    printf("true %d, pout[%d] = %lf, lvold = %lf, pmat = %lf, lvnew = %lf, ptr[%d,%d]=%d\n",
+				   tru, tru, pout[tru], lvold[tru], pmat[MI(kmax, tru, qm->nst)], lvnew[tru], i, tru, ptr[MI(i, tru, d->nobs)]);
 #endif
 			}
 		    for (k = 0; k < qm->nst; ++k)
@@ -541,29 +534,30 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 		}
 	    else
 		{
-#ifdef VITDEBUG
-		    printf("traceback for subject %d\n ", d->subject[i-1]);
-#endif
 		    /* Traceback for current individual */
 		    pmax(lvold, qm->nst, &kmax);
-#ifdef VITDEBUG
-		    printf("kmax = %d\n", kmax);
-#endif
 		    obs = i-1;
-		    fitted[obs] = (d->obstrue[obs] ? d->obs[obs]-1 : kmax);  /* if last obs censoring, then kmax=0 since pout all 0 for prev obs, wrong, should be 0,1,1,0. */
+		    fitted[obs] = (d->obstrue[obs] ? d->obs[obs]-1 : kmax);
+#ifdef VITDEBUG
+		    printf("traceback for subject %d\n", d->subject[i-1]);
+		    printf("obs=%d,fitted[%d]=%1.0lf\n",obs,obs,fitted[obs]);
+#endif
 		    while   ( (obs > 0) && (d->subject[obs] == d->subject[obs-1]) )
 			{
 			    fitted[obs-1] = ptr[MI(obs, fitted[obs], d->nobs)];
 #ifdef VITDEBUG
-			    printf("mi = %d, ptr %d = %1.0lf, ", MI(obs, (int) fitted[obs], d->nobs), obs-1, fitted[obs-1]);
+			    printf("fitted[%d] = ptr[%d,%1.0lf] = %1.0lf\n", obs-1, obs, fitted[obs], fitted[obs-1]);
 #endif
 			    --obs;
 			}
+#ifdef VITDEBUG
+		    printf("\n");
+#endif
 
 		    /* Add covariate effects on initp (expressed as p(cat) / p(baseline cat)) */
 		    if (d->obstrue[i]) {
 		      for (k = 0; k < qm->nst; ++k)
-			lvold[k] = (k+1 == d->obs[i] ? 1 : R_NegInf);
+			lvold[k] = (k+1 == d->obs[i] ? 0 : R_NegInf);
 		    }
 		    else {
 		      GetCensored(d->obs[i], cm, &nc, &curr);
@@ -571,7 +565,7 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 		      if (nc > 1) {
 			for (k = 0, j = 0; k < qm->nst; ++k) {
 			  if (k+1 == curr[j]) {
-			    lvold[k] = 1;
+			    lvold[k] = 0;
 			    ++j;
 			  }
 			  else lvold[k] = R_NegInf;
@@ -856,9 +850,16 @@ void msmCEntry(
   }
 
   else if (*do_what == 2) {
-    Viterbi(&d, &qm, &qcm, &cm, &hm, returned);
+/* TODO information matrix
+    msmInfoLikelihood(&d, &qm, &qcm, &cm, &hm, returned);
+*/
   }
+
   else if (*do_what == 3) {
     msmDLikelihood_subj(&d, &qm, &qcm, &cm, &hm, returned); /* derivative of loglik by subject. used for score residuals */
+  }
+
+  else if (*do_what == 4) {
+    Viterbi(&d, &qm, &qcm, &cm, &hm, returned);
   }
 }
