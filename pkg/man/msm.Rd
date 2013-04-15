@@ -19,7 +19,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
       death = FALSE, exacttimes = FALSE, censor=NULL,
       censor.states=NULL, pci=NULL, cl = 0.95, fixedpars = NULL, center=TRUE,
-      opt.method=c("optim","nlm"), hessian=TRUE, use.deriv=TRUE,
+      opt.method=c("optim","nlm","fisher"), hessian=TRUE, use.deriv=TRUE,
       analyticp=TRUE, ... )
 }
 \arguments{
@@ -181,7 +181,16 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       \item{2}{An exact transition time, with the state at the previous
 	observation retained until the current observation.  An observation may
     represent a transition to a different state or a repeated observation of
-    the same state (e.g. at the end of follow-up). }
+    the same state (e.g. at the end of follow-up).  Note that if all
+    transition times are known, more flexible models could be fitted
+    with packages other than \pkg{msm} - see the note under \code{exacttimes}.
+
+    Note also that if the previous state was censored using
+    \code{censor}, for example known only to be state 1 or state 2, then
+    \code{obstype} 2 means that either state 1 is retained or state 2 is
+    retained until the current observation - this does not allow for a
+    change of state in the middle of the observation interval.
+    }
       \item{3}{An exact transition time, but the state at the instant before
 	entering this state is unknown. A common example is death times in
 	studies of chronic diseases.}
@@ -193,7 +202,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
     This is a generalisation of the \code{death} and \code{exacttimes}
     arguments to allow different schemes per observation.
-    \code{obstype} overrides both \code{death} and \code{exacttimes}. 
+    \code{obstype} overrides both \code{death} and \code{exacttimes}.
 
     \code{exacttimes=TRUE} specifies that all observations are of
     obstype 2.
@@ -286,7 +295,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     where \code{covname} is the name of the factor, and \code{VALUE1},
     \code{VALUE2}, ... are the labels of the factor levels (usually
     excluding the baseline, if using the default contrasts).
-    
+
     Make sure the \code{contrasts} option is set appropriately, for
     example, the default
 
@@ -434,14 +443,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{obstype=3}. \code{death = TRUE} indicates that the final
     absorbing state is of this kind, and \code{death = FALSE} (the
     default) indicates that there is no state of this kind.
-    
+
     The \code{death} argument is overridden by \code{obstype} or
     \code{exacttimes}.  Note that times of death do not necessarily have
     \code{obstype=3}.  If the state is known between the time of death
     and the previous observation, then you should specify
     \code{obstype=2} for the death times, or \code{exacttimes=TRUE} if
     the state is known at all times, and the \code{death} argument is
-    ignored.   
+    ignored.
   }
 
   \item{censor}{ A state, or vector of states, which indicates
@@ -541,7 +550,15 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     every row of the data having \code{obstype = 2}.  See the
     \code{obstype} argument.  If both \code{obstype} and
     \code{exacttimes} are specified then \code{exacttimes} is ignored.
-    }
+
+    Note that the complete history of the multi-state process is known
+    with this type of data.  The models which \pkg{msm} fits have the
+    strong assumption of constant (or piecewise-constant) transition
+    rates.  Knowing the exact transition times allows
+    potentially more realistic models to be fitted with other
+    packages, such as semi-parametric models with the \pkg{mstate}
+    package.
+  }
 
   \item{cl}{Width of symmetric confidence intervals for maximum
     likelihood estimates, by default 0.95.}
@@ -574,9 +591,16 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     during the maximum likelihood estimation. This usually improves
     stability of the numerical optimisation. }
 
-  \item{opt.method}{Quoted name of the R function to perform
-    minimisation of the minus twice log likelihood.  Either "optim" or
-    "nlm". \code{\link{optim}} is the default. }
+  \item{opt.method}{If "optim" or "nlm", then the corresponding R
+    function will be used for maximum likelihood estimation.
+    \code{\link{optim}} is the default.
+
+    If "fisher", then a specialised Fisher scoring method is used
+    (Kalbfleisch and Lawless, 1985) which can be substantially faster
+    than the generic methods, though less robust.  This is only
+    available for Markov models with panel data (\code{obstype=1}), that is, not
+    for models with censored states, hidden Markov models, exact
+    observation or exact death times (\code{obstype=2,3}).}
 
   \item{hessian}{If \code{TRUE} (the default) then the Hessian matrix is
     computed at the maximum likelihood estimates, to obtain standard
@@ -610,6 +634,10 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     the optimisation takes a long time, intermediate steps can be
     printed using the \code{trace} argument of the control list. See
     \code{\link{optim}} for details.
+
+    For the Fisher scoring method, a \code{control} list can be supplied
+    in the same way, but the only supported options are \code{reltol}
+    and \code{trace}, both used in the same way as for \code{\link{optim}}.
   }
 }
 \value{

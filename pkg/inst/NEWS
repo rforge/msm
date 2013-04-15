@@ -3,12 +3,27 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
-Version 1.1.5 (2013-??)
+Version 1.2 (2013-04-??)
 -------------
+
+o Implemented accurate p-value for the Pearson-type test from Titman
+  (Lifetime Data Analysis, 2009). Non-hidden Markov models for pure
+  panel data only.
+
+o A couple of bug fixes for the Pearson test.
+
+o A Fisher scoring algorithm can now be used to maximise the
+  likelihood for panel data without censored / hidden states.
+
+o New function efpt.msm for expected first passage times for
+  time-homogeneous models.
 
 o In prevalence.msm and plot.prevalence.msm, subjects reaching the
   absorbing state can be removed from the risk set after they have
   reached an optional censoring time.  Thanks to Andrew Titman.
+
+o Newly user-accessible function simfitted.msm for simulating from a
+  model defined by the estimates from a model fitted in msm.
 
 o Bug fix for interp="midpoint" method in calculation of observed
   prevalences (prevalence.msm). Thanks to Erica Liu.

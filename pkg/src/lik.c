@@ -14,6 +14,7 @@
 #define NODEBUG
 #define NODEBUG2
 #define NOVITDEBUG
+#define NOFISHDEBUG
 
 linkfn LINKFNS[3][2] = {
     {identity, identity},
@@ -514,9 +515,9 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 		    for (tru = 0; tru < qm->nst; ++tru)
 			{
 /* lvnew =  log prob of most likely path ending in tru at current obs.
-   kmax  = most likely state at the previous obs 
+   kmax  = most likely state at the previous obs
 */
-			    for (k = 0; k < qm->nst; ++k) { 
+			    for (k = 0; k < qm->nst; ++k) {
 				lvp[k] = lvold[k] + log(pmat[MI(k, tru, qm->nst)]);
 			    }
 			    if (d->obstrue[i-1])
@@ -625,17 +626,18 @@ void msmLikelihood (msmdata *d, qmodel *qm, qcmodel *qcm,
    multi-state Markov model. */
 
 void derivsimple(msmdata *d, qmodel *qm, qcmodel *qcm,
-		 cmodel *cm, hmodel *hm, double *deriv)
+		 cmodel *cm, hmodel *hm, double *deriv, int do_info, double *info)
 {
-    int i, p, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
-    double contrib=0;
-
-    double *dcontrib = Calloc(ndp+ndc, double);
+    int i, j, p, q, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
+    double *pm = Calloc(qm->nst, double);
+    double *dpm = Calloc(qm->nst * (ndp+ndc), double);
     double *dpmat = Calloc(qm->nst * qm->nst * (ndp+ndc), double);
     double *pmat = Calloc(qm->nst * qm->nst, double);
     double *newintens = Calloc(np, double);
     double *x = Calloc(qcm->ncovs[0], double);
-
+#ifdef FISHDEBUG
+    double dptest;
+#endif
     for (i=0; i < d->nobs; ++i)
 	{
 	    R_CheckUserInterrupt();
@@ -650,27 +652,116 @@ void derivsimple(msmdata *d, qmodel *qm, qcmodel *qcm,
 		      qm->constr, qcm->constr, qcm->wcov, (d->obstype[i] == OBS_EXACT));
 	    }
 	    if (d->obstype[i] == OBS_DEATH) {
-		contrib = pijdeath(d->fromstate[i], d->tostate[i], pmat, newintens, qm->ivector, qm->nst);
+		for (j=0; j < qm->nst; ++j)
+		    pm[j] = pijdeath(d->fromstate[i], j, pmat, newintens, qm->ivector, qm->nst);
 		dpijdeath(d->fromstate[i], d->tostate[i], x, dpmat, pmat, newintens, qm->intens, qm->ivector,
-			  qm->nst, qm->constr, qcm->constr, ndp, ndc, qcm->ncovs[0], dcontrib);
+			  qm->nst, qm->constr, qcm->constr, ndp, ndc, qcm->ncovs[0], dpm);
 	    }
 	    else {
-		contrib = pmat[MI(d->fromstate[i], d->tostate[i], qm->nst)];
-		for (p = 0; p < ndp+ndc; ++p)
-		    dcontrib[p] = dpmat[MI3(d->fromstate[i], d->tostate[i], p, qm->nst, qm->nst)];
+		for (j=0; j < qm->nst; ++j)  {
+		    pm[j] = pmat[MI(d->fromstate[i], j, qm->nst)];
+		    for (p = 0; p < ndp+ndc; ++p)
+			dpm[MI(j,p,qm->nst)] = dpmat[MI3(d->fromstate[i], j, p, qm->nst, qm->nst)];
+		}
 	    }
+
 	    for (p = 0; p < ndp+ndc; ++p) {
-		deriv[p] += d->nocc[i] * dcontrib[p] / contrib;
+		deriv[p] += d->nocc[i] * dpm[MI(d->tostate[i],p,qm->nst)] / pm[d->tostate[i]];
 	    }
 #ifdef DEBUG
 	    for (p = 0; p < ndp+ndc; ++p) {
-	      printf("%d, %d, %d, %d, %6.4f, %d, %d, %lf\n", i, p, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i], d->nocc[i], -2 * d->nocc[i] * dcontrib[p] / contrib);
+		printf("%d, %d, %d, %d, %6.4f, %d, %d, %lf\n", i, p, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i], d->nocc[i], -2 * d->nocc[i] * dpm[MI(d->tostate[i],p,qm->nst)] / pm[d->tostate[i]]);
 	    }
 #endif
+	    if (do_info)  {  /* Fisher information */
+		if ((i==0) || (d->whicha[i] != d->whicha[i-1]) || (d->obstype[i] != d->obstype[i-1]) ||
+		    (d->fromstate[i] != d->fromstate[i-1])) {
+#ifdef FISHDEBUG
+		    for(j = 0; j<qm->nst; ++j)  {
+			printf("dpm[%d,%d,%d]= ",d->fromstate[i],j,i);
+			for (p = 0; p < ndp+ndc; ++p) {
+			    dptest = dpm[MI(j,p,qm->nst)];
+			    if (p < 2) dptest = dptest * newintens[p];
+			    printf("%lf ", dptest);
+			}
+			printf("\n");
+		    }
+		    printf("pmat[%d,%d]= ",d->fromstate[i],i);
+		    for(j = 0; j<qm->nst; ++j)  {
+			printf("%lf ",pm[j]);
+		    }
+		    printf("\n");
+#endif
+
+		    for (p = 0; p < ndp+ndc; ++p) {
+			for (q = 0; q < ndp+ndc; ++q) {
+			    /* for expected information, sum over all possible destination states for this fromstate/time/cov combination */
+			    for(j = 0; j<qm->nst; ++j)  {
+				if (pm[j] > 0)
+				    info[MI(p,q,ndp+ndc)] +=  d->noccsum[i] * dpm[MI(j,p,qm->nst)] * dpm[MI(j,q,qm->nst)] /  pm[j];
+#ifdef FISHDEBUG
+				if (p==0 && q==0)
+				    printf("%lf\n",d->noccsum[i] * dpm[MI(j,p,qm->nst)] * dpm[MI(j,q,qm->nst)] /  pm[j] * newintens[p]* newintens[p]);
+#endif
+			    }
+			}
+		    }
+		}
+	    }
 	}
-    for (p = 0; p < ndp+ndc; ++p)
-	deriv[p] *= -2;
-    Free(dcontrib); Free(dpmat); Free(pmat); Free(newintens); Free(x);
+    for (p = 0; p < ndp+ndc; ++p) {
+	deriv[p] *= -2;   /* above is dlogL/dtu as in Kalb+Law, we want
+			     deriv of -2 loglik  */
+	if (do_info) {
+	    for (q = 0; q < ndp+ndc; ++q) {
+		info[MI(p,q,ndp+ndc)] *= 2; /* above is E(-d2logL/dtudtv) as in Kalb+Law.
+					       we want second deriv of of -2 loglik */
+	    }
+	}
+    }
+    Free(pm); Free(dpm); Free(dpmat); Free(pmat); Free(newintens); Free(x);
+}
+
+/* Derivatives of the P matrix, used for the Pearson test p-value */
+/* Returns a ntrans * ntostates * npars matrix */
+/* Panel data only (obstype 1) */
+
+void dpmat_obs(msmdata *d, qmodel *qm, qcmodel *qcm,
+		 cmodel *cm, hmodel *hm, double *deriv)
+{
+    int pt, i, j, k, p, from, to, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
+    double *dpmat = Calloc(qm->nst * qm->nst * (ndp+ndc), double);
+    double *newintens = Calloc(np, double);
+    double *x = Calloc(qcm->ncovs[0], double);
+    double dt;
+
+    j=0;
+    for (pt = 0;  pt < d->npts; ++pt)
+	{
+	    R_CheckUserInterrupt();
+	    if (d->firstobs[pt+1] > d->firstobs[pt] + 1) { /* individual has more than one observation? */
+		for (i = d->firstobs[pt]+1; i < d->firstobs[pt+1]; ++i) {
+		    ++j;
+		    GetCovData(i, d->covobs, d->whichcov, x, qcm->ncovs[0], d->n);
+		    AddCovs(i, d->n, np, qcm->ncovs, qm->intens, newintens,
+			    qcm->coveffect, d->covobs, d->whichcov, &totcovs, log, exp);
+		    dt = d->time[i] - d->time[i-1];
+		    from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
+		    to = fprec(d->obs[i] - 1, 0);
+		    DPmat(dpmat, dt, x, newintens, qm->intens, qm->ivector, qm->nst, np, ndp, ndc,
+			  qm->constr, qcm->constr, qcm->wcov, (d->obstype[i] == OBS_EXACT));
+//		    printf("pt %d, obs %d, trans %d, from %d, to %d, ", pt, i, j, from, to);
+		    for (p = 0; p < ndp+ndc; ++p) {
+			for (k=0; k < qm->nst; ++k) {
+			    deriv[MI3(j-1,k,p,d->ntrans,qm->nst)] = dpmat[MI3(from, k, p, qm->nst, qm->nst)];
+//			    printf("%d %lf, ",MI3(j-1,k,p,d->ntrans,qm->nst),dpmat[MI3(from, k, p, qm->nst, qm->nst)]);
+			}
+		    }
+//		    printf("\n");
+		}
+	    }
+	}
+    Free(dpmat); Free(newintens); Free(x);
 }
 
 /* First derivatives of the likelihood for the non-hidden multi-state
@@ -683,12 +774,12 @@ void derivsimple_subj(msmdata *d, qmodel *qm, qcmodel *qcm,
 			cmodel *cm, hmodel *hm, double *deriv)
 {
     int pt, i, p, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
-    double *dcontrib = Calloc(ndp+ndc, double);
+    double *dpm = Calloc(ndp+ndc, double);
     double *dpmat = Calloc(qm->nst * qm->nst * (ndp+ndc), double);
     double *pmat = Calloc(qm->nst * qm->nst, double);
     double *newintens = Calloc(np, double);
     double *x = Calloc(qcm->ncovs[0], double);
-    double contrib=0, dt;
+    double pm=0, dt;
     int from, to;
     for (pt = 0;  pt < d->npts; ++pt){
 	{
@@ -697,31 +788,31 @@ void derivsimple_subj(msmdata *d, qmodel *qm, qcmodel *qcm,
 	      for (p = 0; p < ndp+ndc; ++p) {
 		deriv[MI(pt,p,d->npts)] = 0;
 	      }
-		for (i = d->firstobs[pt]+1; i < d->firstobs[pt+1]; ++i) {
-		    GetCovData(i, d->covobs, d->whichcov, x, qcm->ncovs[0], d->n);
+	      for (i = d->firstobs[pt]+1; i < d->firstobs[pt+1]; ++i) {
+		  GetCovData(i, d->covobs, d->whichcov, x, qcm->ncovs[0], d->n);
 		    AddCovs(i, d->n, np, qcm->ncovs, qm->intens, newintens,
 			    qcm->coveffect, d->covobs, d->whichcov, &totcovs, log, exp);
 
 		    dt = d->time[i] - d->time[i-1];
 		    from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
 		    to = fprec(d->obs[i] - 1, 0);
-		    Pmat(pmat, dt, newintens, qm->npars, qm->ivector, qm->nst, (d->obstype[i] == OBS_EXACT), qm->analyticp, qm->iso, qm->perm,  qm->qperm, 0);
+		    Pmat(pmat, dt, newintens, np, qm->ivector, qm->nst, (d->obstype[i] == OBS_EXACT), qm->analyticp, qm->iso, qm->perm,  qm->qperm, 0);
 		    DPmat(dpmat, dt, x, newintens, qm->intens, qm->ivector, qm->nst, np, ndp, ndc,
 			  qm->constr, qcm->constr, qcm->wcov, (d->obstype[i] == OBS_EXACT));
 		    if (d->obstype[i] == OBS_DEATH) {
-			contrib = pijdeath(from, to, pmat, newintens, qm->ivector, qm->nst);
+			pm = pijdeath(from, to, pmat, newintens, qm->ivector, qm->nst);
 			dpijdeath(from, to, x, dpmat, pmat, newintens, qm->intens, qm->ivector,
-				  qm->nst, qm->constr, qcm->constr, ndp, ndc, qcm->ncovs[0], dcontrib);
+				  qm->nst, qm->constr, qcm->constr, ndp, ndc, qcm->ncovs[0], dpm);
 		    }
 		    else {
-			contrib = pmat[MI(from, to, qm->nst)];
+			pm = pmat[MI(from, to, qm->nst)];
 			for (p = 0; p < ndp+ndc; ++p)
-			    dcontrib[p] = dpmat[MI3(from, to, p, qm->nst, qm->nst)];
+			    dpm[p] = dpmat[MI3(from, to, p, qm->nst, qm->nst)];
 		    }
 		    for (p = 0; p < ndp+ndc; ++p) {
-		      deriv[MI(pt,p,d->npts)] += dcontrib[p] / contrib; /* on loglik scale not -2*loglik */
+		      deriv[MI(pt,p,d->npts)] += dpm[p] / pm; /* on loglik scale not -2*loglik */
 #ifdef DEBUG
-		      printf("%d, %d, %d, %d, %d, %6.4f, %d, %lf, %lf\n", i, p, pt, from, to, dt, d->obstype[i], -2 * dcontrib[p] / contrib, -2*deriv[MI(pt,p,d->npts)]);
+		      printf("%d, %d, %d, %d, %d, %6.4f, %d, %lf, %lf\n", i, p, pt, from, to, dt, d->obstype[i], -2 * dpm[p] / pm, -2*deriv[MI(pt,p,d->npts)]);
 #endif
 		    }
 		}
@@ -732,7 +823,7 @@ void derivsimple_subj(msmdata *d, qmodel *qm, qcmodel *qcm,
 		deriv[MI(pt,p,d->npts)] = 0;
 	}
     }
-    Free(dcontrib); Free(dpmat); Free(pmat); Free(newintens); Free(x);
+    Free(dpm); Free(dpmat); Free(pmat); Free(newintens); Free(x);
 }
 
 /* Derivative of log-likelihood. Not available for hidden models or
@@ -742,7 +833,16 @@ void msmDLikelihood (msmdata *d, qmodel *qm, qcmodel *qcm,
 		     cmodel *cm, hmodel *hm,
 		     double *returned)
 {
-    derivsimple (d, qm, qcm, cm, hm, returned);
+    derivsimple (d, qm, qcm, cm, hm, returned, 0, 0);
+}
+
+/* Fisher information matrix */
+
+void msmInfoLikelihood (msmdata *d, qmodel *qm, qcmodel *qcm,
+			cmodel *cm, hmodel *hm,
+			double *returned_deriv, double *returned_info)
+{
+    derivsimple (d, qm, qcm, cm, hm, returned_deriv, 1, returned_info);
 }
 
 void msmDLikelihood_subj (msmdata *d, qmodel *qm, qcmodel *qcm,
@@ -750,6 +850,15 @@ void msmDLikelihood_subj (msmdata *d, qmodel *qm, qcmodel *qcm,
 		     double *returned)
 {
     derivsimple_subj (d, qm, qcm, cm, hm, returned);
+}
+
+/* Derivatives of the P matrix.  Used by Pearson test */
+
+void msmDPmat (msmdata *d, qmodel *qm, qcmodel *qcm,
+		     cmodel *cm, hmodel *hm,
+		     double *returned)
+{
+    dpmat_obs (d, qm, qcm, cm, hm, returned);
 }
 
 /* This function is called from R to provide an entry into C code for
@@ -772,6 +881,7 @@ void msmCEntry(
 	       double *covobsvec,  /* vectorised matrix of covariate data (by observation) used when calculating derivs by individual */
 	       int *whichcov,    /* which column in the covariate data each cov corresponds to */
 	       int *nocc,       /* Number of occurrences of each distinct combination */
+	       int *noccsum,    /* Number of those summed over tostate and replicated (for Fisher info) */
 	       int *whicha,   /* indicator for the from, to, time lag, covs combination corresponding to the current obs */
 	       int *obstype,   /* observation scheme, 1 snapshot, 2 exact, 3 death */
 
@@ -807,6 +917,7 @@ void msmCEntry(
 	       int *nobs,         /* number of observations in data set (hmm/cens) or number of aggregated transitions (standard) */
 	       int *n,         /* number of observations in data set (used for derivs by individual in standard models. no of rows of covobsvec) */
 	       int *npts,         /* number of individuals in data set */
+	       int *ntrans,         /* number of (disaggregated) transitions, equal to n - npts if at least two obs (one trans) per individual */
 	       int *ncovs,        /* number of covariates on transition rates */
 
 	       int *ncens,     /* number of distinct forms of censoring */
@@ -818,16 +929,18 @@ void msmCEntry(
 	       int *cconstraint, /* constraints for covariates. needed to calculate derivs */
 	       int *whichcovd,  /* which covariate each _distinct_ covariate parameter corresponds to */
 
-	       double *returned   /* returned -2 log likelihood , Viterbi fitted values, or predicted values */
+	       double *returned,   /* returned -2 log likelihood , derivatives or Viterbi fitted values */
+	       double *returned2   /* Fisher information if required */
 	       )
 {
   msmdata d; qmodel qm; qcmodel qcm; cmodel cm; hmodel hm;
 
   d.fromstate = fromstate;     d.tostate = tostate;     d.timelag = timelag;
-  d.cov = covvec;  d.covobs = covobsvec;  d.nocc = nocc;  d.whicha = whicha; d.obstype = obstype; d.obstrue = obstrue;
+  d.cov = covvec;  d.covobs = covobsvec;  d.nocc = nocc;  d.noccsum=noccsum;
+  d.whicha = whicha; d.obstype = obstype; d.obstrue = obstrue;
   d.whichcov = whichcov;  d.whichcovh = whichcovh;  d.whichcovi=whichcovi;
   d.subject = subjvec; d.time = timevec; d.obs = obsvec; d.firstobs = firstobs;
-  d.nobs = *nobs;  d.n = *n; d.npts = *npts;
+  d.nobs = *nobs;  d.n = *n; d.npts = *npts; d.ntrans = *ntrans;
 
   qm.nst = *nst; qm.npars = *nintens; qm.ndpars = *ndintens; qm.ivector = qvector; qm.intens = intens;
   qm.analyticp = *analyticp; qm.iso = *iso; qm.perm = perm; qm.qperm = qperm; qm.constr = qconstraint;
@@ -850,9 +963,7 @@ void msmCEntry(
   }
 
   else if (*do_what == 2) {
-/* TODO information matrix
-    msmInfoLikelihood(&d, &qm, &qcm, &cm, &hm, returned);
-*/
+      msmInfoLikelihood(&d, &qm, &qcm, &cm, &hm, returned, returned2);
   }
 
   else if (*do_what == 3) {
@@ -861,5 +972,9 @@ void msmCEntry(
 
   else if (*do_what == 4) {
     Viterbi(&d, &qm, &qcm, &cm, &hm, returned);
+  }
+
+  else if (*do_what == 5) {
+    msmDPmat(&d, &qm, &qcm, &cm, &hm, returned);
   }
 }

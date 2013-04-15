@@ -93,7 +93,7 @@ print.summary.msm <- function(x,...)
     invisible()
 }
 
-### Estimated survival probability from each state 
+### Estimated survival probability from each state
 
 plot.msm <- function(x, from=NULL, to=NULL, range=NULL, covariates="mean", legend.pos=NULL, xlab="Time", ylab="Fitted survival probability", lwd=1,...)
 {
@@ -160,10 +160,10 @@ plotprog.msm <- function(formula, subject, data, legend.pos=NULL, xlab="Time", y
         st <- as.data.frame(
                             do.call("rbind", by(dat, subject, function(x)
                                             {
-                                                c(anystate = if(any(x[,"state"]>=i)) 1 else 0, 
+                                                c(anystate = if(any(x[,"state"]>=i)) 1 else 0,
                                                   mintime = if(any(x[,"state"]>=i)) min(x[x[,"state"] >= i, "time"]) else max(x[,"time"]))
                                             }
-                                                ))) # slow 
+                                                ))) # slow
         lines(survfit(Surv(st$mintime,st$anystate) ~ 1),
               col=cols[i-1], lty=i-1, lwd=lwd, mark.time=mark.time, ...)
     }
@@ -249,7 +249,7 @@ expand.interactions.msm <- function(covariates, covlabels){
 ### contrasts.  For example, for a categorical covariate "smoke" with
 ### three levels "NON","CURRENT","EX", with baseline level "NON",
 ### convert list(smoke="CURRENT") to list(smokeCURRENT=1, smokeEX=0)
-### Any unspecified covariate values are set to zero. 
+### Any unspecified covariate values are set to zero.
 ### Any unknown covariates are dropped with a warning.
 
 ### covlabels includes interactions
@@ -293,7 +293,7 @@ factorcov2numeric.msm <- function(covariates, x, intmisc="intens") {
 qmatrix.msm <- function(x, # fitted msm model
                         covariates = "mean",  # covariate values to calculate transition matrix for
                         sojourn = FALSE,      # also calculate mean sojourn times and their standard errors
-                        ci=c("delta","normal","bootstrap","none"), 
+                        ci=c("delta","normal","bootstrap","none"),
                         cl=0.95,
                         B=1000
                         )
@@ -306,7 +306,7 @@ qmatrix.msm <- function(x, # fitted msm model
 
 ematrix.msm <- function(x,
                         covariates = "mean",
-                        ci=c("delta","normal","bootstrap","none"), 
+                        ci=c("delta","normal","bootstrap","none"),
                         cl=0.95, B=1000)
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
@@ -358,18 +358,18 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
         warning(paste("Ignoring covariates - no covariates in model for",
                       if (intmisc=="intens") "transition intensities" else "misclassification probabilities"))
 
-    covs.orig <- covariates # with factors as labels 
+    covs.orig <- covariates # with factors as labels
     if (nc > 0) {
         if (!is.list(covariates)) {
-            if (covariates == 0 && x$center) # if no centering, then can't end up in this block, as no need to adjust. 
+            if (covariates == 0 && x$center) # if no centering, then can't end up in this block, as no need to adjust.
             {covariates <- list();  for (i in 1 : nc) covariates[[covlabels[i]]] <- 0}
-            else if (covariates == "mean" && !x$center) # if center, then can't end up in this block, as no need to adjust. 
+            else if (covariates == "mean" && !x$center) # if center, then can't end up in this block, as no need to adjust.
             {covariates <- list();  for (i in 1 : nc) covariates[[covlabels[i]]] <- covmeans[i]}
             else stop("covariates argument must be 0, \"mean\", or a list of values for each named covariate")
         }
         else {
-            ## Check supplied list of covariate values, convert factors to numeric contrasts, expand interactions, set unknown values to zero. 
-            ## Maybe merge above block of code with this? tidy up other calls e.g. qratio.se, qmatrix.diagse? 
+            ## Check supplied list of covariate values, convert factors to numeric contrasts, expand interactions, set unknown values to zero.
+            ## Maybe merge above block of code with this? tidy up other calls e.g. qratio.se, qmatrix.diagse?
             covariates <- factorcov2numeric.msm(covariates, x, intmisc)
         }
         if (intmisc=="intens"){
@@ -397,14 +397,14 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
 
     ci <- match.arg(ci)
     if (x$foundse && (ci!="none")) {
-        if (ci == "delta") { 
+        if (ci == "delta") {
             ## Work out standard errors.
             ## Transformation for delta method is (intensities)
             ##  exp (x1 + x2 (cov1 - covmean1) + x3 (cov2 - covmean2) + ... )
             ## expit(sum covs)  / (1 + expit(sum(covs)))    or   1  /  (1  +  expit(sum(covs)))
             ## Use delta method to find approximate SE of the transform on log scale
             ## Work out a CI for this by assuming normal and transforming back
-            coefs <- if (nc==0) 1 else c(1, if (x$center) unlist(covariates) - covmeans else unlist(covariates))            
+            coefs <- if (nc==0) 1 else c(1, if (x$center) unlist(covariates) - covmeans else unlist(covariates))
             semat <- lsemat <- lmat <- umat <- matrix(0, nst, nst)
             if (intmisc=="intens") {
                 form <- as.formula(paste("~", expsum(seq(nc + 1), coefs)))
@@ -454,7 +454,7 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
                 qematrix.normci.msm(x, covs.orig, intmisc, sojourn, cl, B) else qematrix.ci.msm(x, covs.orig, intmisc, sojourn, cl, B)
             if (sojourn) {
                 soj.ci <- q.ci$soj
-                q.ci <- q.ci$q                
+                q.ci <- q.ci$q
                 sojl <- soj.ci[1,]; soju <- soj.ci[2,]; sojse <- soj.ci[3,]
             }
             lmat <- q.ci[,,1]; umat <- q.ci[,,2]; semat <- q.ci[,,3]
@@ -486,14 +486,14 @@ print.msm.est.cols <- function(x, digits=NULL, diag=TRUE, ...)
 {
     inc <- if (diag) (x$estimates>0 | x$estimates<0) else (x$estimates>0)
     res <- cbind(x$estimates[inc], x$L[inc], x$U[inc])
-    rn <- rownames(x$estimates)[row(inc)[inc]]    
+    rn <- rownames(x$estimates)[row(inc)[inc]]
     cn <- colnames(x$estimates)[col(inc)[inc]]
     rownames(res) <- paste(rn, cn, sep="-")
     colnames(res) <- c("Estimate", "LCL", "UCL")
     res
 }
 
-"[.msm.est" <- function(x, i, j, drop=FALSE){    
+"[.msm.est" <- function(x, i, j, drop=FALSE){
     Narg <- nargs() - (!missing(drop)) # number of args including x, excluding drop
     if ((missing(i) && missing(j)))
         res <- x
@@ -502,7 +502,7 @@ print.msm.est.cols <- function(x, digits=NULL, diag=TRUE, ...)
     else {
         if (missing(j) && (Narg==2))
             stop("Two dimensions must be supplied, found only one")
-        if ("SE" %in% names(x)) { 
+        if ("SE" %in% names(x)) {
             x <- array(unlist(x), dim=c(dim(x[[1]]),4))
             dimnames(x) <- list(rownames(x[[1]]), colnames(x[[1]]), c("estimate","SE","lower","upper"))
         }
@@ -544,7 +544,7 @@ qmatrix.diagse.msm <- function(x, covariates="mean", sojourn, ni, ivector, nc, c
     cur.i <- 1
     if (covariates == 0 && nc > 0)
     {covariates <- list();  for (i in 1 : nc) covariates[[covlabels[i]]] <- 0}
-    coefs <- if (nc==0) 1 else c(1, if (x$center) unlist(covariates) - covmeans else unlist(covariates))            
+    coefs <- if (nc==0) 1 else c(1, if (x$center) unlist(covariates) - covmeans else unlist(covariates))
     for (i in 1:nst){
         ## Transformation for delta method is
         ## exp(x1 + x2 (cov1 - covmean1) + x3 (cov2 - covmean2) + ... ) +
@@ -687,7 +687,7 @@ qratio.msm <- function(x, ind1, ind2,
         estimate <- q[ind1[1], ind1[2]]  /  q[ind2[1], ind2[2]]
         ci <- match.arg(ci)
         if (x$foundse && (ci != "none")) {
-            if (ci == "delta") { 
+            if (ci == "delta") {
                 se <- qratio.se.msm(x, ind1, ind2, covariates, cl)$se
                 lse <- qratio.se.msm(x, ind1, ind2, covariates, cl)$lse
                 L <- exp ( log(abs(estimate)) - sign(estimate)*qnorm(1 - 0.5*(1 - cl)) * lse ) * sign(estimate)
@@ -700,7 +700,7 @@ qratio.msm <- function(x, ind1, ind2,
             else if (ci=="bootstrap") {
                 q.ci <- qratio.ci.msm(x, ind1, ind2, covariates, cl, B)
                 L <- q.ci[1]; U <- q.ci[2]; se=q.ci[3]
-            }         
+            }
         }
         else {se <- L <- U <- NULL}
     }
@@ -817,11 +817,11 @@ pmatrix.msm <- function(x, # fitted msm model
                        normal = pmatrix.normci.msm(x=x, t=t, t1=t1, covariates=covariates, cl=cl, B=B),
                        none = NULL)
         res <- if (ci=="none") p else list(estimates = p, L=p.ci[,,1], U=p.ci[,,2])
-    }    
+    }
     else {
         piecewise.covariates <- msm.fill.pci.covs(x, covariates)
         res <- pmatrix.piecewise.msm(x, t1, t1 + t, x$pci, piecewise.covariates, ci, cl, B, ...)
-    } 
+    }
     class(res) <- "msm.est"
     res
 }
@@ -895,15 +895,15 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
     res
 }
 
-### Make a list of covariate lists to supply to pmatrix.piecewise.msm for models with "pci" time-dependent intensities. 
-### One for each time period, with time constant covariates replicated. 
+### Make a list of covariate lists to supply to pmatrix.piecewise.msm for models with "pci" time-dependent intensities.
+### One for each time period, with time constant covariates replicated.
 ### For use in model assessment functions
-### Returns factor covariates as contrasts, not factor levels. 
+### Returns factor covariates as contrasts, not factor levels.
 
 msm.fill.pci.covs <- function(x, covariates="mean"){
     nc <- x$qcmodel$ncovs
     ## indices of covariates representing time periods
-    ti <- grep("timeperiod\\[.+\\)", x$qcmodel$covlabels) 
+    ti <- grep("timeperiod\\[.+\\)", x$qcmodel$covlabels)
     ni <- setdiff(1:nc, ti) # indices of other covariates
     covlist <- vector(nc, mode="list")
     names(covlist) <- x$qcmodel$covlabels
@@ -936,7 +936,7 @@ msm.fill.pci.covs <- function(x, covariates="mean"){
         covlistlist[[i+1]][[ti[i]]] <- 1
     }
     covlistlist
-} 
+}
 
 
 ### Extract the mean sojourn times for given covariate values
@@ -959,7 +959,7 @@ sojourn.msm <- function(x, covariates = "mean", ci=c("delta","normal","bootstrap
 }
 
 
-### Extract the probabilities of occupying each state next 
+### Extract the probabilities of occupying each state next
 
 pnext.msm <- function(x, covariates="mean", ci=c("delta","normal","bootstrap","none"), cl=0.95, B=1000)
 {
@@ -1027,7 +1027,7 @@ lrtest.msm <- function(...){
             stop("Expected argument",i,"to be a msm object")
         ly <- logLik(mods[[i]])
         lr <- as.numeric(-2 * (lx - ly))
-        df <- attr(ly,"df") - attr(lx,"df")    
+        df <- attr(ly,"df") - attr(lx,"df")
         res[i-1,] <- c(lr, df, 1 - pchisq(lr, df))
     }
     res
@@ -1049,7 +1049,7 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
         stop("fromt and tot must be single non-negative numbers")
     if (fromt > tot) stop("tot must be greater than fromt")
     if (length(absorbing.msm(x)) == 0)
-        if (tot==Inf) stop("Must specify a finite end time for a model with no absorbing state")    
+        if (tot==Inf) stop("Must specify a finite end time for a model with no absorbing state")
     tr <- seq(length=x$qmodel$nstates) # transient.msm(x)
     totlos <- numeric(length(end))
     if (tot==Inf) {
@@ -1061,7 +1061,7 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
         f <- function(time) {
             y <- numeric(length(time))
             for (i in seq(along=y))
-                y[i] <- pmatrix.msm(x, time[i], covariates=covariates, ci="none")[start,end[j]]
+                y[i] <- pmatrix.msm(x, time[i], t1=fromt, covariates=covariates, ci="none")[start,end[j]]
             y
         }
         totlos[j] <- integrate(f, fromt, tot, ...)$value
@@ -1069,8 +1069,8 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
     names(totlos) <- rownames(x$qmodel$qmatrix)[end]
     ci <- match.arg(ci)
     t.ci <- switch(ci,
-                   bootstrap = totlos.ci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B),
-                   normal = totlos.normci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B),
+                   bootstrap = totlos.ci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B, ...),
+                   normal = totlos.normci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B, ...),
                    none = NULL)
     if (ci=="none") totlos else rbind(totlos, t.ci)
 }
@@ -1124,9 +1124,9 @@ intervaltrans.msm <- function(x=NULL, qmatrix=NULL, ematrix=NULL, exclude.absabs
     }
     else if (is.null(qmatrix))
         stop("Neither a fitted msm model nor a qmatrix have been supplied")
-    P <- MatrixExp(qmatrix) 
+    P <- MatrixExp(qmatrix)
     if (!is.null(ematrix))
-        P <- t(ematrix) %*% P %*% ematrix # > 0 iff P(obs state=s | prev obs state = r) > 0 
+        P <- t(ematrix) %*% P %*% ematrix # > 0 iff P(obs state=s | prev obs state = r) > 0
     ## P(obs state = s | obs prev = r)  =  Sum_ij  P(obsst = s | truest = j) P(truest = j | trueprev = i) P(trueprev = i | obsprev = r)
     ##  Sum_ij   Ejs Pij Eir    =  Eir Pij Ejs
     gt0 <- abs(P) > .Machine$double.eps ^ 0.5
@@ -1266,13 +1266,13 @@ expected.msm <- function(x,
     dimnames(exptab) <- list(times, c(rownames(x$qmodel$qmatrix),"Total"))
     expperc <- 100*exptab[,1:x$qmodel$nstates] / exptab[, x$qmodel$nstates+1]
 
-    ci <- match.arg(ci)    
+    ci <- match.arg(ci)
     e.ci <- switch(ci,
                    bootstrap = expected.ci.msm(x, times, timezero, initstates, covariates, misccovariates,
                    piecewise.times, piecewise.covariates, risk, cl, B),
                    normal = expected.normci.msm(x, times, timezero, initstates, covariates, misccovariates,
                    piecewise.times, piecewise.covariates, risk, cl, B),
-                   none = NULL)    
+                   none = NULL)
     res <-
         if (ci=="none") list(exptab=exptab, expperc=expperc)
         else list(exptab=list(estimates=exptab, ci=e.ci[[1]]),
@@ -1334,7 +1334,7 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
     nrows <- if (floor(sqrt(S))^2 < S && S <= floor(sqrt(S))*ceiling(sqrt(S))) floor(sqrt(S)) else ceiling(sqrt(S))
     par(mfrow=c(nrows, ncols))
     for (i in states) {
-        plot(t, obs$obsperc[,i], type="l", ylim=c(0, 100), xlab=xlab, ylab=ylab, lwd=lwd.obs, lty=lty.obs, col=col.obs, 
+        plot(t, obs$obsperc[,i], type="l", ylim=c(0, 100), xlab=xlab, ylab=ylab, lwd=lwd.obs, lty=lty.obs, col=col.obs,
              main=rownames(x$qmodel$qmatrix)[i],...)
         lines(t, expec[,i], lwd=lwd.exp, lty=lty.exp, col=col.exp)
     }
@@ -1344,11 +1344,11 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
     invisible()
 }
 
-### Empirical versus fitted survival curve 
+### Empirical versus fitted survival curve
 
 plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean", interp=c("start","midpoint"), ci=c("none","normal","bootstrap"), B=100,
                              legend.pos=NULL, xlab="Time", ylab="Survival probability",
-                             lty=1, lwd=1, col="red", lty.ci=2, lwd.ci=1, col.ci="red", 
+                             lty=1, lwd=1, col="red", lty.ci=2, lwd.ci=1, col.ci="red",
                              mark.time=TRUE, col.surv="blue", lty.surv=2, lwd.surv=1,
                              ...) {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
@@ -1372,7 +1372,7 @@ plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean", 
 
     for (t in times) {
         P <- pmatrix.msm(x, t, t1=times[1], covariates=covariates, ci=ci, B=B)
-        if (ci != "none") { 
+        if (ci != "none") {
             pr <- c(pr, P$estimates[from, to])
             lower <- c(lower, P$L[from, to])
             upper <- c(upper, P$U[from, to])
@@ -1395,7 +1395,7 @@ plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean", 
                                             else mintime <- max(x[,"time"])
                                             c(anystate = as.numeric(any(x[,"state"]==to)), mintime = mintime)
                                         }
-                                            ))) # slow 
+                                            ))) # slow
     lines(survfit(Surv(st$mintime,st$anystate) ~ 1), mark.time=mark.time, col=col.surv, lty=lty.surv, lwd=lwd.surv,...)
     timediff <- (rg[2] - rg[1]) / 50
     if (!is.numeric(legend.pos) || length(legend.pos) != 2)
@@ -1504,7 +1504,7 @@ viterbi.msm <- function(x)
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
     if (x$cmodel$ncens > 0 && !x$hmodel$hidden) {
         ## If censoring but not HMM, then define an identity HMM with
-        ## true state known at every time except censoring times      
+        ## true state known at every time except censoring times
         hmod <- vector(x$qmodel$nstates, mode="list")
         for (i in 1:x$qmodel$nstates)
             hmod[[i]] <- hmmIdent(i)
@@ -1546,6 +1546,7 @@ viterbi.msm <- function(x)
                   as.double(unlist(x$data$cov)),
                   as.integer(x$data$covdata$whichcov), # this is really part of the model
                   as.integer(x$data$nocc),
+                  as.integer(x$data$noccsum),
                   as.integer(x$data$whicha),
                   as.integer(x$data$obstype),
 
@@ -1582,6 +1583,7 @@ viterbi.msm <- function(x)
                   as.integer(x$data$nobs),
                   as.integer(x$data$n),
                   as.integer(x$data$npts),  # HMM only
+                  as.integer(x$data$ntrans),
                   as.integer(rep(x$qcmodel$ncovs, x$qmodel$npars)),
 
                   as.integer(x$cmodel$ncens),
@@ -1619,4 +1621,53 @@ scoreresid.msm <- function(x, plot=FALSE){
         text(seq(along=sres), sres, names(sres))
     }
     sres
+}
+
+# Function to calculate expected first passage times for continuous-time Markov chain with arbitrary Q matrix
+# Returns vector with EFPT for each "from" state in the state space.
+# Could also get CDF simply by making tostate absorbing and calculating pmatrix.
+
+efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
+                     ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000)
+{
+    ci <- match.arg(ci)
+    if (!is.null(x)) {
+        if (!inherits(x, "msm")) stop("expected x to be a msm model")
+        qmatrix <- qmatrix.msm(x, covariates=covariates, ci="none")
+    }
+    else if (!is.null(qmatrix)) {
+        if (!is.matrix(qmatrix) || (nrow(qmatrix) != ncol(qmatrix)))
+            stop("expected qmatrix to be a square matrix")
+        if (ci != "none") {warning("No fitted model supplied: not calculating confidence intervals."); ci <- "none"}
+    }
+    est <- rep(NA, nrow(qmatrix))
+    ## EFPT is zero if we're already in tostate
+    est[tostate] <- 0
+    abstate <- absorbing.msm(qmatrix=qmatrix)
+    ## EFPT is infinite for other absorbing states
+    est[setdiff(abstate,tostate)] <- Inf
+    fromstate <- setdiff(1:nrow(qmatrix), union(abstate,tostate))
+    
+    ## EFPT is infinite if any chance of absorbing elsewhere before
+    ## hitting tostate.  To calculate this, form Q matrix with tostate
+    ## made absorbing, and look at P matrix in unit time.
+    Qred <- qmatrix; Qred[tostate,] <- 0
+    Pmat <- MatrixExp(Qred)
+    Pmat[Pmat < 1e-16] <- 0
+    p.abs <- rowSums(Pmat[fromstate,setdiff(abstate,tostate),drop=FALSE])
+    est[fromstate][p.abs>0] <- Inf
+
+    ## Any states left from which EFPT to tostate is nonzero and finite.
+    ## Use standard linear equation solution
+    ## see, e.g. equation (3) of Harrison and Knottenbelt (2001)
+    if (any(is.na(est))){
+        fromstate <- which(is.na(est))
+        Q <- as.matrix(qmatrix[fromstate, fromstate])
+        est[fromstate] <- solve(-Q, rep(1,nrow(Q)))
+    }
+    e.ci <- switch(ci,
+                   bootstrap = efpt.ci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
+                   normal = efpt.normci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
+                   none = NULL)
+    if (ci=="none") est else rbind(est, e.ci)
 }
