@@ -1,7 +1,7 @@
 2013-04-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: New function efpt.msm for expected first passage
-	times for time-homogeneous models.  Thanks to Howard Thom for the 
+	times for time-homogeneous models.  Thanks to Howard Thom for the
 	research.
 
 	* R/outputs.R: totlos.msm now passes options to integrate() to
@@ -26,7 +26,7 @@
 	included from-states.
 
 	* R/simul.R: Include an option to simmulti.msm (and getobs.msm) to
-	not drop absorbing-absorbing transitions.  
+	not drop absorbing-absorbing transitions.
 
 2013-03-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

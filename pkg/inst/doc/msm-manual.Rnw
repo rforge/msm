@@ -18,7 +18,8 @@
 \newcommand{\Rclass}[1]{{\textit{#1}}}
 
 <<echo=FALSE>>=
-version <- gsub("Version: +", "", packageDescription("msm", lib.loc="~/work/msm")$Version)
+version <- gsub("Version: +", "",
+                packageDescription("msm", lib.loc="../../..")$Version)
 @
 
 \title{Multi-state modelling with R: the {\tt msm} package \vskip 0.2in
@@ -32,7 +33,7 @@ cat(format(Sys.time(), "%d %B, %Y"))
 @
 }}
 \author{Christopher Jackson\\Medical Research Council Biostatistics Unit\\Cambridge, U.K.\\ \texttt{chris.jackson@mrc-bsu.cam.ac.uk}}
-\date{} 
+\date{}
 %% label with date when Rnw is compiled, not when tex is compiled. should be release date of package
 
 \bibliographystyle{unsrt}
@@ -264,9 +265,9 @@ the parameters of the sampling scheme.
 
 In particular, they showed that fixed, random and doctor's care
 observation policies are not informative, whereas patient
-self-selection is informative.   Note that \Rpackage{msm} does not 
+self-selection is informative.   Note that \Rpackage{msm} does not
 deal with informative sampling times. See, e.g. \cite{sweeting:inform:msm}
-for some methods in this case, which require specialised programming. 
+for some methods in this case, which require specialised programming.
 
 \begin{figure}[p]
   \begin{center}
@@ -901,9 +902,9 @@ If the data do not also contain
 then all the observations are assumed to be from the same subject.
 The subject ID does not need to be numeric, but data must be grouped
 by subject, and observations must be ordered by time within subjects.
-If the model includes variables with missing values, then the corresponding 
-observations  are omitted by \Rfunction{msm} with a warning.  If you have missing data, 
-as in any statistical model, it is recommended to ensure these do not 
+If the model includes variables with missing values, then the corresponding
+observations  are omitted by \Rfunction{msm} with a warning.  If you have missing data,
+as in any statistical model, it is recommended to ensure these do not
 result in biases.
 
 An example data set, taken from monitoring a set of heart transplant
@@ -1046,10 +1047,10 @@ that the mean period in each state before moving to the next is about
 2 years, and there is an equal probability of progression, recovery or
 death.  This gives $q_{rr} = - 0.5$ for $r = 1, 2, 3$, and $q_{12} =
 q_{14} = 0.25$, $q_{21} = q_{23} = q_{24} = 0.166$, $q_{32} = q_{34} =
-0.25$, and the initial value matrix \Robject{twoway4.q} shown above, 
-which we now use to fit the model. 
+0.25$, and the initial value matrix \Robject{twoway4.q} shown above,
+which we now use to fit the model.
 
-%% TODO explain about gen.inits=TRUE here 
+%% TODO explain about gen.inits=TRUE here
 
 \subsection{Running \Rfunction{msm}}
 \label{sec:running}
@@ -1069,8 +1070,8 @@ cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
 In this example the day of death is assumed to be recorded exactly, as
 is usual in studies of chronic diseases.  At the previous instant
 before death the state of the patient is unknown.  Thus we specify
-\Rfunarg{death = 4}, to indicate to \Rfunction{msm} that the 
-entry times into state 4 are observed in this manner. 
+\Rfunarg{death = 4}, to indicate to \Rfunction{msm} that the
+entry times into state 4 are observed in this manner.
 If the model had
 five states, and states 4 and 5 were two competing causes of death with
 times recorded exactly in this way, then we would specify \Rfunarg{death =
@@ -1293,7 +1294,7 @@ pmatrix.msm(cav.msm, t=10)
   likelihood estimates and covariance matrix, and transforming.  If
   \Rfunarg{ci=''boot''} is specified, then a bootstrap confidence
   interval for the transition probability matrix is calculated (see Section~\ref{sec:boot}) .
-  However, both of these are computationally intensive, particularly 
+  However, both of these are computationally intensive, particularly
   the bootstrap method, so no confidence interval is calculated by default.
 
 \item[Mean sojourn times] The function \Rfunction{sojourn.msm}
@@ -1310,9 +1311,9 @@ sojourn.msm(cav.msm)
   \Rfunction{pnext.msm} extracts the matrix of probabilities $-q_{rs}
   / q_{rr}$ that the next state after state $r$ is state $s$, for each
   $r$ and $s$.  Together with the mean sojourn times, this gives a more
-  intuitive parameterisation of a continuous-time Markov model than 
-  the raw transition intensities $q_{rs}$.  Note these are different from 
-  the transition probabilities in a given time $t$ returned by 
+  intuitive parameterisation of a continuous-time Markov model than
+  the raw transition intensities $q_{rs}$.  Note these are different from
+  the transition probabilities in a given time $t$ returned by
   \Rfunction{pmatrix.msm}.
 
 <<>>=
@@ -1346,7 +1347,7 @@ totlos.msm(cav.msm)
 @
 
 \item[Expected first passage times] The function \Rfunction{efpt.msm} estimates
-  the expected time until the process first enters a given state or set of states, 
+  the expected time until the process first enters a given state or set of states,
   also called the ``hitting time''.  See its help page for further details.
 
 \item[Ratio of transition intensities] The function
@@ -1565,11 +1566,11 @@ maximum likelihood, or it may be close to the maximum.
   the ``BFGS'' method of \Rfunction{optim}, which can make use of
   analytic derivatives, for example, \Rfunarg{method = ``BFGS'', use.deriv = TRUE}.
   Or use the \Rfunction{nlm} R function via \Rfunarg{msm(..., opt.method = "nlm" , ...)}
-  Note also the Fisher scoring method available for non-hidden Markov 
-  models for panel data, via  \Rfunarg{msm(..., opt.method = "fisher", ...)}, 
-  is expected to be faster than the generic methods, but less robust to 
-  bad initial values. 
-  
+  Note also the Fisher scoring method available for non-hidden Markov
+  models for panel data, via  \Rfunarg{msm(..., opt.method = "fisher", ...)},
+  is expected to be faster than the generic methods, but less robust to
+  bad initial values.
+
 \item[Model simplification]
 
   If none of these numerical adjustments lead to convergence, then the
@@ -1640,7 +1641,7 @@ percentages at two-yearly intervals up to 20 years after transplant,
 for the heart transplant model \Rfunction{cav.msm}.  The number of
 individuals still alive and under observation decreases from 622 to
 251 at year 20.  The observed and expected percentages are plotted
-against time.   
+against time.
 
 <<>>=
 options(digits=3)
@@ -1690,7 +1691,7 @@ available in the data supplied with \Rpackage{msm}.
 
 
 \paragraph{Pearson-type goodness-of-fit test}
-\label{sec:pearson} 
+\label{sec:pearson}
 
 Suppose that the true transition times are unknown, and data consist
 of observations of the process at arbitrary times which differ between
@@ -1739,8 +1740,8 @@ the number of estimated parameters $p$. But the null distribution of
 $T$ is not exactly $\chi^2$, since the time intervals are
 non-identical, therefore the observed transitions are realizations
 from a set of independent but non-identical multinomial distributions.
-Titman~\cite{titman:asympnull} showed that the null distribution 
-of $T$ is asymptotically approximated by a weighted sum of $\chi^2_1$ 
+Titman~\cite{titman:asympnull} showed that the null distribution
+of $T$ is asymptotically approximated by a weighted sum of $\chi^2_1$
 random variables.   Aguirre-Hernandez and Farewell~\cite{ahf} also showed that $\chi^2_{n-p}$
 is a good approximation if there are no fitted covariates. For models
 with covariates, the null mean of $T$ is higher than $n - p$, but
@@ -1762,7 +1763,7 @@ panel-data observation scheme:
 \item An individual's final observation is censored, so that they are
   only known to be alive at that point.
 
-\item States are misclassified. 
+\item States are misclassified.
 \end{itemize}
 
 The \Rpackage{msm} package provides the function
@@ -1770,7 +1771,7 @@ The \Rpackage{msm} package provides the function
 three groups are used for each of $h$, $l_h$ and $c$.  Often the
 number of groups will need to be reduced in cases where the resulting
 contingency tables are sparse (thus there are several low expected
-counts and the variance of $T$ is inflated). 
+counts and the variance of $T$ is inflated).
 
 The test is now performed on the model \Robject{cav.msm} for the heart
 transplant dataset (a version of which was also analysed by
@@ -2022,7 +2023,7 @@ odds.msm(cavmiscsex.msm)
   transition intensities gave a greatly improved fit to these data.
 <<>>=
 pearson.msm(cavmisc.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
-@ 
+@
 
 
 \end{description}
@@ -2547,7 +2548,7 @@ For a detailed list of the changes in recent versions of
 \Rpackage{msm}, see the \texttt{NEWS} file in the top-level directory
 of the installed package.  The \texttt{Changelog} file in the
 top-level directory of the source package contains more technical
-detail about these changes. 
+detail about these changes.
 
 \section{Get in touch}
 
