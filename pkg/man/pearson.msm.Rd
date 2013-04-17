@@ -148,7 +148,7 @@ pearson.msm(x, transitions=NULL, timegroups=3, intervalgroups=3,
 
 
 
-  \item{\code{"test"}}{, the fourth element of the list, is a data frame with one row containing
+  \item{\code{"test"}}{the fourth element of the list, is a data frame with one row containing
   the Pearson-type goodness-of-fit test statistic \code{stat}.  The test statistic is the sum of the deviances.
   For panel-observed data without exact death times, 
   misclassification or censored observations, \code{p} is the
@@ -158,7 +158,7 @@ pearson.msm(x, transitions=NULL, timegroups=3, intervalgroups=3,
   For these models, for comparison with older versions of the package,
   \code{test} also presents \code{p.lower} and \code{p.upper}, which are
   theoretical lower and upper limits for the p-value of the test
-  statistic, based on chi-squared distributions with \code{df.lower} and
+  statistic, based on \ifelse{latex}{\eqn{\chi^2}}{chi-squared} distributions with \code{df.lower} and
   \code{df.upper} degrees of freedom, respectively.  \code{df.upper} is
   the number of independent cells in the contingency table, and
   \code{df.lower} is \code{df.upper} minus the number of estimated
@@ -177,7 +177,7 @@ pearson.msm(x, transitions=NULL, timegroups=3, intervalgroups=3,
 
   With exact death times, the null variance of the test statistic (formed
   by taking mean of simulated test statistics) is less than twice the
-  mean (Titman, 2008), and the null distribution is not chi-squared.
+  mean (Titman, 2008), and the null distribution is not \ifelse{latex}{\eqn{\chi^2}}{chi-squared}.
   In this case, \code{p.upper} is an upper limit for the true asymptotic
   p-value, but \code{p.lower} is not a lower limit, and is not presented.}
 
@@ -187,7 +187,7 @@ pearson.msm(x, transitions=NULL, timegroups=3, intervalgroups=3,
 
   \item{\code{"lambda"}}{If the Titman (2009) p-value has been
   calculated, this contains the weights defining the null distribution
-  of the test statistic as a weighted sum of chi-squared(1) random variables (not printed by default).}
+  of the test statistic as a weighted sum of \ifelse{latex}{\eqn{\chi^2_1}}{chi-squared(1)} random variables (not printed by default).}
 }
 \details{
   This method (Aguirre-Hernandez and Farewell, 2002) is intended for
@@ -243,7 +243,7 @@ pearson.msm(x, transitions=NULL, timegroups=3, intervalgroups=3,
   systems. PhD thesis, University of Cambridge.
 }
 \seealso{
-  \code{\link{msm}},\code{\link{prevalence.msm}},\code{\link{scoreresid.msm}},
+  \code{\link{msm}}, \code{\link{prevalence.msm}}, \code{\link{scoreresid.msm}},
 }
 \examples{
 data(psor)
@@ -258,7 +258,7 @@ pearson.msm(psor.msm, timegroups=2, intervalgroups=2, covgroups=2)
 # A random effects model might accommodate such fast progressors.
 }
 \author{
-  Andrew Titman (\email{a.titman@lancaster.ac.uk}),
-  Chris Jackson (\email{chris.jackson@mrc-bsu.cam.ac.uk})
+  Andrew Titman \email{a.titman@lancaster.ac.uk}, 
+  Chris Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}
 }
 \keyword{models}

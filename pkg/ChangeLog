@@ -26,9 +26,7 @@
 	included from-states.
 
 	* R/simul.R: Include an option to simmulti.msm (and getobs.msm) to
-	not drop absorbing-absorbing transitions.  Used to adjust length
-	of user-defined groups to match simulated datasets in Pearson
-	bootstrapping.
+	not drop absorbing-absorbing transitions.  
 
 2013-03-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

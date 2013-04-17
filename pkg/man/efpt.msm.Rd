@@ -2,7 +2,8 @@
 \alias{efpt.msm}
 \title{Expected first passage time}
 \description{
-  Expected time until first reaching a particular state in a Markov model.
+  Expected time until first reaching a particular state or set of states
+  in a Markov model.
 }
 \usage{
 efpt.msm(x=NULL, qmatrix=NULL, tostate, covariates="mean",
@@ -44,14 +45,15 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, covariates="mean",
   desired state.
 }
 \details{
-  The expected first passage times from each of a set of states \eqn{i}
-  to to the remaining set of states \eqn{\overline{i}}{ibar} in the
+  The expected first passage times from each of a set of states
+  \eqn{\mathbf{i}}{i}
+  to to the remaining set of states \eqn{\overline{\mathbf{i}}}{ibar} in the
   state space, for a model with transition intensity matrix \eqn{Q}, are
 
-  \deqn{-Q_{i,i}^{-1} \mathbf{1}}{-Q_{i,i}^{-1} 1}
+  \deqn{-Q_{\mathbf{i},\mathbf{i}}^{-1} \mathbf{1}}{-Q_{i,i}^{-1} 1}
 
-  where \eqn{\mathbf{1}}{1} is a vector of ones, and \eqn{Q_{i,i}}
-  is the square subset of \eqn{Q} pertaining to states \eqn{i}.
+  where \eqn{\mathbf{1}}{1} is a vector of ones, and \eqn{Q_{\mathbf{i},\mathbf{i}}}
+  is the square subset of \eqn{Q} pertaining to states \eqn{\mathbf{i}}.
 
   It is equal to the sum of mean sojourn times for all states
   between the "from" and "to" states in a unidirectional model.
@@ -73,6 +75,9 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, covariates="mean",
   corresponding transition probability matrix \eqn{Exp(Qt)} then gives
   the probabilities of having hit or passed that state by a time \eqn{t}
   (see the example below).
+}
+\references{
+Norris, J. R. (1997) Markov Chains. Cambridge University Press. 
 }
 \seealso{
   \code{\link{sojourn.msm}}, \code{\link{totlos.msm}}, \code{\link{boot.msm}}.

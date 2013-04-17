@@ -3,7 +3,7 @@
 \title{Simulate from a Markov model fitted using msm}
 \concept{Simulation}
 \description{
-  Simulate a dataset from a Markov model fitted using msm, using the
+  Simulate a dataset from a Markov model fitted using \code{\link{msm}}, using the
   maximum likelihood estimates as parameters, and the
   same observation times as in the original data.
 }
@@ -16,7 +16,7 @@ simfitted.msm(x, drop.absorb=TRUE, drop.pci.imp=TRUE)
   \item{drop.absorb}{Should repeated observations in an absorbing state
     be omitted.  Use the default of \code{TRUE} to avoid warnings when using the
     simulated dataset for further \code{\link{msm}} fits.  Or set to
-    \code{FALSE} if exactly the same observation times as the original
+    \code{FALSE} if exactly the same number of observations as the original
     data are needed.}
   \item{drop.pci.imp}{In time-inhomogeneous models fitted using the
     \code{pci} option to \code{\link{msm}}, censored observations
@@ -45,7 +45,7 @@ simfitted.msm(x, drop.absorb=TRUE, drop.pci.imp=TRUE)
   null distribution of the test statistic in \code{\link{pearson.msm}}.
 }
 \seealso{
-  \code{\link{pearson.msm}},\code{\link{msm}}.
+  \code{\link{simmulti.msm}}, \code{\link{sim.msm}}, \code{\link{pearson.msm}}, \code{\link{msm}}.
 }
 \author{C. H. Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}}
 \keyword{models}
