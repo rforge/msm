@@ -222,6 +222,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
             if (any(msmdata$obstype==3))
                 stop("Fisher scoring not supported with exact death times")
             if (is.null(optim.args$control$reltol)) reltol <- sqrt(.Machine$double.eps)
+            damp <- if (is.null(optim.args$control$damp)) 0 else optim.args$control$damp
             theta <- p$inits
             lik.old <- -lik.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                                cmodel=cmodel, hmodel=hmodel, paramdata=p)
@@ -232,7 +233,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 VI <- information.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                                       cmodel=cmodel, hmodel=hmodel, paramdata=p)
                 V <- -VI$deriv
-                Info <- VI$info
+                Info <- VI$info + diag(damp, nrow(VI$info))
                 theta <- theta + solve(Info, V)
                 lik.new <- -lik.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                                    cmodel=cmodel, hmodel=hmodel, paramdata=p)

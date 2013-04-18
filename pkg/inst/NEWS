@@ -14,6 +14,7 @@ o A couple of bug fixes for the Pearson test.
 
 o A Fisher scoring algorithm can now be used to maximise the
   likelihood for panel data without censored / hidden states.
+  Thanks to Andrew Titman for help with this.
 
 o New function efpt.msm for expected first passage times for
   time-homogeneous models.
@@ -24,6 +25,8 @@ o In prevalence.msm and plot.prevalence.msm, subjects reaching the
 
 o Newly user-accessible function simfitted.msm for simulating from a
   model defined by the estimates from a model fitted in msm.
+
+o Arguments can be passed through summary.msm to prevalence.msm.
 
 o Bug fix for interp="midpoint" method in calculation of observed
   prevalences (prevalence.msm). Thanks to Erica Liu.

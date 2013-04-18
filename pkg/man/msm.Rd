@@ -636,8 +636,12 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{\link{optim}} for details.
 
     For the Fisher scoring method, a \code{control} list can be supplied
-    in the same way, but the only supported options are \code{reltol}
-    and \code{trace}, both used in the same way as for \code{\link{optim}}.
+    in the same way, but the only supported options are \code{reltol},
+    \code{trace} and \code{damp}.  The first two are used in the same
+    way as for \code{\link{optim}}.  If the algorithm fails with a
+    singular information matrix, adjust \code{damp} from the
+    default of zero (to, e.g. 1).  This adds a constant identity matrix
+    multiplied by \code{damp} to the information matrix during optimisation.
   }
 }
 \value{

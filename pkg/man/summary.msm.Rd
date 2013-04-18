@@ -35,7 +35,7 @@ covariates="mean", misccovariates="mean", hazard.scale=1, \dots)
   \item{hazard.scale}{Vector with same elements as number of covariates
     on transition rates. Corresponds to the increase in each covariate
     used to calculate its hazard ratio. Defaults to all 1.}  
-  \item{...}{Further arguments passed to or from other methods.}
+  \item{...}{Further arguments passed to \code{\link{prevalence.msm}}. }
 }
 \value{
   A list of class \code{summary.msm}, with components:

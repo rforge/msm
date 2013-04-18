@@ -57,7 +57,7 @@ summary.msm <- function(object, # fitted model
                         )
 {
     if (!inherits(object, "msm")) stop("expected object to be a msm model")
-    prevalences <- prevalence.msm(object, times, timezero, initstates, covariates, misccovariates)
+    prevalences <- prevalence.msm(object, times, timezero, initstates, covariates, misccovariates, ...)
     if (object$qcmodel$ncovs > 0) {
         if (missing (hazard.scale))
             hazard.scale <- rep(1, object$data$covdata$ncovs)
@@ -1150,6 +1150,7 @@ intervaltrans.msm <- function(x=NULL, qmatrix=NULL, ematrix=NULL, exclude.absabs
 ### Estimate observed state occupancies in the data at a series of times
 ### Assume previous observed state is retained until next observation time
 ### Assumes times are sorted within patient (they are in data in msm objects)
+### TODO allow subset
 
 observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=Inf)
 {
@@ -1207,6 +1208,8 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
     obstab <- cbind(obstab, Total=rowSums(obstab))
     list(obstab=obstab, obsperc=obsperc, risk=obstab[,ncol(obstab)])
 }
+
+## TODO allow this to be integrated over covariates observed in data
 
 expected.msm <- function(x,
                          times=NULL,
@@ -1315,6 +1318,8 @@ prevalence.msm <- function(x,
                                   piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, ...)
     res
 }
+
+## TODO plot only observed/expected curve, or add to existing plot
 
 plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, initstates=NULL,
                                 interp=c("start","midpoint"), censtime=Inf, covariates="mean", misccovariates="mean",
