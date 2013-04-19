@@ -572,6 +572,12 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
                 final.rows <- intersect(final.rows, hcovdata[[i]]$covrows.kept)
     if (icovdata$ncovs > 0)
         final.rows <- intersect(final.rows, icovdata$covrows.kept)
+
+    ## Drop subjects with only one observation remaining after dropping missing data
+    subj.num <- factor(match(subject,unique(subject))) # avoid problems with factor subjects with empty levels
+    nobspt <- table(subj.num[final.rows])[subj.num]
+    final.rows <- intersect(final.rows, which(nobspt>1))
+    
     subject <- subject[final.rows]
     time <- subset(time, statetimerows.kept %in% final.rows)
     state <- subset(state, statetimerows.kept %in% final.rows)
@@ -607,7 +613,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     nobs <- length(final.rows)
     nmiss <- n - nobs
     plural <- if (nmiss==1) "" else "s"
-    if (nmiss > 0) warning(nmiss, " record", plural, " dropped due to missing values")
+    if (nmiss > 0) warning(nmiss, " record", plural, " dropped due to missing values or subjects with only one record")
     dat <- list(state=state, time=time, subject=subject, obstype=obstype, obstrue=obstrue,
                 nobs=nobs, n=nobs, npts=length(unique(subject)),
                 firstobs = c(1, which(subject[2:nobs] != subject[1:(nobs-1)]) + 1, nobs+1),
@@ -640,6 +646,7 @@ msm.check.state <- function(nstates, state=NULL, censor)
 msm.check.times <- function(time, subject, state=NULL)
 {
 ### Check if any individuals have only one observation (after excluding missing data)
+### Note this shouldn't happen after 1.2 addition to msm.form.data
     subj.num <- match(subject,unique(subject)) # avoid problems with factor subjects with empty levels
     nobspt <- table(subj.num)
     if (any (nobspt == 1)) {

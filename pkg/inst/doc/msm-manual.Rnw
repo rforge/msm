@@ -1634,7 +1634,9 @@ A set of expected counts can be produced if the process begins at a
 common time for all individuals.  Suppose at this time, each
 individual is in state 0.  Then given $n(t)$ individuals are under
 observation at time $t$, the expected number of individuals in state
-$r$ at time $t$ is $n(t) P(t)_{0,r}$.
+$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which 
+$P(t)$ depends vary between individuals, then this can be 
+averaged over the covariates observed in the data. 
 
 For example, we calculate the observed and expected numbers and
 percentages at two-yearly intervals up to 20 years after transplant,

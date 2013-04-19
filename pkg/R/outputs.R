@@ -47,17 +47,12 @@ print.msm <- function(x, ...)
 }
 
 summary.msm <- function(object, # fitted model
-                        times = NULL,  # times at which to compare observed and expected prevalences
-                        timezero = NULL,
-                        initstates = NULL,
-                        covariates = "mean",
-                        misccovariates = "mean",
                         hazard.scale = 1,
                         ...
                         )
 {
     if (!inherits(object, "msm")) stop("expected object to be a msm model")
-    prevalences <- prevalence.msm(object, times, timezero, initstates, covariates, misccovariates, ...)
+    prevalences <- prevalence.msm(object, ...)
     if (object$qcmodel$ncovs > 0) {
         if (missing (hazard.scale))
             hazard.scale <- rep(1, object$data$covdata$ncovs)
@@ -846,6 +841,8 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
     if (!is.numeric(times) || is.unsorted(times)) stop("times should be a vector of numbers in increasing order")
     if (length(covariates) != length(times) + 1)
         stop("Number of covariate lists must be one greater than the number of cut points")
+    if (length(times)==0)
+        return(pmatrix.msm(x, t=t2-t1, t1=t1, covariates=covariates[[1]], ci=ci, cl=cl, B=B, ...))
     ## Locate which intervals t1 and t2 fall in, as indices ind1, ind2 into "times".
     if (t1 <= times[1]) ind1 <- 1
     else if (length(times)==1) ind1 <- 2
@@ -1147,19 +1144,57 @@ intervaltrans.msm <- function(x=NULL, qmatrix=NULL, ematrix=NULL, exclude.absabs
     at[order(at[,1],at[,2]),]
 }
 
+## Enumerate the distinct subject covariate histories in the data
+## Works for time homogeneous and inhomogeneous models
+## Used to calculate expected prevalences for a population with those covariates
+
+get.covhist <- function(x, subset=NULL) { 
+    ## Keep only times where the covariate changes, or first or last obs
+    if (x$qcmodel$ncovs > 0) { 
+        if (!is.null(subset)) {
+            subs <- x$data$subject %in% subset
+            x$data$subject <- x$data$subject[subs]
+            x$data$cov.orig <- x$data$cov.orig[subs,,drop=FALSE]
+            x$data$time <- x$data$time[subs]
+        }
+        n <- length(x$data$subject)
+        apaste <- do.call("paste", x$data$cov.orig)
+        first <- !duplicated(x$data$subject); last <- rev(!duplicated(rev(x$data$subject)))
+        keep <- (c(0, apaste[1:(n-1)]) != apaste) | first | last
+        ## Keep and tabulate unique covariate series
+        covseries <- split(apaste[keep], x$data$subject[keep]) # as a list of char vectors
+        covseries <- sapply(covseries, paste, collapse=" , ") # as one char vector, one series per pt.
+        ## also need p matrices for different times as well as different covs.
+        ## but only interested in cov change times if there's more than one
+        ## transition (at least one times change point)
+        change.times <- x$data$time; change.times[first] <- change.times[last] <- 0
+        change.times <- split(change.times[keep & (!(first|last))], x$data$subject[keep & (!(first|last))])
+        change.times <- sapply(change.times, paste, collapse= " , ")
+        covseries.t <- paste(covseries, change.times, sep="; ")
+        ids <- unique(x$data$subject)[!duplicated(covseries.t)] # subj ids, one with each distinct series
+        ncombs <- table(covseries.t)[unique(covseries.t)]# how many per series
+        covmat <- cbind(subject=x$data$subject, time=x$data$time, x$data$cov.orig)
+        covmat <- covmat[(x$data$subject %in% ids) & keep,]
+        list(example=covmat, # rows of the original data sufficient to define the distinct histories
+             hist=covseries.t) # one per subject listing their covariate history as a string
+    }
+    else NULL
+}
+
 ### Estimate observed state occupancies in the data at a series of times
 ### Assume previous observed state is retained until next observation time
 ### Assumes times are sorted within patient (they are in data in msm objects)
-### TODO allow subset
 
-observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=Inf)
+observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=Inf, subset=NULL)
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
     ## For general HMMs use the Viterbi estimate of the observed state.
     state <- if ((x$hmodel$hidden && !x$emodel$misc) || (!x$hmodel$hidden && x$cmodel$ncens>0) )
         viterbi.msm(x)$fitted else x$data$state
-    subject <- x$data$subject ## fixme subj char/factor?
-    time <- x$data$time
+    if (is.null(subset)) subset <- unique(x$data$subject)    
+    subject <- x$data$subject[x$data$subject %in% subset] ## fixme subj char/factor?
+    time <- x$data$time[x$data$subject %in% subset]
+    state <- state[x$data$subject %in% subset]
     if (is.null(times))
         times <- seq(min(time), max(time), (max(time) - min(time))/10)
     states.expand <- matrix(nrow=length(unique(subject)), ncol=length(times))
@@ -1206,20 +1241,31 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
     obsperc <- 100*obstab / rep(rowSums(obstab), ncol(obstab))
     dimnames(obstab) <- dimnames(obsperc) <- list(times, paste("State", 1:x$qmodel$nstates))
     obstab <- cbind(obstab, Total=rowSums(obstab))
-    list(obstab=obstab, obsperc=obsperc, risk=obstab[,ncol(obstab)])
-}
 
-## TODO allow this to be integrated over covariates observed in data
+    covhist <- get.covhist(x, subset)
+    covcat <- ## distinct covariate history group each subject falls into (ordinal)
+        if (is.null(covhist)) rep(1, length(unique(subject)))
+        else match(covhist$hist, unique(covhist$hist))
+    risk <- matrix(nrow=length(times), ncol=length(unique(covcat)), dimnames = list(times, unique(covhist$hist)))
+    for (i in seq(along=unique(covcat))) {
+        obst <- t(apply(states.expand[covcat==unique(covcat)[i],,drop=FALSE], 2,
+                        function(y) table(factor(y, levels=seq(length=x$qmodel$nstates)))))
+        risk[,i] <- rowSums(obst)
+    }    
+
+    list(obstab=obstab, obsperc=obsperc, risk=risk)
+}
 
 expected.msm <- function(x,
                          times=NULL,
                          timezero=NULL,
                          initstates=NULL,
-                         covariates="mean",
+                         covariates="population",
                          misccovariates="mean",
                          piecewise.times=NULL,
                          piecewise.covariates=NULL,
                          risk=NULL,
+                         subset=NULL,
                          ci=c("none","normal","bootstrap"),
                          cl = 0.95,
                          B = 1000
@@ -1230,38 +1276,51 @@ expected.msm <- function(x,
     if (is.null(times))
         times <- seq(min(time), max(time), (max(time) - min(time))/10)
     if (is.null(timezero))  timezero <- min(time)
-    if (is.null(risk)) risk <- observed.msm(x, times=times)$risk
-    exptab <- matrix(nrow=length(times), ncol=x$qmodel$nstates)
-    if (x$emodel$misc){
-                                        #        exptab <- x$emodel$initprobs * risk[1]
-        start <- min(which(times - timezero > 0))
-        if (length(times) >= start) {
-            for (j in start:length(times)) {
-                pmat <-
-                    if (is.null(piecewise.times))
-                        pmatrix.msm(x, t=times[j] - timezero, t1=timezero, covariates=covariates)
-                    else
-                        pmatrix.piecewise.msm(x, timezero, times[j], piecewise.times, piecewise.covariates)
-                emat <- ematrix.msm(x, covariates=misccovariates)$estimates
-                exptruej <- risk[j] * x$emodel$initprobs %*% pmat
-                expobsj <- exptruej %*% emat
-                exptab[j,] <- expobsj
-            }
-        }
-    }
+    if (is.null(risk)) risk <- observed.msm(x, times=times, subset=subset)$risk
+    exptab <- matrix(0, nrow=length(times), ncol=x$qmodel$nstates)
+    start <- min(which(times - timezero >= 0))
+    if (x$emodel$misc)
+        initprobs <- x$emodel$initprobs 
     else {
-        if (is.null(initstates)) initstates <- observed.msm(x, times=timezero)$obstab[1:x$qmodel$nstates]
+        if (is.null(initstates))
+            initstates <- observed.msm(x, times=timezero)$obstab[1:x$qmodel$nstates]
         initprobs <- initstates / sum(initstates)
-        start <- min(which(times - timezero >= 0))
-        if (length(times) >= start) {
-            for (j in start:length(times)) {
+    }
+    if (length(times) >= start) {
+        for (j in start:length(times)) {
+            if (x$qcmodel$ncovs>0 && covariates=="population") {
+                covmat <- get.covhist(x, subset=subset)$example
+                for (i in 1:length(unique(covmat$subject))) {
+                    ## sum expected prevalences for each covariate history observed in the data
+                    subji <- unique(covmat$subject)[i]
+                    ni <- sum(covmat$subject==subji)
+                    ctimes <- covmat$time[covmat$subject==subji][-c(1,ni)]
+                    covs <- covmat[covmat$subject==subji, names(x$data$cov.orig),drop=FALSE][-ni,,drop=FALSE]
+                    ccovs <- list()
+                    for (k in 1:nrow(covs)) ccovs[[k]] <- as.list(covs[k,,drop=FALSE])
+                    pmat <-  pmatrix.piecewise.msm(x, t1=timezero, t2=times[j], times=ctimes, covariates=ccovs)
+                    expji <- risk[j,i] * initprobs %*% pmat
+                    if (x$emodel$misc) { # return expected prev of obs (not true) states
+                        if (x$ecmodel$ncovs==0) emat <- ematrix.msm(x, ci="none") 
+                        else {
+                            ecovs <- if(length(ctimes)==0) ccovs else ccovs[[length(ccovs)]]
+                            emat <- ematrix.msm(x, covariates=ecovs, ci="none")
+                        }
+                        expji <- expji %*% emat
+                    }
+                    exptab[j,] <- exptab[j,] + expji
+                }
+            }
+            else {
                 pmat <-
                     if (is.null(piecewise.times))
                         pmatrix.msm(x, t=times[j] - timezero, t1=timezero, covariates=covariates)
                     else
                         pmatrix.piecewise.msm(x, timezero, times[j], piecewise.times, piecewise.covariates)
-                expj <- risk[j] * initprobs %*% pmat
-                exptab[j,] <- expj
+                expj <- rowSums(risk)[j] * initprobs %*% pmat
+                if (x$emodel$misc) # return expected prev of obs (not true) states 
+                    expj <- expj %*% ematrix.msm(x, covariates=misccovariates, ci="none") 
+                exptab[j,] <- expj                
             }
         }
     }
@@ -1290,7 +1349,7 @@ prevalence.msm <- function(x,
                            times=NULL,
                            timezero=NULL,
                            initstates=NULL,
-                           covariates="mean",
+                           covariates="population",
                            misccovariates="mean",
                            piecewise.times=NULL,
                            piecewise.covariates=NULL,
@@ -1299,6 +1358,7 @@ prevalence.msm <- function(x,
                            B = 1000,
                            interp=c("start","midpoint"),
                            censtime=Inf,
+                           subset=NULL,
                            plot = FALSE, ...
                            )
 {
@@ -1306,11 +1366,10 @@ prevalence.msm <- function(x,
     time <- x$data$time
     if (is.null(times))
         times <- seq(min(time), max(time), (max(time) - min(time))/10)
-    obs <- observed.msm(x, times, interp, censtime)
-    risk <- obs$obstab[,ncol(obs$obstab)]
+    obs <- observed.msm(x, times, interp, censtime, subset)
     ## Work out expected state occupancies by forecasting from transition probabilities
     expec <- expected.msm(x, times, timezero, initstates, covariates, misccovariates,
-                          piecewise.times, piecewise.covariates, risk, ci, cl, B)
+                          piecewise.times, piecewise.covariates, obs$risk, subset, ci, cl, B)
     res <- list(observed=obs$obstab, expected=expec[[1]], obsperc=obs$obsperc, expperc=expec[[2]])
     names(res) <- c("Observed", "Expected", "Observed percentages", "Expected percentages")
     if (plot) plot.prevalence.msm(x, mintime=min(times), maxtime=max(times), timezero=timezero, initstates=initstates,
@@ -1319,10 +1378,9 @@ prevalence.msm <- function(x,
     res
 }
 
-## TODO plot only observed/expected curve, or add to existing plot
-
 plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, initstates=NULL,
-                                interp=c("start","midpoint"), censtime=Inf, covariates="mean", misccovariates="mean",
+                                interp=c("start","midpoint"), censtime=Inf, subset=NULL,
+                                covariates="population", misccovariates="mean",
                                 piecewise.times=NULL, piecewise.covariates=NULL, xlab="Times",ylab="Prevalence (%)",
                                 lwd.obs=1, lwd.exp=1, lty.obs=1, lty.exp=2,
                                 col.obs="blue", col.exp="red", legend.pos=NULL,...){
@@ -1330,9 +1388,9 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
     if (is.null(mintime)) mintime <- min(time)
     if (is.null(maxtime)) maxtime <- max(time)
     t <- seq(mintime, maxtime, length=100)
-    obs <- observed.msm(x, t, interp, censtime)
+    obs <- observed.msm(x, t, interp, censtime, subset)
     expec <- expected.msm(x, t, timezero=timezero, initstates=initstates, covariates=covariates, misccovariates=misccovariates,
-                          piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, risk=obs$risk)[[2]]
+                          piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, risk=obs$risk, subset=subset, ci="none")[[2]]
     states <- seq(length=x$qmodel$nstates)
     S <- length(states)
     ncols <- ceiling(sqrt(S))
@@ -1652,7 +1710,7 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
     ## EFPT is infinite for other absorbing states
     est[setdiff(abstate,tostate)] <- Inf
     fromstate <- setdiff(1:nrow(qmatrix), union(abstate,tostate))
-    
+
     ## EFPT is infinite if any chance of absorbing elsewhere before
     ## hitting tostate.  To calculate this, form Q matrix with tostate
     ## made absorbing, and look at P matrix in unit time.

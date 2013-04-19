@@ -11,8 +11,8 @@
 \usage{
 \method{plot}{prevalence.msm}(x, mintime=NULL, maxtime=NULL, timezero=NULL,
                     initstates=NULL, interp=c("start","midpoint"),
-                    censtime=Inf,
-                    covariates="mean", misccovariates="mean",
+                    censtime=Inf, subset=NULL,
+                    covariates="population", misccovariates="mean",
                     piecewise.times=NULL, piecewise.covariates=NULL,
                     xlab="Times",ylab="Prevalence (\%)", lwd.obs=1,
                     lwd.exp=1, lty.obs=1, lty.exp=2, col.obs="blue",
@@ -35,19 +35,19 @@
     the actual number of people in the study at the start. }
   \item{interp}{Interpolation method for observed states, see
     \code{\link{prevalence.msm}}.}
-  \item{censtime}{Patient-specific maximum follow-up times, see \code{\link{prevalence.msm}}.} 
+  \item{censtime}{Subject-specific maximum follow-up times, see \code{\link{prevalence.msm}}.} 
+  \item{subset}{Subset of subjects to calculated observed prevalences for.} 
   \item{covariates}{Covariate values for which to forecast expected
-    state occupancy.  See \code{\link{qmatrix.msm}}.  Defaults to the
-    mean values of the covariates in the data set.}
+    state occupancy.  See \code{\link{prevalence.msm}} --- if this
+    function runs too slowly, as it may if there are continuous covariates,
+    replace \code{covariates="population"} with \code{covariates="mean"}. 
+  }
   \item{misccovariates}{(Misclassification models only) Values of covariates on the misclassification
-    probability matrix for which to forecast expected state occupancy.
-    Defaults to the mean values of the covariates in the data set.}
+    probability matrix. See \code{\link{prevalence.msm}}. }  
   \item{piecewise.times}{Times at which piecewise-constant intensities
-    change. See \code{\link{pmatrix.piecewise.msm}} for how
-    to specify this.}
+    change. See \code{\link{prevalence.msm}}.}
   \item{piecewise.covariates}{Covariates on which the piecewise-constant
-    intensities depend. See \code{\link{pmatrix.piecewise.msm}} for how
-    to specify this.}
+    intensities depend. See \code{\link{prevalence.msm}}.}
   \item{xlab}{x axis label.}
   \item{ylab}{y axis label.}
   \item{lwd.obs}{Line width for observed prevalences. See \code{\link{par}}.}  

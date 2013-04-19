@@ -1,7 +1,21 @@
+2013-04-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: prevalence.msm can now produce expected values by
+	integrating model predictions over the covariate histories
+	observed in the data.
+
+	* R/msm.R(msm.form.data): Drop subjects with only one observation
+	remaining after dropping missing data (e.g. psor data).  This gives
+	a more appropriate measure of the numbers at risk in prevalence.msm.
+
 2013-04-18 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
-	* R/summary.R: Allow arguments to be passed through summary.msm to
-	prevalence.msm.
+	* R/outputs.R(summary.msm): Allow arguments to be passed through
+	summary.msm to prevalence.msm.
+
+	* R/outputs.R(pmatrix.piecewise.msm): Allow this to be used for
+	time-homogeneous models with change point vector "times" of length
+	0.
 
 2013-04-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
