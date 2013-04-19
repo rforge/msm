@@ -1367,7 +1367,7 @@ msm.form.output <- function(whichp, model, cmodel, p)
     Matrices <- MatricesSE <- MatricesL <- MatricesU <- list()
     for (i in 0:cmodel$ncovs) {
         matrixname <- if (i==0) "logbaseline" else cmodel$covlabels[i] # name of the current output matrix.
-        mat <- t(model$imatrix) # I fill matrices by row, while R fills them by column. Is this sensible...?
+        mat <- t(model$imatrix) # state matrices filled by row, while R fills them by column.
         if (whichp=="intens")
             parinds <- if (i==0) which(p$plabs=="qbase") else which(p$plabs=="qcov")[(i-1)*model$npars + 1:model$npars]
         if (whichp=="misc")

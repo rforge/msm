@@ -1,0 +1,40 @@
+POSSIBLE MAJOR DEVELOPMENTS
+
+Random effects models.  Could be done by translating a msm model to
+corresponding JAGS or Stan code, inserting the random effects
+then using MCMC for estimation.  HMMs would probably be better in
+Stan.
+
+Time-inhomogeneous models with smoothly-varying intensities.  Could be 
+done by numerically integrating the Kolmogorov equations, as in Titman
+(Biometrics 2011).  deSolve package could be used for this in C, 
+but I expect this would need a C function to be written for each model
+structure. 
+
+Phase-type models.  Build appropriate parameter constraints in.
+
+Multicore bootstrapping using "parallel" package.  Must work
+cross-platform, including Windows.
+
+
+SOME OTHER SUGGESTIONS: not all may be sensible.
+
+Bureau survival plots
+
+Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hydroPSO
+
+Borrow matrix exponential code from Matrix package: code in dgeMatrix.c
+
+Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed). 
+
+For hidden models, cache Pmatrix once for frequently-occurring each from, to, time combinations
+
+Investigate forward algorithm for fitting HMMs - is this more efficient?
+
+Truncated observations. 
+
+.Call for passing data to C?
+
+Steady state probabilities
+
+Use S_alloc instead of Calloc as in Viterbi - no need to free. Can't use on.exit to free on interrupt unless pointer declared globally.

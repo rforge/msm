@@ -31,7 +31,7 @@ echo '<?xml version="1.0" encoding="UTF-8"?>';
 
 
 <!-- get project title  -->
-<!-- own website starts here, the following may be changed as you like -->
+<!-- own website starts here, the following may be changed as you like 
 
 <?php if ($handle=fopen('http://'.$domain.'/export/projtitl.php?group_name='.$group_name,'r')){
 $contents = '';
@@ -41,11 +41,30 @@ while (!feof($handle)) {
 fclose($handle);
 echo $contents; } ?>
 
-<!-- end of project description -->
+ -->
 
-<p> No content added. </p>
+<h1>msm: Multi-state models.</h1>
 
-<p> The <strong>project summary page</strong> you can find <a href="http://<?php echo $domain; ?>/projects/<?php echo $group_name; ?>/"><strong>here</strong></a>. </p>
+<p> This is the development site for the "msm" R package for continuous-time multi-state modelling. </p>
+
+<p>For more information about the "msm" package and multi-state modelling, please read the paper 
+<a href="http://www.jstatsoft.org/v38/i08/">Multi-State Models for Panel Data: The msm Package for R</a>
+(Jackson, 2011) from Journal of Statistical Software. </p>
+
+<h2>Downloads</h2>
+
+<p>The current stable version can be found on <a href="http://CRAN.R-project.org/package=msm">CRAN</a>.</p>
+
+<p>The latest development version can usually be found here on <a href="http://r-forge.r-project.org/R/?group_id=1586">R-Forge</a>.</p>
+
+<p>msm is an add-on package for the <a href="http://www.r-project.org/">R</a> statistical software.  Please see the <a href="http://cran.r-project.org/doc/manuals/R-admin.html#Installing-packages">R Installation and Administration Manual</a> for information about installing R packages.</p>
+
+<p>Experienced R and C developers with an interest in multi-state models are welcome to volunteer to contribute to this package.   See the <a href="https://r-forge.r-project.org/scm/viewvc.php/pkg/TODO?view=markup&root=msm">TODO list</a> for some ideas.  The R-Forge <strong>project summary page</strong> can be found <a href="http://<?php echo $domain; ?>/projects/<?php echo $group_name; ?>/"><strong>here</strong></a>. 
+
+<hr>
+<address></address>
+<!-- hhmts start -->Last modified: Fri Apr 19 17:28:23 BST 2013 <!-- hhmts end -->
+</body> </html>
 
 </body>
 </html>
