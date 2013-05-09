@@ -108,7 +108,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
     represents a model in which misclassifications are only permitted
     between adjacent states.
-
+    
     If any probabilities are constrained to be equal using
     \code{econstraint}, then the initial value is
     taken from the first of these (reading across rows).

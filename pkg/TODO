@@ -1,3 +1,6 @@
+More developer documentation - comments for definitions of variables
+   in internal data structures like qmodel, emodel etc.
+
 POSSIBLE MAJOR DEVELOPMENTS
 
 Random effects models.  Could be done by translating a msm model to
@@ -5,11 +8,11 @@ corresponding JAGS or Stan code, inserting the random effects
 then using MCMC for estimation.  HMMs would probably be better in
 Stan.
 
-Time-inhomogeneous models with smoothly-varying intensities.  Could be 
+Time-inhomogeneous models with smoothly-varying intensities.  Could be
 done by numerically integrating the Kolmogorov equations, as in Titman
-(Biometrics 2011).  deSolve package could be used for this in C, 
-but I expect this would need a C function to be written for each model
-structure. 
+(Biometrics 2011).  deSolve package could be used for this in C. 
+Difficult .Call type mechanism needed for using user-defined R functions
+in C. See Writing R Extensions 5.11.1 for a possible starting point.
 
 Phase-type models.  Build appropriate parameter constraints in.
 
@@ -25,15 +28,15 @@ Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hy
 
 Borrow matrix exponential code from Matrix package: code in dgeMatrix.c
 
-Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed). 
+Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed).
 
 For hidden models, cache Pmatrix once for frequently-occurring each from, to, time combinations
 
 Investigate forward algorithm for fitting HMMs - is this more efficient?
 
-Truncated observations. 
+Truncated observations.
 
-.Call for passing data to C?
+.Call for passing data to C?  Rcpp package facilitates this.
 
 Steady state probabilities
 

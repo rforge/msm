@@ -1,3 +1,9 @@
+2013-05-08 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R,R/outputs.R: Misclassification models where some
+	off-diagonal misclassification probabilities are 1 are now handled
+	properly.  Thanks to Howard Thom for uncovering this.
+
 2013-04-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: prevalence.msm can now produce expected values by

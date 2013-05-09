@@ -3,7 +3,7 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
-Version 1.2 (2013-04-??)
+Version 1.2 (2013-05-??)
 -------------
 
 o Implemented accurate p-value for the Pearson-type test from Titman
@@ -40,6 +40,10 @@ o pmatrix.piecewise.msm allows time-homogeneous models with change
   point vector "times" of length 0.
 
 o Fixes for bugs in the the Pearson test introduced in 0.9.5.
+
+o Misclassification models where some off-diagonal misclassification
+  probabilities are 1 are now handled properly.  Thanks to Howard Thom
+  for uncovering this.
 
 o Bug fix for interp="midpoint" method in calculation of observed
   prevalences (prevalence.msm). Thanks to Erica Liu.

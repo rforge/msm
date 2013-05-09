@@ -460,7 +460,13 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
 {
     msm.check.ematrix(ematrix, qmodel$nstates)
     diag(ematrix) <- 0
-    imatrix <- ifelse(ematrix > 0 & ematrix < 1, 1, 0)
+##    imatrix <- ifelse(ematrix > 0 & ematrix < 1, 1, 0)
+    imatrix <- ifelse(ematrix > 0, 1, 0)
+
+### FIXME if off-diagonal 1s, then use HMM likelihood.
+### npars=0 uses simple lik.
+### Proposal: change imatrix as commented
+    
     diag(ematrix) <- 1 - rowSums(ematrix)
     if (is.null(rownames(ematrix)))
         rownames(ematrix) <- colnames(ematrix) <- paste("State", seq(qmodel$nstates))
@@ -490,7 +496,7 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
     }
     else
         constr <- seq(length=npars)
-    ndpars <- if(npars>0) max(constr) else 0 # handle degenerate ematrix with no misclassification
+    ndpars <- if(npars>0) max(constr) else 0
     emodel <- list(misc=TRUE, npars=npars, nstates=nstates, imatrix=imatrix, ematrix=ematrix, inits=inits,
                    constr=constr, ndpars=ndpars, nipars=nipars, initprobs=initprobs)
     class(emodel) <- "msmemodel"
@@ -1372,16 +1378,20 @@ msm.form.output <- function(whichp, model, cmodel, p)
             parinds <- if (i==0) which(p$plabs=="qbase") else which(p$plabs=="qcov")[(i-1)*model$npars + 1:model$npars]
         if (whichp=="misc")
             parinds <- if (i==0) which(p$plabs=="p") else which(p$plabs=="hcov")[i + cmodel$ncovs*(1:model$npars - 1)]
-        mat[t(model$imatrix)==1] <- p$params[parinds]
+        if (any(parinds)) mat[t(model$imatrix)==1] <- p$params[parinds]
+        else mat[mat==1] <- Inf ## if no parinds are "p", then there are off-diag 1s in ematrix
         mat <- t(mat)
         dimnames(mat) <- dimnames(model$imatrix)
         if (p$foundse && !p$fixed){
             intenscov <- p$covmat[parinds, parinds]
             intensse <- sqrt(diag(as.matrix(intenscov)))
             semat <- lmat <- umat <- t(model$imatrix)
-            semat[t(model$imatrix)==1] <- intensse
-            lmat[t(model$imatrix)==1] <- p$ci[parinds,1]
-            umat[t(model$imatrix)==1] <- p$ci[parinds,2]
+            if (any(parinds)){
+                semat[t(model$imatrix)==1] <- intensse
+                lmat[t(model$imatrix)==1] <- p$ci[parinds,1]
+                umat[t(model$imatrix)==1] <- p$ci[parinds,2]
+            }
+            else semat[semat==1] <- lmat[lmat==1] <- umat[umat==1] <- Inf
             semat <- t(semat); lmat <- t(lmat); umat <- t(umat)
             diag(semat) <- diag(lmat) <- diag(umat) <- 0
             dimnames(semat)  <- dimnames(mat)

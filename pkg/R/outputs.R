@@ -343,6 +343,7 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
             plabs <- x$emodel$imatrix; plabs[x$emodel$imatrix==1] <- "p"; diag(plabs)[rowSums(x$emodel$imatrix)>0] <- "pbase"
             mat <- matrix(msm.mninvlogit.transform(t(logest), t(plabs), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
             diag(mat)[rowSums(x$emodel$imatrix)==0] <- 1
+            mat[is.infinite(logest)] <- 1 # if any offdiagonal misc probs 1
         }
         covlabels <- x$ecmodel$covlabels
         covmeans <- x$ecmodel$covmeans
@@ -435,13 +436,16 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
             else if (intmisc=="misc"){
                 p.se <- p.se.msm(x$qmodel, x$emodel, x$hmodel, x$qcmodel, x$ecmodel, x$paramdata, x$center, covariates)
                 ivector <- as.numeric(t(x$emodel$imatrix))
-                semat[ivector==1] <- p.se$se[p.se$lab=="p"]; semat <- t(semat)
-                lmat[ivector==1] <- p.se$LCL[p.se$lab=="p"]; lmat <- t(lmat)
-                umat[ivector==1] <- p.se$UCL[p.se$lab=="p"]; umat <- t(umat)
-                diag(semat)[rowSums(x$emodel$imatrix)>0] <- p.se$se[p.se$lab=="pbase"]
-                diag(lmat)[rowSums(x$emodel$imatrix)>0] <- p.se$LCL[p.se$lab=="pbase"]
-                diag(umat)[rowSums(x$emodel$imatrix)>0] <- p.se$UCL[p.se$lab=="pbase"]
-                diag(lmat)[rowSums(x$emodel$imatrix)==0] <- diag(umat)[rowSums(x$emodel$imatrix)==0] <- 1
+                if (any(p.se$lab %in% c("p","pbase"))){
+                    semat[ivector==1] <- p.se$se[p.se$lab=="p"]; semat <- t(semat)
+                    lmat[ivector==1] <- p.se$LCL[p.se$lab=="p"]; lmat <- t(lmat)
+                    umat[ivector==1] <- p.se$UCL[p.se$lab=="p"]; umat <- t(umat)
+                    diag(semat)[rowSums(x$emodel$imatrix)>0] <- p.se$se[p.se$lab=="pbase"]
+                    diag(lmat)[rowSums(x$emodel$imatrix)>0] <- p.se$LCL[p.se$lab=="pbase"]
+                    diag(umat)[rowSums(x$emodel$imatrix)>0] <- p.se$UCL[p.se$lab=="pbase"]
+                }
+                lmat[mat==1] <- umat[mat==1] <- 1
+##                diag(lmat)[rowSums(x$emodel$imatrix)==0] <- diag(umat)[rowSums(x$emodel$imatrix)==0] <- 1
             }
         }
         else if (ci %in% c("normal","bootstrap")) {
@@ -584,7 +588,7 @@ p.se.msm <- function(qmodel, emodel, hmodel, qcmodel, ecmodel, paramdata, center
     hmmallpars <- !(paramdata$plabs %in% c("qbase","qcov","initp","initp0","initpcov"))
     res$est <- msm.mninvlogit.transform(paramdata$params[paramdata$hmmpars], hmodel$plabs, hmodel$parstate)[ppars]
     res$parstate <- hmodel$parstate[ppars]
-    res$se <- res$lse <- res$LCL <- res$UCL <- res$inds <- res$strs <- 0
+    if (any(ppars)) res$se <- res$lse <- res$LCL <- res$UCL <- res$inds <- res$strs <- 0
     cur.i <- 1
     for (i in unique(res$parstate)) {
         nir <- sum(hmodel$parstate[hmodel$plabs=="p"] == i) # number of independent misc probs for current state
