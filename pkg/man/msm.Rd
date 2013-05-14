@@ -390,7 +390,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   \item{initprobs}{Currently only used in hidden Markov models.
     Vector of assumed underlying state occupancy probabilities at each
     individual's first observation. If these are estimated (see
-    \code{est.initprobs}), then this defaults to equal probability for
+    \code{est.initprobs}), then this represents an initial value,
+    and defaults to equal probability for
     each state.  Otherwise this defaults to
     \code{c(1, rep(0, nstates-1))}, that is, in state 1 with a
     probability of 1.  Scaled to sum to 1 if necessary.  The state 1

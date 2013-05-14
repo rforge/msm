@@ -8,13 +8,14 @@ corresponding JAGS or Stan code, inserting the random effects
 then using MCMC for estimation.  HMMs would probably be better in
 Stan.
 
+Phase-type models.  Build appropriate parameter constraints in.
+
 Time-inhomogeneous models with smoothly-varying intensities.  Could be
 done by numerically integrating the Kolmogorov equations, as in Titman
 (Biometrics 2011).  deSolve package could be used for this in C. 
 Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
-
-Phase-type models.  Build appropriate parameter constraints in.
+Or Rcpp.
 
 Multicore bootstrapping using "parallel" package.  Must work
 cross-platform, including Windows.

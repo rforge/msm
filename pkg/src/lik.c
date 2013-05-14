@@ -218,6 +218,9 @@ void update_likhidden(double *curr, int nc, int obsno, msmdata *d, qmodel *qm, q
 	 (d->obstype[obsno] == OBS_EXACT), qm->analyticp, qm->iso, qm->perm, qm->qperm, 0);
     for(j = 0; j < qm->nst; ++j)
 	{
+#ifdef DEBUG2
+	    printf("pmat: ");
+#endif
 	    newp[j] = 0.0;
 	    for(i = 0; i < qm->nst; ++i)
 		{
@@ -285,11 +288,24 @@ double likhidden(int pt, /* ordinal subject ID */
     /* Transform initp from probs relative to state 1 prob back to absolute probs */
     relative2absolutep(newinitp, newinitp, qm->nst, 0);
     /* Likelihood contribution for initial observation */
+#ifdef DEBUG2
+    printf("pout: ");
+    for (i = 0; i < qm->nst; ++i) {
+	printf("%lf, ", pout[i]);
+    }
+      printf("\ncump: ");
+#endif
     for (i = 0; i < qm->nst; ++i) {
       /* Ignore initprobs if observation is known to be the true state  */
       if (d->obstrue[d->firstobs[pt]]) newinitp[i] = 1;
       cump[i] = pout[i] * newinitp[i];
+#ifdef DEBUG2
+      printf("%lf, ", cump[i]);
+#endif
     }
+#ifdef DEBUG2
+      printf("\n");
+#endif
     lweight=0;
     /* Matrix product loop to accumulate the likelihood for subsequent observations */
     for (obsno = d->firstobs[pt]+1; obsno <= d->firstobs[pt+1] - 1; ++obsno)
