@@ -47,7 +47,6 @@ struct msmdata {
     double *obs; /* observed state or any other HMM observation */
     int *firstobs;
     int *whichcovh;
-    int *whichcovi;
 
     int nobs;
     int n;
@@ -94,8 +93,6 @@ struct hmodel {
     double *coveffect;
     int *links;
     double *initp;
-    int *nicovs;
-    double *icoveffect;
 };
 
 typedef struct msmdata msmdata;

@@ -387,21 +387,23 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     equal.      Only used if the model is specified using \code{ematrix}, rather
     than \code{hmodel}.  }
 
-  \item{initprobs}{Currently only used in hidden Markov models.
-    Vector of assumed underlying state occupancy probabilities at each
-    individual's first observation. If these are estimated (see
-    \code{est.initprobs}), then this represents an initial value,
-    and defaults to equal probability for
-    each state.  Otherwise this defaults to
-    \code{c(1, rep(0, nstates-1))}, that is, in state 1 with a
-    probability of 1.  Scaled to sum to 1 if necessary.  The state 1
-    occupancy probability should be non-zero.
-  }
+  \item{initprobs}{Only used in hidden Markov models.  Underlying state
+    occupancy probabilities at each subject's first observation.  Can
+    either be a vector of \eqn{nst} elements with common probabilities
+    to all subjects, or a \eqn{nsubj} by \eqn{nst} matrix of
+    subject-specific probabilities.
+  
+    If these are estimated (see \code{est.initprobs}), then this
+    represents an initial value, and defaults to equal probability for
+    each state.  Otherwise this defaults to \code{c(1, rep(0,
+    nstates-1))}, that is, in state 1 with a probability of 1.  Scaled
+    to sum to 1 if necessary.  The state 1 occupancy probability should
+    be non-zero.  }
 
   \item{est.initprobs}{Only used in hidden Markov models.
     If \code{TRUE}, then the underlying state
     occupancy probabilities at the first observation will be estimated,
-    starting from initial values taken from the \code{initprobs}
+    starting from a vector of initial values supplied in the \code{initprobs}
     argument.  Structural zeroes are allowed: if any of these initial
     values are zero they will be fixed at zero during optimisation,
     even if \code{est.initprobs=TRUE}, and no covariate effects on

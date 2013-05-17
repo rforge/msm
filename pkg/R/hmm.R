@@ -38,10 +38,22 @@ msm.form.hmodel <- function(hmodel, hconstraint=NULL, initprobs=NULL, est.initpr
           initprobs <- if (est.initprobs) rep(1/nst, nst) else c(1, rep(0, nst-1))
       else {
           if (!is.numeric(initprobs)) stop("initprobs should be numeric")
-          if (length(initprobs) != nst) stop("initprobs of length ", length(initprobs), ", should be ", nst)
-          initprobs <- initprobs / sum(initprobs)
+          if (is.matrix(initprobs)) {
+              if (ncol(initprobs) != nst) stop("initprobs matrix has ", ncol(initprobs), " columns, should be number of states = ", nst)
+              if (est.initprobs) { warning("Not estimating initial state occupancy probabilities since supplied as a matrix") }
+              initprobs <- initprobs / rowSums(initprobs)
+              est.initprobs <- FALSE
+          }
+          else  {
+              if (length(initprobs) != nst) stop("initprobs of length ", length(initprobs), ", should be ", nst)
+              initprobs <- initprobs / sum(initprobs)
+              if (est.initprobs && any(initprobs==1)) {
+                  est.initprobs <- FALSE
+                  warning("Not estimating initial state occupancy probabilities, since some are fixed to 1")
+              }
+          }
       }
-      nipars <- nst - 1
+      nipars <- if (est.initprobs) nst - 1 else 0
       labels <- sapply(hmodel, function(x) x$label)
       models <- match(labels, .msm.HMODELS)
       pars <- lapply(hmodel, function(x) x$pars)
@@ -62,7 +74,7 @@ msm.form.hmodel <- function(hmodel, hconstraint=NULL, initprobs=NULL, est.initpr
       names(pars) <- plabs
       hmod <- list(hidden=TRUE, nstates=qmodel$nstates, fitted=FALSE, models=models, labels=labels,
                    npars=npars, nipars=nipars, totpars=sum(npars), pars=pars, plabs=plabs, parstate=parstate,
-                   firstpar=firstpar, links=links, locpars=locpars, initprobs=initprobs)
+                   firstpar=firstpar, links=links, locpars=locpars, initprobs=initprobs, est.initprobs=est.initprobs)
       class(hmod) <- "hmodel"
       hmod
   }
@@ -97,7 +109,7 @@ msm.form.hcmodel <- function(hmodel, hcovdata, hcovinits, hconstraint)
       hmodel$plabs[hmodel$plabs=="hcov"] <- paste("hcov.",covlabels,sep="")
       whichcovh <- lapply(hcovdata, function(x) x$whichcov) # factor contrasts as separate covariates
       hmodel$whichcovh <- unlist(rep(whichcovh, tapply(ncovs2>0, hmodel$parstate, sum)))
-      whichcovh.orig <- lapply(hcovdata, function(x) x$whichcov.orig) # factors considered as one variable 
+      whichcovh.orig <- lapply(hcovdata, function(x) x$whichcov.orig) # factors considered as one variable
       hmodel$whichcovh.orig <- unlist(rep(whichcovh.orig, tapply(ncovs2>0, hmodel$parstate, sum)))
       class(hmodel) <- "hmodel"
       hmodel
@@ -167,7 +179,7 @@ msm.emodel2hmodel <- function(emodel, qmodel)
           locpars <- which(plabs == rep(.msm.LOCPARS[labels], npars))
           hmod <- list(hidden=TRUE, fitted=FALSE, nstates=nst, models=models, labels=labels,
                        npars=npars, totpars=sum(npars), links=links, locpars=locpars,
-                       pars=pars, plabs=plabs, parstate=parstate, firstpar=firstpar, nipars=emodel$nipars, initprobs=emodel$initprobs)
+                       pars=pars, plabs=plabs, parstate=parstate, firstpar=firstpar, nipars=emodel$nipars, initprobs=emodel$initprobs, est.initprobs=emodel$est.initprobs)
           hmod$constr <- msm.econstr2hconstr(emodel$constr, hmod)
       }
       else {
@@ -222,18 +234,20 @@ print.hmodel <- function(x, ...)
           cat("Hidden Markov model, ")
           nst <- length(x$models)
           cat(nst, "states\n")
-          cat("Initial state occupancy probabilities:")
-          if (x$nipars > 0) {
-            cat("\n")
-            print(x$initprobs)
-            cat("\n")
-            if (any(x$nicovs > 0)) {
-              cat("Covariates on log odds of initial states relative to state 1\n")
-              print(x$icoveffect)
-            }
-            cat("\n")
+          if (x$est.initprobs){
+              cat("Initial state occupancy probabilities: ")
+              if (x$nipars > 0) {
+                  cat("\n")
+                  print(x$initprobs)
+                  cat("\n")
+                  if (any(x$nicovs > 0)) {
+                      cat("Covariates on log odds of initial states relative to state 1\n")
+                      print(x$icoveffect)
+                  }
+                  cat("\n")
+              }
+              else cat(paste(x$initprobs, collapse=","), "\n\n")
           }
-          else cat(paste(x$initprobs, collapse=","), "\n\n")
           for (i in 1:nst) {
               cat("State", i, "-", x$labels[i], "distribution\n")
               cat("Parameters: \n")
@@ -309,3 +323,20 @@ msm.form.hcovconstraint <- function(constraint, hmodel)
       }
       match(constr, unique(constr))
   }
+
+## TODO could this be merged with msm.initprobs2mat?
+msm.form.initprobs <- function(hmodel, msmdata){
+    ## if (!is.null(phase.states)) {
+    ##     hmodel$initpmat <- matrix(0, nrow=msmdata.obs$npts, ncol=qmodel$nstates)
+    ##     initstate <- msmdata.obs$state[!duplicated(msmdata.obs$subject)]
+    ##     hmodel$initpmat[cbind(1:npts, match(initstate, pars))] <- 1
+    ##     hmodel$initpbysubj <- TRUE
+    ## }
+    if (!hmodel$est.initprobs) {
+        if (is.matrix(hmodel$initprobs)) {
+            if (nrow(hmodel$initprobs) != msmdata$npts)
+                stop("initial state occupancy probability should have ", msmdata$npts, " (number of subjects) rows if supplied as a matrix, found ",nrow(hmodel$initprobs))
+        }
+    }
+    hmodel
+}

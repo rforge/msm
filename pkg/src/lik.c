@@ -268,7 +268,6 @@ double likhidden(int pt, /* ordinal subject ID */
     double *newp     = Calloc(qm->nst, double);
     double *pout = Calloc(qm->nst, double);
     double *newpars = Calloc(hm->totpars, double);
-    double *newinitp = Calloc(qm->nst, double);
     double lweight, lik;
     int i, fp, totcovs=0, obsno, nc=1;
     if (d->firstobs[pt] + 1 == d->firstobs[pt+1])
@@ -282,11 +281,6 @@ double likhidden(int pt, /* ordinal subject ID */
     }
     GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
     GetOutcomeProb(pout, curr, nc, newpars, hm, qm, d->obstrue[d->firstobs[pt]]);
-    /* Add covariate effects on initp (expressed as p(cat) / p(baseline cat)) */
-    AddCovs(d->firstobs[pt], d->nobs, qm->nst - 1, hm->nicovs, &hm->initp[1], &newinitp[1],
-	    hm->icoveffect, d->cov, d->whichcovi, &totcovs, log, exp);
-    /* Transform initp from probs relative to state 1 prob back to absolute probs */
-    relative2absolutep(newinitp, newinitp, qm->nst, 0);
     /* Likelihood contribution for initial observation */
 #ifdef DEBUG2
     printf("pout: ");
@@ -296,9 +290,10 @@ double likhidden(int pt, /* ordinal subject ID */
       printf("\ncump: ");
 #endif
     for (i = 0; i < qm->nst; ++i) {
-      /* Ignore initprobs if observation is known to be the true state  */
-      if (d->obstrue[d->firstobs[pt]]) newinitp[i] = 1;
-      cump[i] = pout[i] * newinitp[i];
+      cump[i] = pout[i];
+      /* Ignore initprobs if observation is known to be the true state
+	 or TODO, can we set it in R to one for obs state, zero for others? */
+      if (!d->obstrue[d->firstobs[pt]]) cump[i] = cump[i]*hm->initp[MI(pt,i,d->npts)];
 #ifdef DEBUG2
       printf("%lf, ", cump[i]);
 #endif
@@ -326,7 +321,7 @@ double likhidden(int pt, /* ordinal subject ID */
 #ifdef DEBUG2
       printf("\n");
 #endif
-    Free(curr); Free(cump);  Free(newp); Free(pout); Free(newpars); Free(newinitp);
+      Free(curr); Free(cump);  Free(newp); Free(pout); Free(newpars);
     /* Transform the likelihood back to the proper scale */
     return -2*(log(lik) - lweight);
 }
@@ -460,7 +455,6 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
     int i, j, tru, fp, k, kmax, obs, totcovs=0, nc = 1;
     double *newintens   = (double *) S_alloc(qm->npars, sizeof(double));
     double *newpars = (double *) S_alloc(hm->totpars, sizeof(double));
-    double *newinitp = (double *) S_alloc(qm->nst, sizeof(double));
     double *pmat = (double *) S_alloc((qm->nst)*(qm->nst), sizeof(double));
     int *ptr = (int *) S_alloc((d->nobs)*(qm->nst), sizeof(int));
     double *lvold = (double *) S_alloc(qm->nst, sizeof(double));
@@ -470,7 +464,6 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
     double *pout = (double *) S_alloc(qm->nst, sizeof(double));
     double dt;
 
-    /* Add covariate effects on initp (expressed as p(cat) / p(baseline cat)) */
     i = 0;
     if (d->obstrue[i]) {
       for (k = 0; k < qm->nst; ++k)
@@ -488,13 +481,9 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 	  else lvold[k] = R_NegInf;
 	}
       }
-      else {
-	/* use initprobs */
-	AddCovs(i, d->nobs, qm->nst - 1, hm->nicovs, &hm->initp[1], &newinitp[1],
-		hm->icoveffect, d->cov, d->whichcovi, &totcovs, log, exp);
-	relative2absolutep(newinitp, newinitp, qm->nst, 0);
+      else { /* use initprobs */	
 	for (k = 0; k < qm->nst; ++k)
-	  lvold[k] = log(newinitp[k]);
+	    lvold[k] = log(hm->initp[MI(0, k, d->npts)]);
       }
     }
 
@@ -571,7 +560,6 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 		    printf("\n");
 #endif
 
-		    /* Add covariate effects on initp (expressed as p(cat) / p(baseline cat)) */
 		    if (d->obstrue[i]) {
 		      for (k = 0; k < qm->nst; ++k)
 			lvold[k] = (k+1 == d->obs[i] ? 0 : R_NegInf);
@@ -588,13 +576,9 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 			  else lvold[k] = R_NegInf;
 			}
 		      }
-		      else {
-			/* use initprobs */
-			AddCovs(i, d->nobs, qm->nst - 1, hm->nicovs, &hm->initp[1], &newinitp[1],
-				hm->icoveffect, d->cov, d->whichcovi, &totcovs, log, exp);
-			relative2absolutep(newinitp, newinitp, qm->nst, 0);
+		      else { /* use initprobs */
 			for (k = 0; k < qm->nst; ++k)
-			  lvold[k] = log(newinitp[k]);
+			    lvold[k] = log(hm->initp[MI(d->subject[i]-1, k, d->npts)]);
 		      }
 		    }
 		}
@@ -917,10 +901,7 @@ void msmCEntry(
 	       int *hncovs,       /* number of covariate effects on each HMM parameter */
 	       int *whichcovh,    /* which column in the covariate data */
 	       int *links,        /* link function for each state distribution */
-	       double *initprobs, /* initial state occupancy probabilities */
-	       int *nicovs,        /* number of covariate effects on these */
-	       double *icoveffect, /* values of these effects */
-	       int *whichcovi,    /* which column in the covariate data */
+	       double *initprobs, /* initial state occupancy probabilities, as a npts x nstates matrix (since v1.2.1) */
 
 	       int *nst,      /* number of Markov states */
 	       int *analyticp, /* should P matrix be calculated analytically */
@@ -954,7 +935,7 @@ void msmCEntry(
   d.fromstate = fromstate;     d.tostate = tostate;     d.timelag = timelag;
   d.cov = covvec;  d.covobs = covobsvec;  d.nocc = nocc;  d.noccsum=noccsum;
   d.whicha = whicha; d.obstype = obstype; d.obstrue = obstrue;
-  d.whichcov = whichcov;  d.whichcovh = whichcovh;  d.whichcovi=whichcovi;
+  d.whichcov = whichcov;  d.whichcovh = whichcovh;
   d.subject = subjvec; d.time = timevec; d.obs = obsvec; d.firstobs = firstobs;
   d.nobs = *nobs;  d.n = *n; d.npts = *npts; d.ntrans = *ntrans;
 
@@ -968,7 +949,7 @@ void msmCEntry(
   hm.hidden = *hidden;  hm.models = hmodels;  hm.npars = hnpars;  hm.totpars = *htotpars;
   hm.firstpar = hfirstpar;  hm.ncovs = hncovs;  hm.pars = hmmpars;
   hm.coveffect = hcoveffect;  hm.links = links;
-  hm.initp = initprobs; hm.nicovs = nicovs; hm.icoveffect = icoveffect;
+  hm.initp = initprobs;
 
   if (*do_what == 0) {
     msmLikelihood(&d, &qm, &qcm, &cm, &hm, returned);

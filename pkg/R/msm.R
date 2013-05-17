@@ -48,7 +48,9 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
     if (missing(data)) data <- environment(formula)
 
 ### MODEL FOR TRANSITION INTENSITIES
-    qmodel <- msm.form.qmodel(qmatrix, qconstraint, exacttimes, gen.inits, formula, subject, data, censor, censor.states, analyticp)
+    if (gen.inits)
+        qmatrix <- crudeinits.msm(formula, subject, qmatrix, data, censor, censor.states)
+    qmodel <- msm.form.qmodel(qmatrix, qconstraint, exacttimes, analyticp)
 
 ### MISCLASSIFICATION MODEL
     if (!missing(ematrix)) {
@@ -74,7 +76,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
     }
     else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
 
-### DEATH STATES. Logical values allowed for backwards compatibility (TRUE means final state is death, FALSE means no death state)
+### EXACT DEATH TIMES. Logical values allowed for backwards compatibility (TRUE means final state has exact death time, FALSE means no states with exact death times)
     dmodel <- msm.form.dmodel(death, qmodel, hmodel)  # returns death, ndeath,
     if (dmodel$ndeath > 0 && qmodel$exacttimes) warning("Ignoring death argument, as all states have exact entry times")
 
@@ -168,9 +170,11 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         hmodel$constr <- msm.form.hconstraint(hconstraint, hmodel)
         hmodel$covconstr <- msm.form.hcovconstraint(hconstraint, hmodel)
     }
+### INITIAL STATE OCCUPANCY PROBABILITIES IN HMMS
+    if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, msmdata)
 
 ### FORM LIST OF INITIAL PARAMETERS, MATCHING PROVIDED INITS WITH SPECIFIED MODEL, FIXING SOME PARS IF REQUIRED
-    p <- msm.form.params(qmodel, qcmodel, emodel, hmodel, fixedpars, est.initprobs)
+    p <- msm.form.params(qmodel, qcmodel, emodel, hmodel, fixedpars)
 
 ### CALCULATE LIKELIHOOD AT INITIAL VALUES...
     if (p$fixed) {
@@ -397,10 +401,8 @@ msm.fixdiag.ematrix <- function(ematrix)
     ematrix
 }
 
-msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, gen.inits=FALSE, formula, subject, data, censor, censor.states, analyticp)
+msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyticp=TRUE)
 {
-    if (gen.inits)
-        qmatrix <- crudeinits.msm(formula, subject, qmatrix, data, censor, censor.states)
     msm.check.qmatrix(qmatrix)
     nstates <- dim(qmatrix)[1]
     qmatrix <- msm.fixdiag.qmatrix(qmatrix)
@@ -460,13 +462,7 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
 {
     msm.check.ematrix(ematrix, qmodel$nstates)
     diag(ematrix) <- 0
-##    imatrix <- ifelse(ematrix > 0 & ematrix < 1, 1, 0)
     imatrix <- ifelse(ematrix > 0, 1, 0)
-
-### FIXME if off-diagonal 1s, then use HMM likelihood.
-### npars=0 uses simple lik.
-### Proposal: change imatrix as commented
-    
     diag(ematrix) <- 1 - rowSums(ematrix)
     if (is.null(rownames(ematrix)))
         rownames(ematrix) <- colnames(ematrix) <- paste("State", seq(qmodel$nstates))
@@ -480,14 +476,22 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
     }
     else {
         if (!is.numeric(initprobs)) stop("initprobs should be numeric")
-        if (length(initprobs) != qmodel$nstates) stop("initprobs of length ", length(initprobs), ", should be ", qmodel$nstates)
-        initprobs <- initprobs / sum(initprobs)
-        if (est.initprobs && any(initprobs==1)) {
+        if (is.matrix(initprobs)) {
+            if (ncol(initprobs) != qmodel$nstates) stop("initprobs matrix has ", ncol(initprobs), " columns, should be number of states = ", qmodel$nstates)
+            if (est.initprobs) { warning("Not estimating initial state occupancy probabilities since supplied as a matrix") }
+            initprobs <- initprobs / rowSums(initprobs)
             est.initprobs <- FALSE
-            warning("Not estimating initial state occupancy probabilities, since some are fixed to 1")
+        }
+        else {
+            if (length(initprobs) != qmodel$nstates) stop("initprobs of length ", length(initprobs), ", should be ", qmodel$nstates)
+            initprobs <- initprobs / sum(initprobs)
+            if (est.initprobs && any(initprobs==1)) {
+                est.initprobs <- FALSE
+                warning("Not estimating initial state occupancy probabilities, since some are fixed to 1")
+            }
         }
     }
-    nipars <- qmodel$nstates - 1
+    nipars <- if (est.initprobs) qmodel$nstates - 1 else 0
     if (!is.null(econstraint)) {
         if (!is.numeric(econstraint)) stop("econstraint should be numeric")
         if (length(econstraint) != npars)
@@ -498,7 +502,7 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
         constr <- seq(length=npars)
     ndpars <- if(npars>0) max(constr) else 0
     emodel <- list(misc=TRUE, npars=npars, nstates=nstates, imatrix=imatrix, ematrix=ematrix, inits=inits,
-                   constr=constr, ndpars=ndpars, nipars=nipars, initprobs=initprobs)
+                   constr=constr, ndpars=ndpars, nipars=nipars, initprobs=initprobs, est.initprobs=est.initprobs)
     class(emodel) <- "msmemodel"
     emodel
 }
@@ -583,7 +587,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     subj.num <- factor(match(subject,unique(subject))) # avoid problems with factor subjects with empty levels
     nobspt <- table(subj.num[final.rows])[subj.num]
     final.rows <- intersect(final.rows, which(nobspt>1))
-    
+
     subject <- subject[final.rows]
     time <- subset(time, statetimerows.kept %in% final.rows)
     state <- subset(state, statetimerows.kept %in% final.rows)
@@ -1132,7 +1136,7 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
     res
 }
 
-msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars, est.initprobs)
+msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
 {
     ## Categories of parameter:
     inits <- c(qmodel$inits, qcmodel$inits)
@@ -1187,8 +1191,8 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars, est.init
     if (any(! (fixedpars %in% seq(along=realpars))))
         stop ( "Elements of fixedpars should be in 1, ..., ", npars - naux - ndup)
     fixedpars <- sort(c(realpars[fixedpars], auxpars))
-    if (!est.initprobs)
-        fixedpars <- union(fixedpars, which(plabs %in% c("initp","initp0","initpcov")))
+#    if (!hmodel$est.initprobs)
+#        fixedpars <- union(fixedpars, which(plabs %in% c("initp","initp0","initpcov")))
     notfixed <- setdiff(seq(npars), fixedpars)
     allinits <- inits
     nfix <- length(fixedpars)
@@ -1202,6 +1206,31 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars, est.init
                       fixedpars=fixedpars, constr=constr,
                       npars=npars, nfix=nfix, nopt=nopt, ndup=ndup)
     paramdata
+}
+
+msm.initprobs2mat <- function(hmodel, pars, msmdata){
+    ## Convert vector initial state occupancy probs to matrix by patient
+    if (hmodel$est.initprobs) {
+        initp <- pars[names(pars) %in% c("initp","initp0")]
+        initp <- matrix(rep(initp, each=msmdata$npts), nrow=msmdata$npts)
+        if (hmodel$nicoveffs > 0) {
+            ## Multiply baselines (natural scale) by current covariate
+            ## effects, giving matrix of patient-specific initprobs
+            initp <- log(initp/(1 - rowSums(initp)))
+            ## cov effs ordered by states (excluding state 1) within covariates
+            coveffs <- pars[names(pars)=="initpcov"]
+            coveffs <- matrix(coveffs, nrow=max(hmodel$nicovs), byrow=TRUE)
+            coveffs[,hmodel$nicovs==0] <- 0 # states with fixed initp=zero
+            firstobs <- !duplicated(msmdata$subject)
+            linpred <- initp + as.matrix(msmdata$covmat[firstobs,hmodel$whichcovi,drop=FALSE]) %*% coveffs
+            initp <- cbind(1, exp(linpred)) / (1 + rowSums(exp(linpred)))
+        }
+        else initp <- cbind(1 - rowSums(initp), initp)
+    }
+    else if (!is.matrix(hmodel$initprobs))
+        initp <- matrix(rep(hmodel$initprobs,each=msmdata$npts),nrow=msmdata$npts)
+    else initp <- hmodel$initprobs
+    initp
 }
 
 ### Wrapper for the C code which evaluates the -2*log-likelihood and related quantities
@@ -1230,8 +1259,7 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
     hmodel$models <- hmodel$models - 1
     hmodel$links <- hmodel$links - 1
     pars[plabs == "p"] <- exp(pars[plabs == "p"])
-    initprobs <- c(1 - sum(pars[plabs=="initp"]), pars[plabs %in% c("initp","initp0")])
-    initprobs <- initprobs / initprobs[1] ## initprobs[1] documented as not allowed to be zero.
+    initprobs <- if (hmodel$hidden) msm.initprobs2mat(hmodel, pars, msmdata) else 0
 
     if (!do.what %in% c(0,1,2,3,5)) stop("do.what should be 0, 1, 2, 3 or 5") # 4 is Viterbi in outputs.R
     lik <- .C("msmCEntry",
@@ -1271,9 +1299,6 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
               as.integer(hmodel$whichcovh),
               as.integer(hmodel$links),
               as.double(initprobs),
-              as.integer(hmodel$nicovs),
-              as.double(pars[plabs=="initpcov"]),
-              as.integer(hmodel$whichcovi),
 
               ## various constants
               as.integer(qmodel$nstates),

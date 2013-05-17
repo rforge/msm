@@ -1152,9 +1152,9 @@ intervaltrans.msm <- function(x=NULL, qmatrix=NULL, ematrix=NULL, exclude.absabs
 ## Works for time homogeneous and inhomogeneous models
 ## Used to calculate expected prevalences for a population with those covariates
 
-get.covhist <- function(x, subset=NULL) { 
+get.covhist <- function(x, subset=NULL) {
     ## Keep only times where the covariate changes, or first or last obs
-    if (x$qcmodel$ncovs > 0) { 
+    if (x$qcmodel$ncovs > 0) {
         if (!is.null(subset)) {
             subs <- x$data$subject %in% subset
             x$data$subject <- x$data$subject[subs]
@@ -1195,7 +1195,7 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
     ## For general HMMs use the Viterbi estimate of the observed state.
     state <- if ((x$hmodel$hidden && !x$emodel$misc) || (!x$hmodel$hidden && x$cmodel$ncens>0) )
         viterbi.msm(x)$fitted else x$data$state
-    if (is.null(subset)) subset <- unique(x$data$subject)    
+    if (is.null(subset)) subset <- unique(x$data$subject)
     subject <- x$data$subject[x$data$subject %in% subset] ## fixme subj char/factor?
     time <- x$data$time[x$data$subject %in% subset]
     state <- state[x$data$subject %in% subset]
@@ -1255,7 +1255,7 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
         obst <- t(apply(states.expand[covcat==unique(covcat)[i],,drop=FALSE], 2,
                         function(y) table(factor(y, levels=seq(length=x$qmodel$nstates)))))
         risk[,i] <- rowSums(obst)
-    }    
+    }
 
     list(obstab=obstab, obsperc=obsperc, risk=risk)
 }
@@ -1284,7 +1284,7 @@ expected.msm <- function(x,
     exptab <- matrix(0, nrow=length(times), ncol=x$qmodel$nstates)
     start <- min(which(times - timezero >= 0))
     if (x$emodel$misc)
-        initprobs <- x$emodel$initprobs 
+        initprobs <- x$emodel$initprobs
     else {
         if (is.null(initstates))
             initstates <- observed.msm(x, times=timezero)$obstab[1:x$qmodel$nstates]
@@ -1305,7 +1305,7 @@ expected.msm <- function(x,
                     pmat <-  pmatrix.piecewise.msm(x, t1=timezero, t2=times[j], times=ctimes, covariates=ccovs)
                     expji <- risk[j,i] * initprobs %*% pmat
                     if (x$emodel$misc) { # return expected prev of obs (not true) states
-                        if (x$ecmodel$ncovs==0) emat <- ematrix.msm(x, ci="none") 
+                        if (x$ecmodel$ncovs==0) emat <- ematrix.msm(x, ci="none")
                         else {
                             ecovs <- if(length(ctimes)==0) ccovs else ccovs[[length(ccovs)]]
                             emat <- ematrix.msm(x, covariates=ecovs, ci="none")
@@ -1322,9 +1322,9 @@ expected.msm <- function(x,
                     else
                         pmatrix.piecewise.msm(x, timezero, times[j], piecewise.times, piecewise.covariates)
                 expj <- rowSums(risk)[j] * initprobs %*% pmat
-                if (x$emodel$misc) # return expected prev of obs (not true) states 
-                    expj <- expj %*% ematrix.msm(x, covariates=misccovariates, ci="none") 
-                exptab[j,] <- expj                
+                if (x$emodel$misc) # return expected prev of obs (not true) states
+                    expj <- expj %*% ematrix.msm(x, covariates=misccovariates, ci="none")
+                exptab[j,] <- expj
             }
         }
     }
@@ -1594,7 +1594,7 @@ viterbi.msm <- function(x)
             x$hmodel$pars[x$hmodel$plabs == "p"] <-
                 x$hmodel$pars[x$hmodel$plabs == "p"] / x$hmodel$pars[x$hmodel$plabs == "pbase"][pst]
         }
-        x$hmodel$initprobs <- x$hmodel$initprobs / x$hmodel$initprobs[1]
+        initprobs <- msm.initprobs2mat(x$hmodel, x$paramdata$params, x$data)
 
         vit <- .C("msmCEntry",
                   as.integer(do.what),
@@ -1633,10 +1633,7 @@ viterbi.msm <- function(x)
                   as.integer(x$hmodel$ncovs),
                   as.integer(x$hmodel$whichcovh),
                   as.integer(x$hmodel$links),
-                  as.double(x$hmodel$initprobs),
-                  as.integer(x$hmodel$nicovs),
-                  as.double(x$hmodel$icoveffect),
-                  as.integer(x$hmodel$whichcovi),
+                  as.double(initprobs),
 
                   ## various dimensions
                   as.integer(x$qmodel$nstates),
