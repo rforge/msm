@@ -1896,11 +1896,13 @@ than the default Nelder-Mead simplex-based algorithm.  An optional
 argument \Rfunarg{initprobs} could also have been given here,
 representing the vector of the probabilities of occupying each true
 state at the initial observation
-(equation \ref{eq:multi:hidden:matprod}).  If not given, all
+(equation \ref{eq:multi:hidden:matprod}).  This can also be a matrix
+with number of rows equal to the number of subjects, if these 
+probabilities are subject-dependent and known. If not given, all
 individuals are assumed to be in true state 1 at their initial
 observation.  If \Rfunarg{est.initprobs=TRUE} is specified, then these
 probabilites are estimated as part of the model fit, using
-\Rfunarg{initprobs} as initial values.  Covariate effects on these
+a vector \Rfunarg{initprobs} as initial values.  Covariate effects on these
 probabilities can also be estimated using a multinomial logistic
 regression model, if an \Rfunarg{initcovariates} argument is
 specified.  See \Rfunction{help(msm)} for further details.

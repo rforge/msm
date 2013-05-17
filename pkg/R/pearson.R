@@ -75,6 +75,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
     od$firstobs <- rep(tapply(1:n,od$subject,min)[as.character(unique(od$subject))],
                     table(od$subject)[as.character(unique(od$subject))])
     od$obsno <- 1:n - od$firstobs + 1
+    od$subj.num <- match(od$subject, unique(od$subject))
     if (!is.null(next.obstime) && (!is.numeric(next.obstime) || length(next.obstime) != n)) stop (paste("expected \"next.obstime\" to be a numeric vector length", n))
     od$timeinterval <- if (is.null(next.obstime)) (od$obsno>1)*(od$time - od$time[c(1,1:(n-1))]) else next.obstime
     if (!is.null(maxtimes) && (!is.numeric(maxtimes) || !(length(maxtimes) %in% c(1,n)))) stop (paste("expected \"maxtimes\" to be a numeric vector length 1 or", n))
@@ -202,7 +203,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
             if (x$ecmodel$ncovs > 0) od$cov[x$hmodel$whichcovh.orig[1:x$ecmodel$ncovs]][od$obsno>1,,drop=FALSE]
             else NULL
         p.true <- array(dim=c(nst, ntrans)) # prob of each true state conditional on complete history including current obs
-        initp <- if (x$foundse) x$hmodel$initprobs[,"Estimate"] else x$hmodel$initprobs
+        initp <- x$hmodel$initpmat
         if (x$ecmodel$ncovs > 0) {
             uniqmisc <- unique(misccov)
             ematindex <- match(do.call("paste",misccov), do.call("paste", uniqmisc))
@@ -215,12 +216,12 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
             ematrix <- if (x$ecmodel$ncovs>0) emat[,,ematindex[i]] else emat
 	    if (md$state[i] %in% ndstates) {
               T <- pmi[,,md$timeqmatindex[i]] * matrix(ematrix[,md$state[i]], nrow=nst, ncol=nst, byrow=TRUE)
-              p.true[,i] <- if (md$obsno[i] == 2) t(initp) %*% T else t(p.true[,i-1]) %*% T
+              p.true[,i] <- if (md$obsno[i] == 2) t(initp[md$subj.num[i],]) %*% T else t(p.true[,i-1]) %*% T
               p.true[,i] <- p.true[,i] / sum(p.true[,i])  # prob of each true state
             }
 	    if (!(md$state[i] %in% dstates)) {
                 prob[,i] <-
-                    if (md$obsno[i] == 2) initp %*% pmi[,,md$timeqmatindex[i]] %*% ematrix
+                    if (md$obsno[i] == 2) initp[md$subj.num[i],] %*% pmi[,,md$timeqmatindex[i]] %*% ematrix
                     else p.true[,i-1] %*% pmi[,,md$timeqmatindex[i]] %*% ematrix
             }
         }
@@ -242,7 +243,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
                     k <- deathindex[j]
                     ematrix <- if (x$ecmodel$ncovs>0) emat[,,ematindex[k]] else emat
                     prob[,k] <-
-                        if (md$obsno[k] == 2) initp %*% pmi[,,imputation[j,i,"timeqmatindex"]] %*% ematrix
+                        if (md$obsno[k] == 2) initp[md$subj.num[k],] %*% pmi[,,imputation[j,i,"timeqmatindex"]] %*% ematrix
                         else p.true[,k-1] %*% pmi[,,imputation[j,i,"timeqmatindex"]] %*% ematrix
                 }
             }

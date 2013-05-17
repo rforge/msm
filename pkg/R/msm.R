@@ -321,7 +321,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         Ematrices <- EmatricesSE <- EmatricesL <- EmatricesU <- NULL
     }
     if (hmodel$hidden) {
-        hmodel <- msm.form.houtput(hmodel, p)
+        hmodel <- msm.form.houtput(hmodel, p, msmdata)
     }
 
 ### FORM A MSM OBJECT FROM THE RESULTS
@@ -519,7 +519,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     if (!inherits(formula, "formula")) stop("\"formula\" argument should be a formula")
     mf <- model.frame(formula, data=data)
     state <- mf[,1]
-    if (!hmodel$hidden || emodel$misc)
+    if (!(hmodel$hidden || emodel$misc))
         msm.check.state(qmodel$nstates, state=state, cmodel$censor)  ## replace after splitting form.hmodel
     time <- mf[,2]
     droprows <- as.numeric(attr(mf, "na.action"))
@@ -1441,7 +1441,7 @@ msm.form.output <- function(whichp, model, cmodel, p)
 
 ## Format hidden Markov model estimates and CIs
 
-msm.form.houtput <- function(hmodel, p)
+msm.form.houtput <- function(hmodel, p, msmdata)
 {
     hmodel$pars <- p$estimates.t[!(p$plabs %in% c("qbase","qcov","hcov","initp","initp0","initpcov"))]
     hmodel$coveffect <- p$estimates.t[p$plabs == "hcov"]
@@ -1475,6 +1475,7 @@ msm.form.houtput <- function(hmodel, p)
             }
         }
     }
+    hmodel$initpmat <- msm.initprobs2mat(hmodel, p$estimates.t, msmdata)
     if (hmodel$foundse) {
         hmodel$ci <- p$ci[!(p$plabs %in% c("qbase","qcov","hcov","initp","initp0","initpcov")), , drop=FALSE]
         hmodel$covci <- p$ci[p$plabs %in% c("hcov"), ]

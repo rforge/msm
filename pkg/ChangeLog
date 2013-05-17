@@ -1,7 +1,12 @@
+2013-05-17 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: Don't warn if not all states observed in data for
+	misclassification models (typo bugfix in msm.form.data).
+
 2013-05-16 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/msm.R,R/hmm.R,src/lik.c: Allow matrix by patient to be
-	supplied for the initial state occupancy probabilities.  
+	supplied for the initial state occupancy probabilities.
 
 2013-05-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
