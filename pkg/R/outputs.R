@@ -40,7 +40,9 @@ print.msm <- function(x, ...)
                 cat("\n")
             }
         }
-        else if (x$hmodel$hidden) {print(x$hmodel); cat("\n")}
+        else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
+            print(x$hmodel); cat("\n")
+        }
     }
     cat ("-2 * log-likelihood: ", x$minus2loglik, "\n")
 

@@ -70,7 +70,8 @@ rmeunif,
 dpexp,
 ppexp,
 qpexp,
-rpexp
+rpexp,
+qgeneric
 )
 
 importFrom(graphics, plot)

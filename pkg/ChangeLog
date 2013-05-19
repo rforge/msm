@@ -1,3 +1,18 @@
+2013-05-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/utils.R: qtnorm, qmenorm, qmeunif and qpexp changed to use
+	qgeneric. Their results should be the same.
+
+	* R/utils.R: long-redundant identity function finally removed.
+
+2013-05-18 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/utils.R: qgeneric function copied from flexsurv
+	package and modified to handle argument clashes.
+
+	* R/utils.R: Return NaN for all dpqr(tnorm,menorm,meunif) if lower
+	bound greater than upper bound.
+
 2013-05-17 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/msm.R: Don't warn if not all states observed in data for
