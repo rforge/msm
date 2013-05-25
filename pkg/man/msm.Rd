@@ -108,7 +108,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
     represents a model in which misclassifications are only permitted
     between adjacent states.
-    
+
     If any probabilities are constrained to be equal using
     \code{econstraint}, then the initial value is
     taken from the first of these (reading across rows).
@@ -224,11 +224,22 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   \emph{misclassified}.
   }
 
-  \item{covariates}{Formula representing the covariates on the
-  transition intensities via a log-linear model. For example,
+  \item{covariates}{A formula or a list of formulae representing the
+    covariates on the transition intensities via a log-linear model. If
+    a single formula is supplied, like
 
-    \code{~ age + sex + treatment}
+    \code{covariates = ~ age + sex + treatment}
 
+    then these covariates are assumed to apply to all intensities.  If a
+    named list is supplied, then this defines a potentially different
+    model for each named intensity.  For example,
+
+    \code{covariates = list("1-2" = ~ age, "2-3" = ~ age + treatment)}
+
+    specifies an age effect on the state 1 - state 2 transition,
+    additive age and treatment effects on the state 2 - state 3
+    transition, but no covariates on any other transitions that are
+    allowed by the \code{qmatrix}.
   }
 
   \item{covinits}{Initial values for log-linear effects of covariates on the
@@ -314,6 +325,12 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     misclassification probabilities, analogously to \code{covariates},
     via multinomial logistic regression. Only used if the model is
     specified using \code{ematrix}, rather than \code{hmodel}.
+
+    This must be a single formula - lists are not supported, unlike
+    \code{covariates}.  If a different model on each probability is
+    required, include all covariates in this formula, and use
+    \code{fixedpars} to fix some of their effects (for particular
+    probabilities) at their default initial values of zero.
   }
 
   \item{misccovinits}{Initial values for the covariates on the
@@ -392,7 +409,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     either be a vector of \eqn{nst} elements with common probabilities
     to all subjects, or a \eqn{nsubj} by \eqn{nst} matrix of
     subject-specific probabilities.
-  
+
     If these are estimated (see \code{est.initprobs}), then this
     represents an initial value, and defaults to equal probability for
     each state.  Otherwise this defaults to \code{c(1, rep(0,
@@ -500,7 +517,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
   \item{pci}{Model for piecewise-constant intensities.  Vector of cut
      points defining the times, since the start of the process, at
-     which intensities change.  For example
+     which intensities change for all subjects.  For example
 
      \code{pci = c(5, 10)}
 
@@ -540,6 +557,12 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
      states with inserted censored observations and time period
      indicators.  These can be used to construct such models.
 
+     Note that you do not need to use \code{pci} in order to model the
+     effect of a time-dependent covariate in the data.  \code{msm} will
+     automatically assume that covariates are piecewise-constant and
+     change at the times when they are observed.  \code{pci} is for when
+     you want all intensities to change at the same pre-specified times
+     for all subjects.
      }
 
   \item{exacttimes}{By default, the transitions of the Markov process

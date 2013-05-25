@@ -11,10 +11,10 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 hmodel = NULL,  # list of constructors for hidden emission distributions
                 obstype = NULL, # optional, defaults to all 1 (snapshots) if not given
                 obstrue = NULL, # for hidden Markov models, which observations represent the true state
-                covariates = NULL, # formula specifying covariates on transition rates.
+                covariates = NULL, # formula or list of formulae specifying covariates on transition rates.
                 covinits = NULL,      # initial values for covariate effects
                 constraint = NULL, # which intensities have covariates on them (as in Marshall et al.)
-                misccovariates = NULL, # formula specifying covariates on misclassification probs
+                misccovariates = NULL, # formula or list of formulae specifying covariates on misclassification probs
                 misccovinits = NULL,      # initial values for misclassification covariate effects
                 miscconstraint = NULL, # which misc probs have covariates on them
                 hcovariates = NULL, # list of formulae specifying covariates model for each hidden state
@@ -132,7 +132,6 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
             if (!is.null(constraint)) warning("constraint specified but no covariates")
             list(npars=0, ncovs=0, ndpars=0)
         }
-
 ### MODEL FOR COVARIATES ON MISCLASSIFICATION PROBABILITIES
     if (!emodel$misc || is.null(misccovariates))
         ecmodel <- list(npars=0, ncovs=0)
@@ -163,7 +162,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         else warning("initprobs and initcovariates ignored for non-hidden Markov models")
     }
     else if (hmodel$hidden) {
-        hmodel <- c(hmodel, list(nicovs=rep(0, hmodel$nstates-1), nicoveffs=0))
+        hmodel <- c(hmodel, list(nicovs=rep(0, hmodel$nstates-1), nicoveffs=0, cri=ecmodel$cri))
         class(hmodel) <- "hmodel"
     }
     if (hmodel$hidden && !emodel$misc) {
@@ -521,6 +520,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     state <- mf[,1]
     if (!(hmodel$hidden || emodel$misc))
         msm.check.state(qmodel$nstates, state=state, cmodel$censor)  ## replace after splitting form.hmodel
+    if (is.factor(state)) state <- as.numeric(levels(state))[state]
     time <- mf[,2]
     droprows <- as.numeric(attr(mf, "na.action"))
     n <- length(c(state, droprows))
@@ -537,7 +537,11 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     ## Parse covariates formula and extract data
     covdata <- misccovdata <- icovdata <- list(ncovs=0, covmat=numeric(0))
     if (!is.null(covariates)) {
-        covdata <- msm.form.covdata(covariates, data, lastobs, center)
+        if (is.list(covariates))
+            covdata <- msm.form.covdata.byrate(covariates, qmodel, data, lastobs, center)
+        else if (inherits(covariates, "formula"))
+            covdata <- msm.form.covdata(covariates, data, lastobs, center)
+        else stop(deparse(substitute(covariates)), " should be a formula or list of formulae")
     }
     if (!is.null(misccovariates) && emodel$misc) {
         misccovdata <- msm.form.covdata(misccovariates, data, NULL, center)
@@ -811,7 +815,9 @@ msm.check.model <- function(fromstate, tostate, obs, subject, obstype=NULL, qmat
 ## Extract covariate information from a formula.
 ## Find which columns and which rows to keep from the original data
 
-msm.form.covdata <- function(covariates, data, ignore.obs, center=TRUE)
+msm.form.covdata <- function(covariates, data,
+                             ignore.obs=NULL, # observation IDs for which missing data should not be dropped
+                             center=TRUE)
 {
     if (!inherits(covariates, "formula")) stop(deparse(substitute(covariates)), " should be a formula")
     mf1 <- model.frame(covariates, data=data, na.action=NULL)
@@ -895,6 +901,32 @@ msm.aggregate.hmmdata <- function(dat)
     dat
 }
 
+msm.check.constraint <- function(constraint, covdata){
+    if (is.null(constraint)) return(invisible())
+    covlabels <- covdata$covlabels
+    covfactor <- covdata$covfactor
+    if (!is.list(constraint)) stop(deparse(substitute(constraint)), " should be a list")
+    if (!all(sapply(constraint, is.numeric)))
+        stop(deparse(substitute(constraint)), " should be a list of numeric vectors")
+    ## check and parse the list of constraints on covariates
+    for (i in names(constraint))
+        if (!(is.element(i, covlabels))){
+            factor.warn <- if ((i %in% names(covfactor)) && covfactor[i])
+                "\n\tFor factor covariates, specify constraints using covnameCOVVALUE = c(...)"
+            else ""
+            stop("Covariate \"", i, "\" in constraint statement not in model.", factor.warn)
+        }
+}
+
+msm.check.covinits <- function(covinits, covdata){
+    covlabels <- covdata$covlabels
+    if (!is.list(covinits)) warning(deparse(substitute(covinits)), " should be a list")
+    else if (!all(sapply(covinits, is.numeric)))
+        warning(deparse(substitute(covinits)), " should be a list of numeric vectors")
+    else if (!all(names(covinits) %in% covlabels))
+        warning("covariate ", paste(setdiff(names(covinits), covlabels), collapse=", "), " in ", deparse(substitute(covinits)), " unknown")
+}
+
 ### Process covariates constraints, in preparation for being passed to the likelihood optimiser
 ### This function is called for both sets of covariates (transition rates and the misclassification probs)
 
@@ -904,29 +936,18 @@ msm.form.covmodel <- function(covdata,
                               covinits
                               )
 {
+    if (!is.null(covdata$cri))
+        return(msm.form.covmodel.byrate(covdata, constraint, nmatrix, covinits))
     ncovs <- covdata$ncovs
     covlabels <- covdata$covlabels
     covlabels.orig <- covdata$covlabels.orig
-    covfactor <- covdata$covfactor
     if (is.null(constraint)) {
         constraint <- rep(list(1:nmatrix), ncovs)
         names(constraint) <- covlabels
         constr <- 1:(nmatrix*ncovs)
     }
     else {
-        if (!is.list(constraint)) stop(deparse(substitute(constraint)), " should be a list")
-        if (!all(sapply(constraint, is.numeric)))
-            stop(deparse(substitute(constraint)), " should be a list of numeric vectors")
-        if (!all(names(constraint) %in% covlabels))
-            stop("covariate ", paste(setdiff(names(constraint), covlabels), collapse=", "), " in ", deparse(substitute(constraint)), " unknown")
-        ## check and parse the list of constraints on covariates
-        for (i in names(constraint))
-            if (!(is.element(i, covlabels))){
-                factor.warn <- if (covfactor[i])
-                    "\n\tFor factor covariates, specify constraints using covnameCOVVALUE = c(...)"
-                else ""
-                stop("Covariate \"", i, "\" in constraint statement not in model.", factor.warn)
-            }
+        msm.check.constraint(constraint, covdata)
         constr <- inits <- numeric()
         maxc <- 0
         for (i in seq(along=covlabels)){
@@ -938,7 +959,7 @@ msm.form.covmodel <- function(covdata,
             ## obtained by match(abs(x), unique(abs(x))) * sign(x)
             if (is.element(covlabels[i], names(constraint))) {
                 if (length(constraint[[covlabels[i]]]) != nmatrix)
-                    stop("\"",names(constraint)[i],"\" constraint of length ",
+                    stop("\"",covlabels[i],"\" constraint of length ",
                          length(constraint[[covlabels[i]]]),", should be ",nmatrix)
             }
             else
@@ -949,13 +970,8 @@ msm.form.covmodel <- function(covdata,
         }
     }
     inits <- numeric()
-    if (!is.null(covinits)) {
-        if (!is.list(covinits)) warning(deparse(substitute(covinits)), " should be a list")
-        else if (!all(sapply(covinits, is.numeric)))
-            warning(deparse(substitute(covinits)), " should be a list of numeric vectors")
-        else if (!all(names(covinits) %in% covlabels))
-            warning("covariate ", paste(setdiff(names(covinits), covlabels), collapse=", "), " in ", deparse(substitute(covinits)), " unknown")
-    }
+    if (!is.null(covinits))
+        msm.check.covinits(covinits, covdata)
     for (i in seq(along=covlabels)) {
         if (!is.null(covinits) && is.element(covlabels[i], names(covinits))) {
             thisinit <- covinits[[covlabels[i]]]
@@ -1186,13 +1202,24 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
     ndup <- length(duppars)
     realpars <- setdiff(seq(npars), union(auxpars, duppars))
     nrealpars <- npars - naux - ndup
+    ## if transition-specific covariates, then fixedpars indices generally smaller
+    nshortpars <- nrealpars - sum(qcmodel$cri==0)
     if (is.logical(fixedpars))
-        fixedpars <- if (fixedpars == TRUE) seq(nrealpars) else numeric()
-    if (any(! (fixedpars %in% seq(along=realpars))))
-        stop ( "Elements of fixedpars should be in 1, ..., ", npars - naux - ndup)
+        fixedpars <- if (fixedpars == TRUE) seq(nshortpars) else numeric()
+    if (any(! (fixedpars %in% seq(length=nshortpars))))
+        stop ( "Elements of fixedpars should be in 1, ..., ", nshortpars)
+    if (!is.null(qcmodel$cri)) {
+        ## Convert user-supplied fixedpars indexing transition-specific covariates
+        ## to fixedpars indexing transition-common covariates
+        inds <- rep(1, nrealpars)
+        inds[qmodel$ndpars + qcmodel$constr[!duplicated(qcmodel$constr)]] <-
+            qcmodel$cri[!duplicated(qcmodel$constr)]
+        inds[inds==1] <- seq(length=nshortpars)
+        fixedpars <- match(fixedpars, inds)
+        ## fix covariate effects not included in model to zero
+        fixedpars <- sort(c(fixedpars, which(inds==0)))
+    }
     fixedpars <- sort(c(realpars[fixedpars], auxpars))
-#    if (!hmodel$est.initprobs)
-#        fixedpars <- union(fixedpars, which(plabs %in% c("initp","initp0","initpcov")))
     notfixed <- setdiff(seq(npars), fixedpars)
     allinits <- inits
     nfix <- length(fixedpars)
@@ -1210,6 +1237,7 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
 
 msm.initprobs2mat <- function(hmodel, pars, msmdata){
     ## Convert vector initial state occupancy probs to matrix by patient
+    if (!hmodel$hidden) return(0)
     if (hmodel$est.initprobs) {
         initp <- pars[names(pars) %in% c("initp","initp0")]
         initp <- matrix(rep(initp, each=msmdata$npts), nrow=msmdata$npts)
@@ -1259,9 +1287,9 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
     hmodel$models <- hmodel$models - 1
     hmodel$links <- hmodel$links - 1
     pars[plabs == "p"] <- exp(pars[plabs == "p"])
-    initprobs <- if (hmodel$hidden) msm.initprobs2mat(hmodel, pars, msmdata) else 0
+    initprobs <- msm.initprobs2mat(hmodel, pars, msmdata)
 
-    if (!do.what %in% c(0,1,2,3,5)) stop("do.what should be 0, 1, 2, 3 or 5") # 4 is Viterbi in outputs.R
+    if (!do.what %in% c(0,1,2,3,5,6)) stop("do.what should be 0, 1, 2, 3, 5 or 6") # 4 is Viterbi in outputs.R
     lik <- .C("msmCEntry",
               as.integer(do.what),
               as.integer(as.vector(t(qmodel$imatrix))),
@@ -1329,6 +1357,7 @@ likderiv.msm <- function(params, deriv=0, msmdata, qmodel, qcmodel, cmodel, hmod
               if (do.what %in% c(1,2)) qmodel$ndpars + qcmodel$ndpars
               else if (do.what==3) msmdata$npts*(qmodel$ndpars + qcmodel$ndpars)
               else if (do.what==5) msmdata$ntrans*qmodel$nstates*(qmodel$ndpars + qcmodel$ndpars)
+              else if (do.what==6) msmdata$npts
               else 1),
 
               returned2 = double(
@@ -1663,6 +1692,104 @@ msm.pci <- function(tcut, dat, qmodel, cmodel, center)
     res
 }
 
+
+msm.check.covlist <- function(covlist) {
+    check.numnum <- function(str)
+        length(grep("^[0-9]+-[0-9]+$", str)) == length(str)
+    num <- sapply(names(covlist), check.numnum)
+    if (!all(num)) {
+        badnums <- which(!num)
+        plural1 <- if (length(badnums)>1) "s" else "";
+        plural2 <- if (length(badnums)>1) "e" else "";
+        badnames <- paste(paste("\"",names(covlist)[badnums],"\"",sep=""), collapse=",")
+        badnums <- paste(badnums, collapse=",")
+        stop("Name", plural1, " ", badnames, " of \"covariates\" formula", plural2, " ", badnums, " not in format \"number-number\"")
+    }
+    for (i in seq(along=covlist))
+        if (!inherits(covlist[[i]], "formula"))
+            stop("\"covariates\" should be a formula or list of formulae")
+}
+
+msm.form.covdata.byrate <- function(covlist, qemodel, data, ignore.obs=NULL, center=TRUE) {
+    msm.check.covlist(covlist)
+    trans <- sapply(strsplit(names(covlist), "-"), as.numeric)
+    npars <- qemodel$npars
+    tm <- if(inherits(qemodel,"msmqmodel")) "transition" else "misclassification"
+    qe <- if(inherits(qemodel,"msmqmodel")) "qmatrix" else "ematrix"
+    imat <- qemodel$imatrix
+    for (i in seq(length=ncol(trans))){
+        if (imat[trans[1,i],trans[2,i]] != 1)
+            stop("covariates on ", names(covlist)[i], " ", tm, " requested, but this is not permitted by the ", qe, ".")
+    }
+    imat <- t(imat) # order named transitions / misclassifications by row
+    tnames <- paste(col(imat)[imat==1],row(imat)[imat==1],sep="-")
+
+    ## Merge transition-specific formulae into one big formula
+    ter <- lapply(covlist, terms)
+    vars <- unique(unlist(lapply(ter, function(x)attr(x,"term.labels"))))
+    form <- as.formula(paste("~ ", paste(vars,collapse="+")))
+    covdata <- msm.form.covdata(form, data, ignore.obs, center)
+
+    ## Form indicator matrix for cov effects that will be fixed to zero
+    covs <- covdata$covlabels
+    covdata$cri <- matrix(0, nrow=npars, ncol=length(covs), dimnames = list(tnames, covs))
+    sorti <- function(x) {
+        ## converts, e.g. c("b:a:c","d:f","f:e") to c("a:b:c", "d:f", "e:f")
+        sapply(lapply(strsplit(x, ":"), sort), paste, collapse=":")
+    }
+    for (i in 1:npars) {
+        if (tnames[i] %in% names(covlist)) {
+            covsi <- msm.form.covdata(covlist[[tnames[i]]], data)$covlabels
+            covdata$cri[i, match(sorti(covsi), sorti(covs))] <- 1
+        }
+    }
+    covdata
+}
+
+
+msm.form.covmodel.byrate <- function(covdata,
+                                     constraint, # as supplied by user
+                                     nmatrix,
+                                     covinits  # as supplied by user
+                                     ){
+    covs <- covdata$covlabels
+    cri <- covdata$cri
+    ## Convert short form constraints to long form
+    msm.check.constraint(constraint, covdata)
+    constr <- inits <- numeric()
+    for (i in seq(along=covs)){
+        if (covs[i] %in% names(constraint)){
+            if (length(constraint[[covs[i]]]) != sum(cri[,i]))
+                stop("\"",covs[i],"\" constraint of length ",
+                     length(constraint[[covs[i]]]),", should be ",sum(cri[,i]))
+            con <- match(constraint[[covs[i]]], unique(constraint[[covs[i]]])) + 1
+            constraint[[covs[i]]] <- rep(1, nmatrix)
+            constraint[[covs[i]]][cri[,i]==1] <- con
+        }
+        else constraint[[covs[i]]] <- seq(length=nmatrix)
+    }
+    ## convert short to long initial values in the same way
+    if (!is.null(covinits)) msm.check.covinits(covinits, covdata)
+    for (i in seq(along=covs)) {
+        if (!is.null(covinits) && (covs[i] %in% names(covinits))) {
+            if (!is.numeric(covinits[[covs[i]]])) {
+                warning("initial values for covariates should be numeric, ignoring")
+                covinits[[covs[i]]] <- rep(0, nmatrix)
+            }
+            thisinit <- rep(0, nmatrix)
+            if (length(covinits[[covs[i]]]) != sum(cri[,i])) {
+                warning("\"", covs[i], "\" initial values of length ", length(covinits[[covs[i]]]), ", should be ", sum(cri[,i]), ", ignoring")
+                covinits[[covs[i]]] <- rep(0, nmatrix)
+            }
+            else thisinit[cri[,i]==1] <- covinits[[covs[i]]]
+            covinits[[covs[i]]] <- thisinit
+        }
+    }
+    covdata$cri <- NULL
+    qcmodel <- msm.form.covmodel(covdata, constraint, nmatrix, covinits)
+    qcmodel$cri <- cri
+    qcmodel
+}
 
 ### Unload shared library when package is detached with unloadNamespace("msm")
 .onUnload <- function(libpath) { library.dynam.unload("msm", libpath) }

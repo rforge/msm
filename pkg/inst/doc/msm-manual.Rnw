@@ -1571,6 +1571,23 @@ maximum likelihood, or it may be close to the maximum.
   is expected to be faster than the generic methods, but less robust to
   bad initial values.
 
+\item[\Rfunction{optim} "function cannot be evaluated at initial parameters"]
+  To diagnose this problem, run \Rfunction{msm} again with
+  \Rfunarg{fixedpars=TRUE} set, to calculate the -2 log-likelihood at
+  the initial values.  This will probably be \Robject{Inf}. To show
+  the contributions of individual subjects to the overall log
+  likelihood, call \Rfunction{logLik.msm(x, by.subject=TRUE)}, where
+  \Robject{x} is the fitted model object.  If only a few subjects give
+  an infinite log-likelihood, then you can check whether their state
+  histories are particularly unusual and conflict with the model.  For
+  example, they might appear to make unusually large jumps between
+  states in short periods of time.  For models with misclassification,
+  note that the default true initial state distribution
+  \Rfunarg{initprobs} puts all individuals in true state 1 at their
+  first observation.  If someone starts in a much higher state, this
+  may result in an infinite log-likelihood, and changing
+  \Rfunarg{initprobs} would be sensible.
+
 \item[Model simplification]
 
   If none of these numerical adjustments lead to convergence, then the
@@ -1634,9 +1651,9 @@ A set of expected counts can be produced if the process begins at a
 common time for all individuals.  Suppose at this time, each
 individual is in state 0.  Then given $n(t)$ individuals are under
 observation at time $t$, the expected number of individuals in state
-$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which 
-$P(t)$ depends vary between individuals, then this can be 
-averaged over the covariates observed in the data. 
+$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which
+$P(t)$ depends vary between individuals, then this can be
+averaged over the covariates observed in the data.
 
 For example, we calculate the observed and expected numbers and
 percentages at two-yearly intervals up to 20 years after transplant,
@@ -1897,7 +1914,7 @@ argument \Rfunarg{initprobs} could also have been given here,
 representing the vector of the probabilities of occupying each true
 state at the initial observation
 (equation \ref{eq:multi:hidden:matprod}).  This can also be a matrix
-with number of rows equal to the number of subjects, if these 
+with number of rows equal to the number of subjects, if these
 probabilities are subject-dependent and known. If not given, all
 individuals are assumed to be in true state 1 at their initial
 observation.  If \Rfunarg{est.initprobs=TRUE} is specified, then these

@@ -1,3 +1,32 @@
+2013-05-25 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* inst/doc/msm-manual.Rnw: Added advice about "function cannot be
+	evaluated at initial parameters".
+
+2013-05-24 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: New interface for supplying different covariates on
+	different transition intensities.
+
+	* R/msm.R: Redundant constraint check and factor warning fixed and
+	cleaned.
+
+2013-05-23 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.form.covdata): checks on constraints and covinits
+	separated into new functions.
+
+	* R/msm.R(msm.form.covmodel): wrong names in error message for
+	constraint length checking.
+
+2013-05-21 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.form.data): Handle factor states (with levels
+	1:nstates) by converting to numeric.
+
+	* R/msm.R, src/lik.c: Can now print subject-specific
+	log-likelihoods at the MLE via logLik.msm().
+
 2013-05-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/utils.R: qtnorm, qmenorm, qmeunif and qpexp changed to use

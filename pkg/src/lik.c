@@ -433,6 +433,35 @@ double liksimple(msmdata *d, qmodel *qm, qcmodel *qcm,
     return (-2*lik);
 }
 
+/* Likelihood for the non-hidden multi-state Markov model, by subject */
+
+double liksimple_subj(int pt, /* ordinal subject ID */
+		      msmdata *d, qmodel *qm, qcmodel *qcm,
+		      cmodel *cm, hmodel *hm)
+{
+    int i,totcovs=0, np=qm->npars, from, to;
+    double lik=0, pm=0, dt;
+    double *pmat      = Calloc((qm->nst)*(qm->nst), double);
+    double *newintens = Calloc ( qm->npars , double);
+    double *x = Calloc(qcm->ncovs[0], double);
+    for (i = d->firstobs[pt]+1; i < d->firstobs[pt+1]; ++i) {
+	GetCovData(i, d->covobs, d->whichcov, x, qcm->ncovs[0], d->n);
+	AddCovs(i, d->n, np, qcm->ncovs, qm->intens, newintens,
+		qcm->coveffect, d->covobs, d->whichcov, &totcovs, log, exp);
+	dt = d->time[i] - d->time[i-1];
+	from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
+	to = fprec(d->obs[i] - 1, 0);
+	Pmat(pmat, dt, newintens, np, qm->ivector, qm->nst, (d->obstype[i] == OBS_EXACT), qm->analyticp, qm->iso, qm->perm,  qm->qperm, 0);
+	if (d->obstype[i] == OBS_DEATH)
+	    pm = pijdeath(from, to, pmat, newintens, qm->ivector, qm->nst);
+	else
+	    pm = pmat[MI(from, to, qm->nst)];
+	lik += log(pm);
+    }
+    Free(pmat); Free(newintens); Free(x);
+    return (-2*lik);
+}
+
 /* Find zero-based index of maximum element of a vector x */
 
 void pmax(double *x, int n, int *maxi)
@@ -481,7 +510,7 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 	  else lvold[k] = R_NegInf;
 	}
       }
-      else { /* use initprobs */	
+      else { /* use initprobs */
 	for (k = 0; k < qm->nst; ++k)
 	    lvold[k] = log(hm->initp[MI(0, k, d->npts)]);
       }
@@ -585,22 +614,18 @@ void Viterbi(msmdata *d, qmodel *qm, qcmodel *qcm,
 	}
 }
 
-
 void msmLikelihood (msmdata *d, qmodel *qm, qcmodel *qcm,
 		    cmodel *cm, hmodel *hm,
 		    double *returned)
 {
     int pt;
     double likone;
+    *returned = 0;
     /* Likelihood for hidden Markov model */
     if (hm->hidden)
 	{
-	    *returned = 0;
 	    for (pt = 0;  pt < d->npts; ++pt){
 		likone = likhidden (pt, d, qm, qcm, cm, hm);
-#ifdef DEBUG
-		printf("pt %d, lik %lf\n", pt, likone);
-#endif
 		*returned += likone;
 	    }
 	}
@@ -609,15 +634,29 @@ void msmLikelihood (msmdata *d, qmodel *qm, qcmodel *qcm,
 	{
 	    for (pt = 0;  pt < d->npts; ++pt){
 		likone = likcensor (pt, d, qm, qcm, cm, hm);
-#ifdef DEBUG
-		printf("pt %d, lik %lf\n", pt, likone);
-#endif
 		*returned += likone;
 	    }
 	}
     /* Likelihood for simple non-hidden, non-censored Markov model */
     else {
 	*returned = liksimple (d, qm, qcm, cm, hm);
+    }
+}
+
+/* Return vector of subject-specific log likelihoods */
+
+void msmLikelihood_subj (msmdata *d, qmodel *qm, qcmodel *qcm,
+		    cmodel *cm, hmodel *hm,
+		    double *returned)
+{
+    int pt;
+    for (pt = 0;  pt < d->npts; ++pt){
+	if (hm->hidden)
+	    returned[pt] = likhidden (pt, d, qm, qcm, cm, hm);
+	else if (cm->ncens > 0)
+	    returned[pt] = likcensor (pt, d, qm, qcm, cm, hm);
+	else
+	    returned[pt] = liksimple_subj (pt, d, qm, qcm, cm, hm);
     }
 }
 
@@ -729,7 +768,7 @@ void derivsimple(msmdata *d, qmodel *qm, qcmodel *qcm,
 void dpmat_obs(msmdata *d, qmodel *qm, qcmodel *qcm,
 		 cmodel *cm, hmodel *hm, double *deriv)
 {
-    int pt, i, j, k, p, from, to, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
+    int pt, i, j, k, p, from, np=qm->npars, ndp=qm->ndpars, ndc=qcm->ndpars, totcovs=0;
     double *dpmat = Calloc(qm->nst * qm->nst * (ndp+ndc), double);
     double *newintens = Calloc(np, double);
     double *x = Calloc(qcm->ncovs[0], double);
@@ -747,10 +786,8 @@ void dpmat_obs(msmdata *d, qmodel *qm, qcmodel *qcm,
 			    qcm->coveffect, d->covobs, d->whichcov, &totcovs, log, exp);
 		    dt = d->time[i] - d->time[i-1];
 		    from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
-		    to = fprec(d->obs[i] - 1, 0);
 		    DPmat(dpmat, dt, x, newintens, qm->intens, qm->ivector, qm->nst, np, ndp, ndc,
 			  qm->constr, qcm->constr, qcm->wcov, (d->obstype[i] == OBS_EXACT));
-//		    printf("pt %d, obs %d, trans %d, from %d, to %d, ", pt, i, j, from, to);
 		    for (p = 0; p < ndp+ndc; ++p) {
 			for (k=0; k < qm->nst; ++k) {
 			    deriv[MI3(j-1,k,p,d->ntrans,qm->nst)] = dpmat[MI3(from, k, p, qm->nst, qm->nst)];
@@ -973,5 +1010,9 @@ void msmCEntry(
 
   else if (*do_what == 5) {
     msmDPmat(&d, &qm, &qcm, &cm, &hm, returned);
+  }
+
+  else if (*do_what == 6) {
+    msmLikelihood_subj(&d, &qm, &qcm, &cm, &hm, returned);
   }
 }

@@ -719,7 +719,7 @@ void dpijdeath(int r, int s, vector x, Array3 dpmat, Matrix pmat, vector intens,
 void DPmat(Array3 dpmat, double t, vector x, vector intens, vector oldintens, ivector qvector,
 	   int n, int np, int ndp, int ndc, ivector qconstr, ivector bconstr, ivector wcov, int exacttimes)
 {
-	int i, j, p, pp, err=0;
+	int i, j, p, err=0;
     double eit, ejt;
     Matrix DQ = (Matrix) Calloc(n*n, double); /* should initialize to zero */
     vector revals = (vector) Calloc(n, double);
@@ -754,7 +754,7 @@ if (fixed[p]==1) { ++pp; }
 and replace p by pp in formdq and last multmat assignment
 need to edit dpijdeath, dmatrixexpseries, dpmatexact, derivsimple, derivsimple_subj in same way.
 */
-	    for (p=0, pp=0; p<ndp+ndc; ++p) {
+	    for (p=0; p<ndp+ndc; ++p) {
 		if (p < ndp)
 		    FormDQ(DQ, qmat, qbase, p, n, qconstr, np);
 		else FormDQCov(DQ, qmat, p-ndp, n, bconstr, wcov, np, x);

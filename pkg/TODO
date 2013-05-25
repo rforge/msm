@@ -1,6 +1,10 @@
 More developer documentation - comments for definitions of variables
    in internal data structures like qmodel, emodel etc.
 
+In extractor functions, warn that polynomial contrasts not supported,
+only treatment contrasts. (factorcov2numeric.msm)
+store in covdata whether model matrix built using treat/poly for factors
+
 POSSIBLE MAJOR DEVELOPMENTS
 
 Random effects models.  Could be done by translating a msm model to
@@ -12,7 +16,7 @@ Phase-type models.  Build appropriate parameter constraints in.
 
 Time-inhomogeneous models with smoothly-varying intensities.  Could be
 done by numerically integrating the Kolmogorov equations, as in Titman
-(Biometrics 2011).  deSolve package could be used for this in C. 
+(Biometrics 2011).  deSolve package could be used for this in C.
 Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
 Or Rcpp.

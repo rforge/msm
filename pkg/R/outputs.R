@@ -1007,12 +1007,17 @@ coef.msm <- function(object, ...)
 
 ### Extract the log-likelihood
 
-logLik.msm <- function(object, ...)
+logLik.msm <- function(object, by.subject=FALSE, ...)
 {
     if (!inherits(object, "msm")) stop("expected object to be a msm model")
-    val <- - 0.5 * object$minus2loglik
-    attr(val, "df") <- object$paramdata$nopt
-    class(val) <- "logLik"
+    if (by.subject){
+        val <- -0.5*likderiv.msm(object$paramdata$params, deriv=6, object$data, object$qmodel, object$qcmodel, object$cmodel, object$hmodel, object$paramdata)
+        names(val) <- unique(object$data$subject)
+    } else { 
+        val <- - 0.5 * object$minus2loglik
+        attr(val, "df") <- object$paramdata$nopt
+        class(val) <- "logLik"
+    }
     val
 }
 
