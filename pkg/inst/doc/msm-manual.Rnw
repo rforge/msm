@@ -1151,7 +1151,8 @@ default, all linear covariate effects $\beta_{rs}$ are initialised to
 zero. To specify different initial values, use a \Rfunarg{covinits}
 argument, as described in \Rfunction{help(msm)}.  Initial values given
 in the \Rfunarg{qmatrix} represent the intensities with covariate values
-set to their means in the data.
+set to their means in the data.  In the following model, all transition
+intensities are modelled in terms of sex.
 
 \paragraph{Model 2: sex as a covariate}
 <<>>=
@@ -1181,6 +1182,21 @@ section \ref{sec:extractor}.
 <<>>=
 qmatrix.msm(cavsex.msm, covariates=list(sex=0)) # Male
 qmatrix.msm(cavsex.msm, covariates=list(sex=1)) # Female
+@
+
+Different transition rates may be easily modelled on different
+covariates by specifying a named list of formulae as the
+\Rfunarg{covariates} argument.  Each element of the list has a name
+identifying the transition.  In the model below, the transition rate
+from state 1 to state 2 and the rate from state 3 to state 4 are each
+modelled on sex as a covariate, but no other intensities have
+covariates on them.
+
+\paragraph{Model 2a: transition-specific covariates}
+<<eval=FALSE>>=
+cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                     qmatrix = twoway4.q, death = 4,
+                     covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
 @
 
 We may also want to constrain the effect of a covariate to be equal for
