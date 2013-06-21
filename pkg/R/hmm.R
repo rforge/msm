@@ -53,7 +53,7 @@ msm.form.hmodel <- function(hmodel, hconstraint=NULL, initprobs=NULL, est.initpr
               }
           }
       }
-      nipars <- if (est.initprobs) nst - 1 else 0
+      nipars <- if (est.initprobs) nst else 0
       labels <- sapply(hmodel, function(x) x$label)
       models <- match(labels, .msm.HMODELS)
       pars <- lapply(hmodel, function(x) x$pars)

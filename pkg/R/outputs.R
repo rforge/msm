@@ -200,7 +200,7 @@ surface.msm <- function(x, params=c(1,2), np=10, type=c("contour","filled.contou
     for (i in 1:np) {
         for (j in 1:np) {
             point[i1] <- p1[i]; point[i2] <- p2[j]
-            z[i,j] <- -0.5*likderiv.msm(point, 0, x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
+            z[i,j] <- -0.5*Ccall.msm(point, "lik", x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
         }
     }
 
@@ -342,8 +342,10 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
             0 else x$ecmodel$ncovs
         if (nc==0){
             logest <- x$Ematrices$logitbaseline
-            plabs <- x$emodel$imatrix; plabs[x$emodel$imatrix==1] <- "p"; diag(plabs)[rowSums(x$emodel$imatrix)>0] <- "pbase"
-            mat <- matrix(msm.mninvlogit.transform(t(logest), t(plabs), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
+            plabs <- x$emodel$imatrix
+            plabs[x$emodel$imatrix==1] <- "p"
+            diag(plabs)[rowSums(x$emodel$imatrix)>0] <- "pbase"
+            mat <- matrix(msm.mninvlogit.transform(as.vector(t(logest)), as.vector(t(plabs)), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
             diag(mat)[rowSums(x$emodel$imatrix)==0] <- 1
             mat[is.infinite(logest)] <- 1 # if any offdiagonal misc probs 1
         }
@@ -387,7 +389,7 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
                 logest <- logest + x$Ematrices[[i+1]] * covi
             }
             plabs <- x$emodel$imatrix; plabs[x$emodel$imatrix==1] <- "p"; diag(plabs)[rowSums(x$emodel$imatrix)>0] <- "pbase"
-            mat <- matrix(msm.mninvlogit.transform(t(logest), t(plabs), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
+            mat <- matrix(msm.mninvlogit.transform(as.vector(t(logest)), as.vector(t(plabs)), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
             diag(mat)[rowSums(x$emodel$imatrix)==0] <- 1
         }
     }
@@ -626,6 +628,20 @@ p.se.msm <- function(qmodel, emodel, hmodel, qcmodel, ecmodel, paramdata, center
     res$LCL <- plogis(qlogis(res$est) - qnorm(0.975)*res$lse)
     res$UCL <- plogis(qlogis(res$est) + qnorm(0.975)*res$lse)
     res
+}
+
+### Work out CIs of initial state occupancy probabilities using normal simulation method
+initp.ci.msm <- function(paramdata, cl=0.95){
+    p <- paramdata
+    Sig <- p$covmat[p$plabs%in%c("initp"),p$plabs%in%c("initp"),drop=FALSE]
+    mu <- p$params[p$plabs%in%c("initp")]
+    rr <- rmvnorm(10000, mu, Sig)
+    initp.rep <- exp(rr) / (1 + rowSums(exp(rr)))
+    p$ci[p$plabs=="initp",] <- t(apply(initp.rep, 2, quantile, c(0.5*(1-cl), 1 - 0.5*(1-cl))))
+    initp.rep <- 1 / (1 + rowSums(exp(rr)))
+    p$ci[p$plabs=="initpbase",] <- quantile(initp.rep, c(0.5*(1-cl), 1 - 0.5*(1-cl)))
+    p$ci[p$plabs=="initp0"] <- 0
+    p
 }
 
 ## Form a string,  exp ( x1 1 + x2 (cov1 - covmean1) + x3 (cov2 - covmean2) + ... )
@@ -898,6 +914,26 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
     res
 }
 
+## Convert covariates==0 or "mean" to list format
+## TODO could merge with qematrix.msm
+
+msm.parse.covariates <- function(x, covariates, intmisc="intens") {
+    mod <- if (intmisc=="misc") x$ecmodel else x$qcmodel
+    covlist <- vector(mod$ncovs, mode="list")
+    names(covlist) <- mod$covlabels
+    if (!is.list(covariates)){
+        if (covariates == 0)
+            for (i in seq_len(mod$ncovs)) covlist[[i]] <- 0
+        else if (covariates == "mean")
+            for (i in seq_len(mod$ncovs)) covlist[[i]] <- mod$covmeans[i]
+        else stop("covariates argument must be 0, \"mean\", or a list of values for each named covariate")
+    }
+    else {
+        covlist <- factorcov2numeric.msm(covariates, x, intmisc=intmisc)
+    }
+    covlist
+}
+
 ### Make a list of covariate lists to supply to pmatrix.piecewise.msm for models with "pci" time-dependent intensities.
 ### One for each time period, with time constant covariates replicated.
 ### For use in model assessment functions
@@ -908,26 +944,13 @@ msm.fill.pci.covs <- function(x, covariates="mean"){
     ## indices of covariates representing time periods
     ti <- grep("timeperiod\\[.+\\)", x$qcmodel$covlabels)
     ni <- setdiff(1:nc, ti) # indices of other covariates
-    covlist <- vector(nc, mode="list")
-    names(covlist) <- x$qcmodel$covlabels
-    if (!is.list(covariates)){
-        if (covariates == 0){
-            for (i in ni) covlist[[i]] <- 0
+    covlist <- msm.parse.covariates(x, covariates)
+    for (i in names(covariates))
+        if (length(grep("^timeperiod",i))==0) {
+            if (i %in% union(x$qcmodel$covlabels.orig,x$qcmodel$covlabels))
+                covlist[[i]] <- covariates[[i]]
+            else warning("Covariate ",i," unknown")
         }
-        else if (covariates == "mean"){
-            for (i in ni) covlist[[i]] <- x$qcmodel$covmeans[i]
-        }
-    }
-    else {
-        ## supplied values of non-time covariates
-        covariates <- factorcov2numeric.msm(covariates, x, intmisc="intens") # convert any factors to numeric contrasts
-        for (i in names(covariates))
-            if (length(grep("^timeperiod",i))==0) {
-                if (i %in% union(x$qcmodel$covlabels.orig,x$qcmodel$covlabels))
-                    covlist[[i]] <- covariates[[i]]
-                else warning("Covariate ",i," unknown")
-            }
-    }
     for (i in ti) covlist[[i]] <- 0
     ## set contrasts for each successive time period to 1
     ncut <- length(x$pci)
@@ -1011,10 +1034,11 @@ logLik.msm <- function(object, by.subject=FALSE, ...)
 {
     if (!inherits(object, "msm")) stop("expected object to be a msm model")
     if (by.subject){
-        val <- -0.5*likderiv.msm(object$paramdata$params, deriv=6, object$data, object$qmodel, object$qcmodel, object$cmodel, object$hmodel, object$paramdata)
+        p <- object$paramdata
+        val <- -0.5*Ccall.msm(p$opt$par, do.what="lik.subj", object$data, object$qmodel, object$qcmodel, object$cmodel, object$hmodel, p)
         names(val) <- unique(object$data$subject)
-    } else { 
-        val <- - 0.5 * object$minus2loglik
+    } else {
+        val <- - 0.5*object$minus2loglik
         attr(val, "df") <- object$paramdata$nopt
         class(val) <- "logLik"
     }
@@ -1069,7 +1093,7 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
         f <- function(time) {
             y <- numeric(length(time))
             for (i in seq(along=y))
-                y[i] <- pmatrix.msm(x, time[i], t1=fromt, covariates=covariates, ci="none")[start,end[j]]
+                y[i] <- pmatrix.msm(x, time[i], t1=0, covariates=covariates, ci="none")[start,end[j]]
             y
         }
         totlos[j] <- integrate(f, fromt, tot, ...)$value
@@ -1419,8 +1443,10 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
 }
 
 ### Empirical versus fitted survival curve
+### For t,   plot   1 - P(dead at t given 
 
-plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean", interp=c("start","midpoint"), ci=c("none","normal","bootstrap"), B=100,
+plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean",
+                             interp=c("start","midpoint"), ci=c("none","normal","bootstrap"), B=100,
                              legend.pos=NULL, xlab="Time", ylab="Survival probability",
                              lty=1, lwd=1, col="red", lty.ci=2, lwd.ci=1, col.ci="red",
                              mark.time=TRUE, col.surv="blue", lty.surv=2, lwd.surv=1,
@@ -1567,12 +1593,6 @@ odds.msm <- function(x, odds.scale = 1, cl = 0.95)
 }
 
 
-
-### Viterbi algorithm for reconstructing the most likely path through underlying states
-### This is all done in C
-
-
-
 viterbi.msm <- function(x)
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
@@ -1585,93 +1605,13 @@ viterbi.msm <- function(x)
         x$hmodel <- msm.form.hmodel(hmod, est.initprobs=FALSE, qmodel=x$qmodel)
         x$hmodel <- c(x$hmodel, list(ncovs=rep(rep(0,x$hmodel$nstates),x$hmodel$npars), ncoveffs=0, nicovs=rep(0,x$hmodel$nstates-1), nicoveffs=0))
         x$data$obstrue <- ifelse(x$data$state %in% x$cmodel$censor, 0, 1)
+        x$paramdata$allinits <- c(x$paramdata$allinits,x$hmodel$pars)
+        x$paramdata$constr <- c(x$paramdata$constr,max(x$paramdata$constr)+seq(along=x$hmodel$pars))
     }
-    if (x$hmodel$hidden)
-    {
-        do.what <- 4
-
-        x$data$fromstate <- x$data$fromstate - 1
-        x$data$tostate <- x$data$tostate - 1
-        x$data$firstobs <- x$data$firstobs - 1
-        x$hmodel$models <- x$hmodel$models - 1
-        x$hmodel$links <- x$hmodel$links - 1
-        if (any(x$hmodel$plabs == "p")) {
-            ## Express other probabilities relative to this baseline prob
-            pst <- match(x$hmodel$parstate[x$hmodel$plabs=="p"], unique(x$hmodel$parstate[x$hmodel$plabs=="p"]))
-            x$hmodel$pars[x$hmodel$plabs == "p"] <-
-                x$hmodel$pars[x$hmodel$plabs == "p"] / x$hmodel$pars[x$hmodel$plabs == "pbase"][pst]
-        }
-        initprobs <- msm.initprobs2mat(x$hmodel, x$paramdata$params, x$data)
-
-        vit <- .C("msmCEntry",
-                  as.integer(do.what),
-
-                  as.integer(as.vector(t(x$qmodel$imatrix))),
-                  as.double(as.vector(t(x$Qmatrices$baseline)[t(x$qmodel$imatrix)==1])),
-                  as.double(unlist(lapply(x$Qmatrices[x$qcmodel$covlabels], function(y) t(y)[t(x$qmodel$imatrix)==1]))),
-                  as.double(x$hmodel$pars),
-                  as.double(x$hmodel$coveffect),   # estimates
-
-                  ## data for non-HMM
-                  as.integer(x$data$fromstate),
-                  as.integer(x$data$tostate),
-                  as.double(x$data$timelag),
-                  as.double(unlist(x$data$covmat)),
-                  as.double(unlist(x$data$cov)),
-                  as.integer(x$data$covdata$whichcov), # this is really part of the model
-                  as.integer(x$data$nocc),
-                  as.integer(x$data$noccsum),
-                  as.integer(x$data$whicha),
-                  as.integer(x$data$obstype),
-
-                  ## data for HMM / censored
-                  as.integer(match(x$data$subject, unique(x$data$subject))),
-                  as.double(x$data$time),
-                  as.double(x$data$state),
-                  as.integer(x$data$firstobs),
-                  as.integer(x$data$obstrue),
-
-                  ## HMM specification
-                  as.integer(x$hmodel$hidden),
-                  as.integer(x$hmodel$models),
-                  as.integer(x$hmodel$npars),
-                  as.integer(x$hmodel$totpars),
-                  as.integer(x$hmodel$firstpar),
-                  as.integer(x$hmodel$ncovs),
-                  as.integer(x$hmodel$whichcovh),
-                  as.integer(x$hmodel$links),
-                  as.double(initprobs),
-
-                  ## various dimensions
-                  as.integer(x$qmodel$nstates),
-                  as.integer(x$qmodel$analyticp),
-                  as.integer(x$qmodel$iso),
-                  as.integer(x$qmodel$perm),
-                  as.integer(x$qmodel$qperm),
-                  as.integer(x$qmodel$npars),
-                  as.integer(x$qmodel$ndpars),
-                  as.integer(x$qcmodel$ndpars),
-                  as.integer(x$data$nobs),
-                  as.integer(x$data$n),
-                  as.integer(x$data$npts),  # HMM only
-                  as.integer(x$data$ntrans),
-                  as.integer(rep(x$qcmodel$ncovs, x$qmodel$npars)),
-
-                  as.integer(x$cmodel$ncens),
-                  as.integer(x$cmodel$censor),
-                  as.integer(x$cmodel$states),
-                  as.integer(x$cmodel$index - 1),
-
-                  as.integer(x$qmodel$constraint),
-                  as.integer(x$qcmodel$constraint),
-                  as.integer(x$qcmodel$whichdcov),
-
-                  fitted = double (x$data$nobs),
-                  PACKAGE = "msm",
-                  NAOK = TRUE
-                  )
-
-        fitted <- vit$fitted + 1
+    if (x$hmodel$hidden) {
+        fitted <- Ccall.msm(x$paramdata$opt$par, do.what="viterbi", x$data,
+                               x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
+        fitted <- fitted + 1
     }
     else fitted <- x$data$state
     data.frame(subject = x$data$subject,
@@ -1683,7 +1623,7 @@ viterbi.msm <- function(x)
 scoreresid.msm <- function(x, plot=FALSE){
     if (x$hmodel$hidden | (x$cmodel$ncens > 0))
         stop("Score residuals not implemented for hidden Markov models or models with censored states")
-    derivs <- likderiv.msm(x$paramdata$opt$par, deriv=3, x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
+    derivs <- Ccall.msm(x$paramdata$opt$par, do.what="deriv.subj", x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
     cov <- solve(0.5*x$opt$hessian)
     sres <- colSums(t(derivs) * cov %*% t(derivs))
     names(sres) <- unique(x$data$subject)

@@ -383,6 +383,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     to be equal for states 1 and 2, specify
 
     \code{hconstraint = list(sd = c(1,1), acute=c(1,1))}
+
+    Note this excludes initial state occupancy probabilities and
+    covariate effects, which cannot be constrained.
     }
 
   \item{qconstraint}{A vector of indicators specifying which baseline

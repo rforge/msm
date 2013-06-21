@@ -455,7 +455,7 @@ observation times, then the contributions would be of the form
 
 \begin{equation}
   \label{eq:multi:lik:exact}
-  L_{i, j} =  \exp(-q_{S(t_j)S(t_{j})}(t_{j+1} - t_j)) q_{S(t_j)S(t_{j+1})}
+  L_{i, j} =  \exp(q_{S(t_j)S(t_{j})}(t_{j+1} - t_j)) q_{S(t_j)S(t_{j+1})}
 \end{equation}
 since the state is assumed to be $S(t_j)$ throughout the interval
 between $t_j$ and $t_{j+1}$ with a known transition to state

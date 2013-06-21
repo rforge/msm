@@ -29,14 +29,17 @@ misccov.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                 qmatrix = oneway4.q, ematrix=ematrix, death = 4, fixedpars = TRUE,
                 control = list(trace=1, REPORT=1), method="BFGS",
                 covariates = ~ sex, covinits=list(sex=rep(0.1, 5)))
-stopifnot(isTRUE(all.equal(4299.35653620144, misccov.msm$minus2loglik, tol=1e-06)))
+#stopifnot(isTRUE(all.equal(4299.35653620144, misccov.msm$minus2loglik, tol=1e-06))) # with last obs included in cov means, as pre 1.2.3
+stopifnot(isTRUE(all.equal(4299.38058878142, misccov.msm$minus2loglik, tol=1e-06)))
+
 
 ## Covs on misc probs, old way.
 misccov.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                    qmatrix = oneway4.q, ematrix=ematrix, death = 4, fixedpars=TRUE,
                    misccovariates = ~dage + sex, misccovinits = list(dage=c(0.01,0.02,0.03,0.04), sex=c(-0.013,-0.014,-0.015,-0.016)),
                    control = list(trace=1, REPORT=1), method="BFGS")
-stopifnot(isTRUE(all.equal(4304.90609473048, misccov.msm$minus2loglik, tol=1e-06)))
+#stopifnot(isTRUE(all.equal(4304.90609473048, misccov.msm$minus2loglik, tol=1e-06))) # with last obs included in cov means
+stopifnot(isTRUE(all.equal(4306.3077053482, misccov.msm$minus2loglik, tol=1e-06)))
 
 if (developer.local) {
     system.time(misccov.msm <- msm(state ~ years, subject = PTNUM, data = cav,
@@ -44,7 +47,8 @@ if (developer.local) {
                                    misccovariates = ~dage + sex, # fixedpars=c(1:5,11),
                                    control = list(trace=1, REPORT=1), method="BFGS"))
     ##    stopifnot(isTRUE(all.equal(3929.39438312539, misccov.msm$minus2loglik, tol=1e-06))) ## 0.7.1 and earlier
-    stopifnot(isTRUE(all.equal(3929.59504496140, misccov.msm$minus2loglik, tol=1e-06)))
+##    stopifnot(isTRUE(all.equal(3929.59504496140, misccov.msm$minus2loglik, tol=1e-06))) # 1.2.2 and earlier
+    stopifnot(isTRUE(all.equal(3929.60136975058, misccov.msm$minus2loglik, tol=1e-06)))
     if(interactive()) save(misccov.msm, file="~/msm/devel/models/misccov.msm.rda")
 
     system.time(misccovboth.msm <- msm(state ~ years, subject = PTNUM, data = cav,
@@ -54,7 +58,8 @@ if (developer.local) {
                                        misccovariates = ~dage + sex, misccovinits = list(dage=c(0.01,0.02,0.03,0.04), sex=c(-0.013,-0.014,-0.015,-0.016))
                                        ))
     ##    stopifnot(isTRUE(all.equal(3921.40046811911, misccovboth.msm$minus2loglik, tol=1e-06))) # 0.7.1 and earlier
-    stopifnot(isTRUE(all.equal(3921.42240883417, misccovboth.msm$minus2loglik, tol=1e-06)))
+##     stopifnot(isTRUE(all.equal(3921.42240883417, misccovboth.msm$minus2loglik, tol=1e-06))) 1.2.2 and earlier
+    stopifnot(isTRUE(all.equal(3921.42117997675, misccovboth.msm$minus2loglik, tol=1e-06)))
     if(interactive()) save(misccovboth.msm, file="~/msm/devel/models/misccovboth.msm.rda")
     if(interactive()) load("~/msm/devel/models/misccovboth.msm.rda")
     print(misccovboth.msm)
@@ -77,17 +82,20 @@ if (developer.local) {
     stopifnot(isTRUE(all.equal(c(1, 1, 1, 1, 2, 2, 2, 2, 2, 2), vit$fitted, tol=1e-06)))
 
 ### TEST VITERBI ON SUBSET WITH FIXEDPARS BUG REPORT
-    
+
+    if(interactive()) load("~/work/msm/devel/models/misc.msm.rda")
     pt <- 100046
-    for (pt in unique(cav$PTNUM)){ 
+    v <- viterbi.msm(misc.msm)
+    for (pt in unique(cav$PTNUM)){
+#        pt <- 100057
+#        pt <- 100059
         subs <- cav[cav$PTNUM==pt,]
-        x <- viterbi.msm(misc.msm); x <- x[x$subject==pt,]
+        x <- v[v$subject==pt,]
         miscfix.msm <- msm(state ~ years, subject = PTNUM, data = subs, qmatrix = qmatrix.msm(misc.msm)$estimates, ematrix=ematrix.msm(misc.msm)$estimates, death = 4, fixedpars=TRUE)
         y <- viterbi.msm(miscfix.msm)
-        print(pt)
         stopifnot(all(x$fitted==y$fitted))
     }
-    
+
     odds <- odds.msm(misccov.msm)
 #    stopifnot(isTRUE(all.equal(0.924920277547759, odds$dage[1,2], tol=1e-06)))
 #    stopifnot(isTRUE(all.equal(0.9350691888108385, odds$dage[2,2], tol=1e-06)))

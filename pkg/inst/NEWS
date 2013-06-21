@@ -10,8 +10,34 @@ o New interface for easily specifiying different covariates for each
   transition intensity, through a named list in the "covariates"
   argument to msm.  Previously this required "fixedpars".
 
-o A matrix of fixed patient-specific initial state distributions can
-  now be supplied as "initprobs" in hidden Markov models.
+o Major restructuring of the internal code, mainly so that parameters
+  are adjusted for covariates in R rather than C.  There should be no
+  differences visible to the user.
+
+o Initial state occupancy probabilities are estimated on the
+  multivariate logit scale, not univariate, and confidence intervals
+  are calculated using a simulation-based method (with 10000
+  simulations, so there will be a small Monte Carlo error).
+
+o When centering covariates around their means for the default
+  likelihood calculation, the means used are now after dropping
+  missing values and subjects with one observation, not before. Thanks
+  to Howard Thom for the report.
+
+o Relatedly, the covariate values for subjects' last observations are
+  not included in this mean, since they don't contribute to the
+  likelihood, so interpretation of initial values for the qmatrix, and
+  outputs for covariates="mean", will now be very slightly different.
+
+o Bug fix in totlos.msm: calculations were wrong for fromt > 0.
+
+o Memory bug in Viterbi, which could crash R, fixed.
+
+
+Version 1.2.2 (2013-05-14)
+-------------
+
+o R-forge only release
 
 o Can now examine subject-specific -2 log likelihoods at the maximum
   likelihood estimates, via logLik.msm().
@@ -19,6 +45,15 @@ o Can now examine subject-specific -2 log likelihoods at the maximum
 o The state can now be a factor with levels (1:nstates), as well as
   numeric.  Previously supplying a factor state led to unpredictable
   behaviour and potential crashes.
+
+
+Version 1.2.1 (2013-05-14)
+-------------
+
+o R-forge only release
+
+o A matrix of fixed patient-specific initial state distributions can
+  now be supplied as "initprobs" in hidden Markov models.
 
 
 Version 1.2 (2013-05-14)

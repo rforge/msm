@@ -1,3 +1,47 @@
+2013-06-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: totlos.msm was calculating the wrong thing for
+	fromt > 0.
+
+2013-06-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/pearson.R: Corrected data rows mismatch in bootstrapping with
+	imputed sampling times after deaths in Pearson statistic.
+
+	* src/lik.c: Memory crash bug in Viterbi fixed.
+
+2013-06-03 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* (Most R and C files): Major restructuring of the internals.
+	Main change is to adjust all parameters for covariates in R rather
+	than C, making for much tidier code. New R functions for applying
+	transformations and inverse transformations.
+
+	* src/pijt.c: Derivatives of the likelihood for non-hidden models
+	now work properly with negative constraints.
+
+	* R/msm.R: Initial state occupancy probabilities are estimated on
+	the multivariate logit scale, rather than univariate logit, and
+	confidence intervals are calculated using the normal simulation
+	method.  Probability for the baseline category "initpbase" is now
+	a labelled parameter.
+
+	* R/msm.R: When centering covariates around their means for the
+	default likelihood calculation, the means used are now after
+	dropping missing values and subjects with one observation, not
+	before.  Thanks to Howard Thom for the report.
+
+	* Relatedly, the covariate values for subjects' last observations
+	are not included in this mean, since they don't contribute to the
+	likelihood, so interpretation of initial values for the qmatrix,
+	and outputs for covariates="mean", will now be very slightly
+	different.
+
+2013-05-28 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* inst/doc/msm-manual.Rnw: Likelihood for exact times still had
+	wrong sign for qii (see version 1.1.2).
+
 2013-05-25 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* inst/doc/msm-manual.Rnw: Added advice about "function cannot be

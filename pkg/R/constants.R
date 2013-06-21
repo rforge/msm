@@ -40,7 +40,7 @@
 .msm.INVLINK <- c(identity="identity", log="exp", qlogis="plogis")
 
 ### Parameters which are always fixed, never estimated
-.msm.AUXPARS <- c("lower", "upper", "which", "size", "meanerr", "ncats", "basecat", "p0", "pbase", "initp0")
+.msm.AUXPARS <- c("lower", "upper", "which", "size", "meanerr", "ncats", "basecat", "p0", "pbase", "initpbase", "initp0")
 
 ### Parameters which should be defined as integer
 .msm.INTEGERPARS <- c("size")
@@ -49,12 +49,12 @@
 .msm.PARRANGES <- list(qbase=c(0, Inf), lower=c(-Inf,Inf), upper=c(-Inf, Inf),
                        mean=c(-Inf, Inf), sd=c(0, Inf),
                        meanlog=c(-Inf,Inf), sdlog=c(0, Inf), rate=c(0, Inf), shape=c(0, Inf), shape1=c(0,Inf), shape2=c(0,Inf),
-                       prob=c(0, 1), meanerr=c(0, Inf), sderr=c(0, Inf), disp=c(0, Inf),
-                       initp=c(0, 1), initpcov=c(-Inf,Inf), df=c(0, Inf)
+                       prob=c(0, 1), meanerr=c(-Inf, Inf), sderr=c(0, Inf), disp=c(0, Inf),
+                       df=c(0, Inf)
                        )
 
 ### Transforms to optimise some parameters on a different scale
-### Univariate transforms only: doesn't include multinomial logit transform used for misclassification p.
+### Univariate transforms only: doesn't include multinomial logit transform used for misclassification p and initial state probs
 .msm.TRANSFORMS <-
   do.call("rbind",
           lapply(.msm.PARRANGES,
@@ -71,10 +71,10 @@
 ### This database is used to determine the appropriate method for calculating the analytic P matrix.
 
 ### The numbered label gives the indices into the matrix of rates (vectorised by reading across rows)
-### e.g. the model with qmatrix of the form 
-### *,1,1    
+### e.g. the model with qmatrix of the form
+### *,1,1
 ### 0,*,1
-### 0,0,*    is "1-2-4" 
+### 0,0,*    is "1-2-4"
 ### well-disease, well-death, disease-death transitions allowed.
 
 .msm.graphs <-
@@ -131,3 +131,7 @@
          )
 
        )
+
+## Tasks to be performed in C
+
+.msm.CTASKS <- c("lik","deriv","info","viterbi","lik.subj","deriv.subj","dpmat")

@@ -7,7 +7,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
                         indep.cens=TRUE, # use censoring times when calculating the empirical distribution of sampling times
                         maxtimes=NULL,# upper limit for imputed next observation times
                         pval=TRUE # calculate p-values for test. false if calling from bootstrap
-                        ) {
+                        ){
 
     dat <- x$data
     ## Error handling
@@ -376,7 +376,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
         ## compute Psi  = Cov(score(theta), Orc), where Orc is observed counts in pearson table
         ## arranged as npars x RC
         ## bottom left and top right blocks wrong way round in paper
-        dp <- likderiv.msm(x$paramdata$opt$par, deriv=5, x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata) # ntrans x R x npars: trans in data order
+        dp <- Ccall.msm(x$paramdata$opt$par, do.what="dpmat", x$data, x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata) # ntrans x R x npars: trans in data order
         Psiarr <- apply(dp, c(2,3), function(x)tapply(x, md$group, sum))
         npars <- x$paramdata$nopt # only includes qbase,qcov, since no hmms here
         ## permute C x R x npars Psiarr to R x C x npars Psi and then collapse first two dims
@@ -426,12 +426,11 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
 
     ## Simulated observation times to use as sampling frame for bootstrapped data
     if (!is.null(imputation)) {
-      imp.times <- matrix(rep(od$time, N), nrow=length(od$time), ncol=N)
-      prevtime <- imp.times[which(od$state %in% dstates) - 1,]
-      imp.times[od$state %in% dstates, ] <- prevtime + imputation[,,"times"]
+      imp.times <- matrix(rep(x$data$time, N), nrow=length(x$data$time), ncol=N)
+      prevtime <- imp.times[which(x$data$state %in% dstates) - 1,]
+      imp.times[x$data$state %in% dstates, ] <- prevtime + imputation[,,"times"]
     }
     else imp.times <- NULL
-
     if (boot) {
         if (!is.null(groups)) stop("Bootstrapping not valid with user-specified groups")
         cat("Starting bootstrap refitting...\n")
@@ -522,7 +521,6 @@ pearson.boot.msm <- function(x, imp.times=NULL, transitions=NULL, timegroups=4, 
     if (!is.null(imp.times))
      x$data$time <- imp.times[,sample(ncol(imp.times), size=1)]  # resample one of the imputed sets of observation times
     boot.df <- simfitted.msm(x,drop.absorb=TRUE)
-
     x$call$data <- substitute(boot.df)
     refit.msm <- try(eval(x$call)) # estimation might not converge for a particular bootstrap resample
     if (inherits(refit.msm, "msm")) {
