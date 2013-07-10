@@ -40,48 +40,36 @@ deltamethod <- function(g,       # a formula or list of formulae (functions) giv
 ### Matrix exponential
 ### If a vector of multipliers t is supplied then a list of matrices is returned.
 
-MatrixExp <- function(mat, t = 1, n = 20, k = 3, method="pade")
-{
-    if (!is.matrix(mat) || (nrow(mat)!= ncol(mat))) stop("\"mat\" must be a square matrix")
-    nr <- nrow(mat)
-    ev <- eigen(mat)
-    if (length(t) > 1) res <- array(dim=c(dim(mat), length(t)))
-    if (any ( duplicated(ev$values)  ) || is.complex(ev$values) || det(ev$vectors) == 0) {
-        for (i in seq(along=t)) {
-            if (method=="series") {
-                ## series approximation
-                ## adapted from mexp in Jim Lindsey's rmutil x
-                matt <- mat*t[i] / 2^k
-                sum <- power <- diag(nr)
-                for (r in 1:n) {
-                    power <- matt %*% power / r
-                    sum <- sum + power
-                }
-                for (s in 1:k)
-                    sum <- sum %*% sum
-                resi <- sum
-            }
-            else if (method == "pade") {
-                ## C function adapted from JAGS by Martyn Plummer
-                resi <- .C("MatrixExpPadeR", res=double(length(mat)), as.double(mat),
-                          as.integer(nr), as.double(t[i]))$res
-                resi <- matrix(resi, nrow=nrow(mat))
-            }
-            else stop("Method should be \"pade\" or \"series\"")
-            if (length(t)==1) res <- resi
-            else res[,,i] <- resi
-        }
+MatrixExp <- function(mat, t = 1, n = 20, k = 3, method="pade"){
+    if (!is.matrix(mat) || (nrow(mat)!= ncol(mat)))
+        stop("\"mat\" must be a square matrix")
+    if (!(method %in% c("pade","series","analytic")))
+        stop("\"method\" should be \"pade\" or \"series\"")
+    qmodel <- if (is.qmatrix(mat) && method=="analytic") msm.form.qmodel(mat) else list(iso=0, perm=0, qperm=0)
+    if (method=="analytic") {
+        if (!is.qmatrix(mat))
+            warning("Analytic method not available since matrix is not a Markov model intensity matrix")
+        else if (qmodel$iso==0) warning("Analytic method not available for this Markov model structure")
+
     }
-    else {
-        ## spectral decomposition
-        evinv <- solve(ev$vectors)
-        for (i in seq(along=t)) {
-            resi <- ev$vectors %*% diag(exp(ev$values * t[i])) %*% evinv
-            if (length(t)==1) res <- resi
-            else res[,,i] <- resi
-        }
+    if (length(t) > 1) res <- array(dim=c(dim(mat), length(t)))
+    for (i in seq(along=t)) {
+        ccall <- .C("MatrixExpR", as.double(mat), as.integer(nrow(mat)), res=double(length(mat)), as.double(t[i]),
+                    as.integer(match(method, c("pade","series"))), # must match macro constants in pijt.c
+                    as.integer(qmodel$iso), as.integer(qmodel$perm), as.integer(qmodel$qperm),
+                    as.integer(0), NAOK=TRUE)
+        resi <- matrix(ccall$res, nrow=nrow(mat))
+        if (length(t)==1) res <- resi
+        else res[,,i] <- resi
     }
     res
+}
+
+## Tests for a valid continuous-time Markov model transition intensity matrix
+
+is.qmatrix <- function(Q) {
+    Q2 <- Q; diag(Q2) <- 0
+    isTRUE(all.equal(-diag(Q), rowSums(Q2))) && isTRUE(all(diag(Q)<=0)) && isTRUE(all(Q2>=0))
 }
 
 ### Truncated normal distribution

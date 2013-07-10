@@ -1,3 +1,20 @@
+2013-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/utils.R: MatrixExp rewritten to use C code for series method
+	and analytic solutions for Markov models, avoiding code
+	duplication.
+
+2013-07-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: If available, loglikelihood derivatives, expected and
+	(if requested) observed information are returned in paramdata
+	component for all models. If all parameters fixed, these are over
+	all parameters.  If some are fixed, than these are just over the
+	parameters that are optimised.
+
+	* R/outputs.R: surface.msm fixed for models fitted with Fisher
+	scoring.
+
 2013-06-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: totlos.msm was calculating the wrong thing for

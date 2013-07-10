@@ -27,6 +27,9 @@ cross-platform, including Windows.
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
 
+Viterbi algorithm.  Probability of each hidden state at each time, instead of just most probable.
+To compute this, need probabilities of all paths ending in state L at time ti: i.e. be sum_k instead of max_k in formula in Sec2.17 of PDF manual.
+
 Bureau survival plots
 
 Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hydroPSO

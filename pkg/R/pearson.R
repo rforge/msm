@@ -382,7 +382,7 @@ pearson.msm <- function(x, transitions=NULL, timegroups=3, intervalgroups=3, cov
         ## permute C x R x npars Psiarr to R x C x npars Psi and then collapse first two dims
         Psi <- t(array(aperm(Psiarr,c(2,1,3)), dim=c(R*C,npars)))
         ## rows ordered with tostate changing fastest, then category (match P)
-        EI <- 0.5*x$paramdata$info$info
+        EI <- 0.5*x$paramdata$info
         Omega <- rbind(cbind(EI, Psi %*% P), cbind(t(P) %*% t(Psi),PSigmaPT))
 
         ## compute B: RC x npars matrix with entries derc/dtheta_m / sqrt(erc)

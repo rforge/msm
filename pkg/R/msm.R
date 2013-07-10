@@ -35,7 +35,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 fixedpars = NULL, # specify which parameters to fix. TRUE for all parameters
                 center = TRUE, # center covariates at their means during optimisation
                 opt.method = c("optim","nlm","fisher"),
-                hessian = TRUE,
+                hessian = NULL,
                 use.deriv = TRUE,
                 analyticp=TRUE,
                 ... # options to optim or nlm
@@ -176,11 +176,26 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
     p <- msm.form.params(qmodel, qcmodel, emodel, hmodel, fixedpars)
 
 ### CALCULATE LIKELIHOOD AT INITIAL VALUES...
+    if (is.null(hessian)) hessian <- !p$fixed
     if (p$fixed) {
         p$lik <- lik.msm(p$inits, msmdata, qmodel, qcmodel, cmodel, hmodel, p)
         p$params <- p$allinits[!duplicated(abs(p$constr))][abs(p$constr)]*sign(p$constr)
         p$params.uniq <- p$allinits[!duplicated(abs(p$constr))]
         p$opt <- list(par = p$params.uniq)
+        p.unfix <- msm.unfixallparams(p)
+        if (!hmodel$hidden && cmodel$ncens==0) { # Derivs only for non-hidden, no censoring
+            if (all(msmdata$obstype==1)) { # Fisher info only available for panel data
+                info <- information.msm(p.unfix$params.uniq, msmdata, qmodel, qcmodel, cmodel, hmodel, p.unfix)
+                p$deriv <- info$deriv
+                p$information <- info$info
+            }
+            else p$deriv <- deriv.msm(p.unfix$params.uniq, msmdata, qmodel, qcmodel, cmodel, hmodel, p.unfix)
+        }
+        if (hessian)
+            p$opt$hessian <- optimHess(par=p.unfix$params.uniq, fn=lik.msm,
+                                       gr=if (!hmodel$hidden && cmodel$ncens==0 && use.deriv) deriv.msm else NULL,
+                                       msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
+                                       cmodel=cmodel, hmodel=hmodel, paramdata=p.unfix)
         p$foundse <- FALSE
         p$covmat <- NULL
     }
@@ -245,14 +260,20 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
             }
             p$lik <- -lik.new
             p$params[p$optpars] <- theta
-            opt <- list(minimum=-lik.new, estimate=theta)
-            opt$hessian <- optimHess(par=theta, fn=lik.msm,
-                                 gr=if (!hmodel$hidden && cmodel$ncens==0 && use.deriv) deriv.msm else NULL,
-                                 msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
-                                 cmodel=cmodel, hmodel=hmodel, paramdata=p)
+            opt <- list(minimum=-lik.new, estimate=theta, value=-lik.new, par=theta)
+            if (hessian)
+                opt$hessian <- optimHess(par=theta, fn=lik.msm,
+                                         gr=if (!hmodel$hidden && cmodel$ncens==0 && use.deriv) deriv.msm else NULL,
+                                         msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
+                                         cmodel=cmodel, hmodel=hmodel, paramdata=p)
         }
-        p$deriv <- if (!hmodel$hidden && cmodel$ncens==0) deriv.msm(p$params[p$optpars], msmdata, qmodel, qcmodel, cmodel, hmodel, p) else NULL
-        p$information <- if (!hmodel$hidden && cmodel$ncens==0 && all(msmdata$obstype==1)) information.msm(p$params[p$optpars], msmdata, qmodel, qcmodel, cmodel, hmodel, p) else NULL
+        if (!hmodel$hidden && cmodel$ncens==0) {
+            if (all(msmdata$obstype==1)) {
+                info <- information.msm(p$params[p$optpars], msmdata, qmodel, qcmodel, cmodel, hmodel, p)
+                p$deriv <- info$deriv;  p$information <- info$info
+            }
+            else p$deriv <- deriv.msm(p$params[p$optpars], msmdata, qmodel, qcmodel, cmodel, hmodel, p)
+        }
         p$opt <- opt
         p$params <- msm.rep.constraints(p$params, p, hmodel)
 
@@ -412,7 +433,7 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyti
     ndpars <- max(constr)
     ipars <- t(imatrix)[t(lower.tri(imatrix) | upper.tri(imatrix))]
     graphid <- paste(which(ipars==1), collapse="-")
-    if (graphid %in% names(.msm.graphs[[paste(nstates)]])) {
+    if (analyticp && graphid %in% names(.msm.graphs[[paste(nstates)]])) {
         ## analytic P matrix is implemented for this particular intensity matrix
         iso <- .msm.graphs[[paste(nstates)]][[graphid]]$iso
         perm <- .msm.graphs[[paste(nstates)]][[graphid]]$perm
@@ -427,7 +448,7 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyti
         iso <- 0
         perm <- qperm <- NA
     }
-    qmodel <- list(nstates=nstates, analyticp=analyticp, iso=iso, perm=perm, qperm=qperm,
+    qmodel <- list(nstates=nstates, iso=iso, perm=perm, qperm=qperm,
                    npars=npars, imatrix=imatrix, qmatrix=qmatrix, inits=inits,
                    constr=constr, ndpars=ndpars, exacttimes=exacttimes)
     class(qmodel) <- "msmqmodel"
@@ -1252,6 +1273,22 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
     paramdata
 }
 
+## Unfix and unconstrain all parameters in a paramdata object p (as
+## returned by msm.form.params).  Used for calculating deriv /
+## information over all parameters for models with fixed parameters.
+
+msm.unfixallparams <- function(p) {
+    p$fixed <- FALSE
+    p$notfixed <- seq(along=p$allinits)
+    p$optpars <- seq(along=p$allinits)
+    p$fixedpars <- NULL
+    p$constr <- seq(along=p$allinits)
+    p$nfix <- 0
+    p$nopt <- length(p$optpars)
+    p$ndup <- 0
+    p
+}
+
 msm.rep.constraints <- function(pars, # transformed pars
                                 paramdata,
                                 hmodel){
@@ -1435,7 +1472,6 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
 
               ## various constants
               as.integer(qmodel$nstates),
-              as.integer(qmodel$analyticp),
               as.integer(qmodel$iso),
               as.integer(qmodel$perm),
               as.integer(qmodel$qperm),

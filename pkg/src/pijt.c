@@ -22,7 +22,8 @@
 */
 #define _USE_LAPACK_EIGEN_
 #define _USE_LAPACK_INVERSE_
-#define _MEXP_METHOD_ 1 /* 1 for Pade approximation, 2 for series. Pade is more robust. */
+#define MEXP_PADE 1
+#define MEXP_SERIES 2
 #include "R_ext/Lapack.h"
 
 #define NODERIVDEBUG
@@ -264,13 +265,6 @@ MatrixExpPade(double *ExpAt, double *A, int n, double t)
   Free(workspace);
 }
 
-/* R interface to Pade method */
-
-void MatrixExpPadeR(double *ExpAt, double *A, int *n, double *t)
-{
-    MatrixExpPade(ExpAt, A, *n, *t);
-}
-
 /* Tests if a vector has any non-unique entries */
 
 int repeated_entries(vector vec, int n)
@@ -320,7 +314,7 @@ void Eigen(Matrix mat, int n, vector revals, vector ievals, Matrix evecs, int *e
     Free(work); Free(worki); Free(temp);
 }
 
-/* Compute exponential of a matrix */
+/* Compute exponential of a general matrix */
 /* First try to use eigensystem decomposition */
 /* If matrix has repeated eigenvalues, then use Pade approximation
    with scaling and squaring, or (less robust) power series.  */
@@ -329,7 +323,9 @@ void Eigen(Matrix mat, int n, vector revals, vector ievals, Matrix evecs, int *e
    invertibility by calculating determinant, thus reducing number of
    cases where it is necessary to use power series or Pade? */
 
-void MatrixExp(Matrix mat, int n, Matrix expmat, double t, int debug, int degen)
+void MatrixExp(Matrix mat, int n, Matrix expmat, double t,
+	       int degen, /* currently not used */
+	       int method)
 {
     int i, err=0, complex_evals=0, nsq=n*n;
     Matrix work = (Matrix) Calloc(nsq, double);
@@ -347,11 +343,10 @@ void MatrixExp(Matrix mat, int n, Matrix expmat, double t, int debug, int degen)
 	break;
       }
     if (repeated_entries (revals, n) || (err != 0) || degen || complex_evals){
-#if _MEXP_METHOD_==1
-	MatrixExpPade(expmat, mat, n, t);
-#elif _MEXP_METHOD_==2
-	MatrixExpSeries(mat, n, expmat, t);
-#endif
+	if (method == MEXP_PADE)
+	    MatrixExpPade(expmat, mat, n, t);
+	else if (method == MEXP_SERIES)
+	    MatrixExpSeries(mat, n, expmat, t);
     }
     else {
 	for (i=0; i<n; ++i)
@@ -363,14 +358,27 @@ void MatrixExp(Matrix mat, int n, Matrix expmat, double t, int debug, int degen)
     Free(work);  Free(revals);  Free(ievals); Free(evecs);  Free(evecsinv);
 }
 
+/* Exponential of a matrix.  If matrix represents one of certain
+   Markov model structures, then use appropriate analytic formulae.
+   Interface to R MatrixExp function, and also used in Pmat */
+
+void MatrixExpR(double *mat, int *n, double *expmat, double *t,
+		int *method, int *iso, int *perm, int *qperm,
+		int *degen){
+    if (*iso > 0)
+	AnalyticP(expmat, *t, *n, *iso, perm, qperm, mat, degen);
+    else
+	MatrixExp(mat, *n, expmat, *t, *degen, *method);
+}
+
 
 /* Returns i-j transition intensity time t given vectors of intensities and transition indicators */
 
 /* Calculates the whole transition matrix in time t given an intensity matrix */
 
-void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int analyticp, int iso, ivector perm, ivector qperm, int debug)
+void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, ivector perm, ivector qperm)
 {
-    int i,j,degen=0;
+    int i,j,method=MEXP_PADE,degen=0;
     double pii;
     if (exacttimes) {
 	for (i=0; i<nstates; ++i) {
@@ -381,10 +389,7 @@ void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int a
 	}
     }
     else {
-	if ((iso > 0) && analyticp)
-	    AnalyticP(pmat, t, nstates, iso, perm, qperm, qmat, &degen);
-	else
-	    MatrixExp(qmat, nstates, pmat, t, debug, degen);
+	MatrixExpR(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
 	/* Floating point fuzz sometimes causes trouble */
 	for (i=0; i<nstates; ++i)
 	    for (j=0; j<nstates; ++j) {
@@ -393,6 +398,7 @@ void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int a
 	    }
     }
 }
+
 
 double pijdeath(int r, int s, Matrix pmat, Matrix qmat, int n)
 {

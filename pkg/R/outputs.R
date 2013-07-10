@@ -1094,6 +1094,8 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
             y <- numeric(length(time))
             for (i in seq(along=y))
                 y[i] <- pmatrix.msm(x, time[i], t1=0, covariates=covariates, ci="none")[start,end[j]]
+print(time)
+print(y)
             y
         }
         totlos[j] <- integrate(f, fromt, tot, ...)$value
@@ -1443,7 +1445,7 @@ plot.prevalence.msm <- function(x, mintime=NULL, maxtime=NULL, timezero=NULL, in
 }
 
 ### Empirical versus fitted survival curve
-### For t,   plot   1 - P(dead at t given 
+### For t,   plot   1 - P(dead at t given
 
 plot.survfit.msm <- function(x, from=1, to=NULL, range=NULL, covariates="mean",
                              interp=c("start","midpoint"), ci=c("none","normal","bootstrap"), B=100,

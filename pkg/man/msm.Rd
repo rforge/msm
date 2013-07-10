@@ -19,7 +19,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
       death = FALSE, exacttimes = FALSE, censor=NULL,
       censor.states=NULL, pci=NULL, cl = 0.95, fixedpars = NULL, center=TRUE,
-      opt.method=c("optim","nlm","fisher"), hessian=TRUE, use.deriv=TRUE,
+      opt.method=c("optim","nlm","fisher"), hessian=NULL, use.deriv=TRUE,
       analyticp=TRUE, ... )
 }
 \arguments{
@@ -631,9 +631,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     for models with censored states, hidden Markov models, exact
     observation or exact death times (\code{obstype=2,3}).}
 
-  \item{hessian}{If \code{TRUE} (the default) then the Hessian matrix is
-    computed at the maximum likelihood estimates, to obtain standard
-    errors and confidence intervals.}
+  \item{hessian}{If \code{TRUE} then the Hessian matrix is computed at
+    the maximum likelihood estimates, to obtain standard errors and
+    confidence intervals. This is the default when maximum likelihood
+    estimation is performed.  If all parameters are fixed at their
+    initial values and no optimisation is performed, then this defaults
+    to \code{FALSE}.  If requested, the actual Hessian is returned in
+    \code{x$paramdata$opt$hessian}, where \code{x} is the fitted model
+    object.}
 
   \item{use.deriv}{If \code{TRUE} then analytic first derivatives are
     used in the optimisation of the likelihood, when an appropriate

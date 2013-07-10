@@ -14,17 +14,21 @@ MatrixExp(mat, t = 1, n = 20, k = 3, method="pade")
   \item{n}{Number of terms in the series approximation to the
     exponential}
   \item{k}{Underflow correction factor, for the series approximation}
-  \item{method}{\code{"pade"} for the Pade approximation, or \code{"series"} for the
-    power series approximation.  Ignored unless \code{mat} has repeated
-    eigenvalues. 
+  \item{method}{\code{"pade"} for the Pade approximation, \code{"series"} for the
+    power series approximation, or \code{"analytic"} for the analytic
+    formulae for simpler Markov model intensity matrices (see below).
+    Only used if \code{mat} has repeated
+    eigenvalues and isn't an intensity matrix of a simpler
+    Markov model.
   }
 }
 \value{
   The exponentiated matrix \eqn{\exp(mat)}{exp(mat)}. Or, if \code{t} is
-  a vector of length 2 or more, an array of exponentiated matrices. 
+  a vector of length 2 or more, an array of exponentiated matrices.
 }
 \details{
-  The exponential \eqn{E} of a square matrix \eqn{M} is calculated as 
+  Generally the exponential \eqn{E} of a square matrix \eqn{M} can
+  often be calculated as
 
   \deqn{E = U \exp(D) U^{-1}}{E = U exp(D) U^{-1}}
 
@@ -47,11 +51,24 @@ MatrixExp(mat, t = 1, n = 20, k = 3, method="pade")
 intensity matrix
   \eqn{Q},  the probability of occupying state \eqn{s} at time \eqn{u + t}
   conditional on occupying state \eqn{r} at time \eqn{u} is given by the
-  \eqn{(r,s)} entry of the matrix \eqn{\exp(tQ)}{exp(tQ)}. 
-  
-  The implementation of the Pade approximation was taken from 
+  \eqn{(r,s)} entry of the matrix \eqn{\exp(tQ)}{exp(tQ)}.
+
+  If \code{mat} is a valid transition intensity matrix for a
+  continuous-time Markov model (i.e. diagonal entries non-positive,
+  off-diagonal entries non-negative, rows sum to zero), then for certain
+  simpler model structures, there are
+  analytic formulae for the individual entries of the exponential
+  of \code{mat}.  These structures are
+  listed in the PDF manual and the formulae are coded in the \pkg{msm}
+  source file \code{src/analyticp.c}.   These formulae are only used if
+  \code{method="analytic"}.  This is more efficient, but it is not the
+  default in \code{MatrixExp} because the code is not robust to extreme
+  values.  However it is the default when calculating likelihoods for models fitted
+  by \code{\link{msm}}.
+
+  The implementation of the Pade approximation was taken from
   JAGS by Martyn Plummer (\url{http://www-fis.iarc.fr/~martyn/software/jags}).
-  
+
   The series approximation method was adapted from the corresponding
   function in Jim Lindsey's R package \code{rmutil} (\url{http://popgen.unimaas.nl/~jlindsey/rcode.html}).
 }
