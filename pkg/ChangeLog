@@ -1,3 +1,13 @@
+2013-07-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/(various): Range constraints can now be given for HMM outcome
+	parameters, through a new argument "hranges" to msm(). This may
+	improve HMM identifiability.  Thanks to Soon-Ee Cheah for the
+	suggestion.
+
+	* R/constants.R: Scale parameters of Weibull and t HMM outcome
+	distributions now restricted properly to be positive in estimation.
+
 2013-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/utils.R: MatrixExp rewritten to use C code for series method

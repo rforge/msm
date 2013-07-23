@@ -20,6 +20,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 hcovariates = NULL, # list of formulae specifying covariates model for each hidden state
                 hcovinits = NULL,      # initial values for covariate effects on hidden emission distribution
                 hconstraint = NULL, # constraints on hidden Markov model parameters
+                hranges = NULL, # range constraints for HMM parameters
                 qconstraint = NULL, # constraints on equality of baseline intensities
                 econstraint = NULL, # constraints on equality of baseline misc probs
                 initprobs = NULL,  # initial state occupancy probabilities
@@ -169,6 +170,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         hmodel$constr <- msm.form.hconstraint(hconstraint, hmodel)
         hmodel$covconstr <- msm.form.hcovconstraint(hconstraint, hmodel)
     }
+    if (hmodel$hidden) hmodel$ranges <- msm.form.hranges(hranges, hmodel)
 ### INITIAL STATE OCCUPANCY PROBABILITIES IN HMMS
     if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, msmdata)
 
@@ -289,8 +291,10 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
             p$ci <- cbind(p$params - qnorm(1 - 0.5*(1-cl))*sqrt(diag(p$covmat)),
                           p$params + qnorm(1 - 0.5*(1-cl))*sqrt(diag(p$covmat)))
             p$ci[p$fixedpars,] <- NA
-            for (lab in rownames(.msm.TRANSFORMS))
-                p$ci[p$plabs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(p$ci[p$plabs==lab, ])
+#            for (lab in rownames(.msm.TRANSFORMS))
+#                p$ci[p$plabs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(p$ci[p$plabs==lab, ])
+            for (i in 1:2)
+                p$ci[,i] <- gexpit(p$ci[,i], p$ranges[,"lower"], p$ranges[,"upper"])
         }
         else {
             p$foundse <- FALSE
@@ -300,7 +304,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         }
     }
     p$estimates.t <- p$params  # Calculate estimates and CIs on natural scale
-    p$estimates.t <- msm.inv.transform(p$params, hmodel)
+    p$estimates.t <- msm.inv.transform(p$params, hmodel, p$ranges)
     ## calculate CIs for misclassification probabilities (needs multivariate transform and delta method)
     if (any(p$plabs=="p") && p$foundse){
         p.se <- p.se.msm(qmodel,emodel,hmodel,qcmodel,ecmodel,p,center, covariates = if(center) "mean" else 0)
@@ -1167,10 +1171,11 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
 
 ## transform parameters from natural scale to real-line optimisation scale
 
-msm.transform <- function(pars, hmodel){
+msm.transform <- function(pars, hmodel, ranges){
     labs <- names(pars)
-    for (lab in rownames(.msm.TRANSFORMS))
-        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"fn"])(pars[labs==lab])
+    pars <- glogit(pars, ranges[,"lower"], ranges[,"upper"]) # TESTME
+#    for (lab in rownames(.msm.TRANSFORMS))
+#        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"fn"])(pars[labs==lab])
     hpinds <- which(!(labs %in% c("qbase","qcov","hcov","initpbase","initp","initp0","initpcov")))
     hpars <- pars[hpinds]
     hpars <- msm.mnlogit.transform(hpars, hmodel$plabs, hmodel$parstate)
@@ -1181,10 +1186,11 @@ msm.transform <- function(pars, hmodel){
 
 ## transform parameters from real-line optimisation scale to natural scale
 
-msm.inv.transform <- function(pars, hmodel){
+msm.inv.transform <- function(pars, hmodel, ranges){
     labs <- names(pars)
-    for (lab in rownames(.msm.TRANSFORMS))
-        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(pars[labs==lab])
+    pars <- gexpit(pars, ranges[,"lower"], ranges[,"upper"]) # TESTME
+#    for (lab in rownames(.msm.TRANSFORMS))
+#        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(pars[labs==lab])
     hpinds <- which(!(labs %in% c("qbase","qcov","hcov","initp","initp0","initpcov")))
     hpars <- pars[hpinds]
     hpars <- msm.mninvlogit.transform(hpars, hmodel$plabs, hmodel$parstate)
@@ -1227,8 +1233,11 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
     }
     ## store indicator for which parameters are HMM location parameters (not HMM cov effects or initial state probs)
     hmmpars <- which(!(plabs %in% c("qbase","qcov","hcov","initpbase","initp","initp0","initpcov")))
+    hmmparscov <- which(!(plabs %in% c("qbase","qcov","initpbase","initp","initp0","initpcov")))
     names(inits) <- plabs
-    inits <- msm.transform(inits, hmodel)
+    ranges <- .msm.PARRANGES[plabs,]
+    if (!is.null(hmodel$ranges)) ranges[hmmparscov,] <- hmodel$ranges
+    inits <- msm.transform(inits, hmodel, ranges)
     ## Form constraint vector for complete set of parameters
     ## No constraints allowed on initprobs and their covs for the moment
     constr <- c(qmodel$constr, if(is.null(qcmodel$constr)) NULL else (ni + abs(qcmodel$constr))*sign(qcmodel$constr),
@@ -1269,7 +1278,7 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
                       fixed=fixed, notfixed=notfixed, optpars=optpars,
                       fixedpars=fixedpars, constr=constr,  npars=npars,
                       nfix=length(fixedpars),
-                      nopt=length(optpars), ndup=length(duppars))
+                      nopt=length(optpars), ndup=length(duppars), ranges=ranges)
     paramdata
 }
 
@@ -1303,6 +1312,7 @@ msm.rep.constraints <- function(pars, # transformed pars
     names(pars) <- plabs
     pars
 }
+
 ## Apply covariates to HMM location parameters
 ## Parameters enter transformed, and exit on natural scale
 
@@ -1321,10 +1331,11 @@ msm.add.hmmcovs <- function(hmodel, pars, msmdata){
         hpars[i,] <- hpars[i,] + covs %*% coveffs
     }
     for (i in seq_along(hpinds)){
-        if (labs[hpinds][i] %in% rownames(.msm.TRANSFORMS))  {
-            invlink <- get(.msm.TRANSFORMS[labs[hpinds][i],"inv"])
-            hpars[i,] <- invlink(hpars[i,])
-        }
+        hpars[i,] <- gexpit(hpars[i,], hmodel$ranges[i,"lower"], hmodel$ranges[i,"upper"]) # TESTME
+#        if (labs[hpinds][i] %in% rownames(.msm.TRANSFORMS))  {
+#            invlink <- get(.msm.TRANSFORMS[labs[hpinds][i],"inv"])
+#            hpars[i,] <- invlink(hpars[i,])
+#        }
     }
     hpars <- msm.mninvlogit.transform(hpars, hmodel$plabs, hmodel$parstate)
     hpars
@@ -1428,7 +1439,7 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
     pars <- msm.rep.constraints(pars, paramdata, hmodel)
 
     ## Add covariates to hpars and q here. Inverse-transformed to natural scale on exit
-    agg <- if(do.what %in% c("lik","deriv","info")) TRUE else FALSE
+    agg <- if(do.what %in% c("lik","deriv","info")) TRUE else FALSE # data as aggregate transition counts, as opposed to individual observations
     Q <- msm.add.qcovs(qmodel, pars, msmdata, agg)
     DQ <- if (do.what %in% c("deriv","info","deriv.subj","dpmat")) msm.form.dq(qmodel, qcmodel, pars, msmdata, agg) else NULL
     hpars <- if (hmodel$hidden) msm.add.hmmcovs(hmodel, pars, msmdata) else NULL

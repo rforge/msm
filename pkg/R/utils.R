@@ -369,3 +369,37 @@ qgeneric <- function(pdist, p, ...)
     if (any(is.nan(ret))) warning("NaNs produced")
     ret
 }
+
+
+## Transform vector of parameters constrained on [a, b] to real line.
+## Vectorised.  a=-Inf or b=Inf represent unbounded below or above.
+
+glogit <- function(x, a, b) {
+    ret <- numeric(length(x))
+    nn <- is.infinite(a) & is.infinite(b)
+    nb <- is.infinite(a) & is.finite(b)
+    an <- is.finite(a) & is.infinite(b)
+    ab <- is.finite(a) & is.finite(b)
+    ret[nn] <- x[nn]
+    ret[nb] <- log(b[nb] - x[nb])
+    ret[an] <- log(x[an] - a[an])
+    ret[ab] <- log((x[ab] - a[ab]) / (b[ab] - x[ab]))
+    ret
+}
+
+## Inverse transform vector of parameters constrained on [a, b]: back
+## from real line to constrained scale.  Vectorised.  a=-Inf or b=Inf
+## represent unbounded below or above.
+
+gexpit <- function(x, a, b) {
+    ret <- numeric(length(x))
+    nn <- is.infinite(a) & is.infinite(b)
+    nb <- is.infinite(a) & is.finite(b)
+    an <- is.finite(a) & is.infinite(b)
+    ab <- is.finite(a) & is.finite(b)
+    ret[nn] <- x[nn]
+    ret[nb] <- b[nb] - exp(x[nb])
+    ret[an] <- exp(x[an]) + a[an]
+    ret[ab] <- (b[ab]*exp(x[ab]) + a[ab]) / (1 + exp(x[ab]))
+    ret
+}

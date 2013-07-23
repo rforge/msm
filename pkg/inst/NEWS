@@ -3,8 +3,27 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
-Version 1.3 ??? ()
------------
+Version 1.3 (?)
+-------------
+
+o Future CRAN release.  Includes the changes below from versions 1.2.1
+  up to 1.2.4
+
+
+Version 1.2.4 (2013-07-23)
+-------------
+
+o R-forge only release
+
+o Range constraints can now be given for HMM outcome parameters,
+  through a new argument "hranges" to msm. This may improve HMM
+  identifiability.
+
+
+Version 1.2.3 (2013-06-06)
+-------------
+
+o R-forge only release
 
 o New interface for easily specifiying different covariates for each
   transition intensity, through a named list in the "covariates"

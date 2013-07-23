@@ -4,7 +4,7 @@
 ### and names of parameters for each distribution
 ### MUST BE KEPT IN THE SAME ORDER as the C variable HMODELS in src/lik.c
 .msm.HMODELPARS <- list(
-                        categorical=c("ncats","basecat","prob"),  # vector
+                        categorical=c("ncats","basecat","p"),
                         identity = NULL,
                         uniform = c("lower", "upper"),
                         normal = c("mean", "sd"),
@@ -48,19 +48,26 @@
 ### Defined ranges for parameters
 .msm.PARRANGES <- list(qbase=c(0, Inf), lower=c(-Inf,Inf), upper=c(-Inf, Inf),
                        mean=c(-Inf, Inf), sd=c(0, Inf),
-                       meanlog=c(-Inf,Inf), sdlog=c(0, Inf), rate=c(0, Inf), shape=c(0, Inf), shape1=c(0,Inf), shape2=c(0,Inf),
+                       meanlog=c(-Inf,Inf), sdlog=c(0, Inf), rate=c(0, Inf), shape=c(0, Inf), scale=c(0, Inf), shape1=c(0,Inf), shape2=c(0,Inf),
                        prob=c(0, 1), meanerr=c(-Inf, Inf), sderr=c(0, Inf), disp=c(0, Inf),
-                       df=c(0, Inf)
+                       p=c(-Inf,Inf), # handled separately using multinomial logit
+                       initp=c(-Inf,Inf), # handled separately using multinomial logit
+                       df=c(0, Inf),
+                       qcov=c(-Inf,Inf),hcov=c(-Inf,Inf),initpcov=c(-Inf,Inf)
                        )
+for (i in .msm.AUXPARS) .msm.PARRANGES[[i]] <- c(-Inf, Inf)
+.msm.PARRANGES <- do.call("rbind",.msm.PARRANGES)
+colnames(.msm.PARRANGES) <- c("lower","upper")
 
 ### Transforms to optimise some parameters on a different scale
 ### Univariate transforms only: doesn't include multinomial logit transform used for misclassification p and initial state probs
+
 .msm.TRANSFORMS <-
-  do.call("rbind",
-          lapply(.msm.PARRANGES,
+    do.call("rbind",
+          apply(.msm.PARRANGES, 1,
                  function(x) {
-                     if (identical(x, c(0, Inf))) c(fn="log",inv="exp")
-                     else if (identical(x, c(0, 1))) c(fn="qlogis",inv="plogis")
+                     if (identical(x, c(lower=0, upper=Inf))) c(fn="log",inv="exp")
+                     else if (identical(x, c(lower=0, upper=1))) c(fn="qlogis",inv="plogis")
                      else NULL
                  }
                  ) )

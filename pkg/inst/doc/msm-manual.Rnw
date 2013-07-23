@@ -2274,7 +2274,7 @@ As for the other constraint arguments such as \Rfunarg{qconstraint},
 identical values of this vector indicate parameters constrained to be
 equal.
 
-For example consider the three-state hidden Markov model described
+For example, consider the three-state hidden Markov model described
 above, with normally-distributed outcomes for states 1 and 2.
 To constrain the outcome variance to be equal for states 1 and 2,
 and to also constrain the effect of \Robject{x} on the outcome mean
@@ -2283,8 +2283,19 @@ to be equal for states 1 and 2, specify
 hconstraint = list(sd = c(1,1), x=c(1,1))
 \end{Scode}
 
-
-
+Parameters of the 
+outcome distributions may also be constrained within specific ranges. 
+If chosen carefully, this may improve identifiability of hidden Markov states. 
+For example to constrain the mean for state 1 to be between 80 and 110,
+and the mean for state 2 to be between 50 and 80, specify
+\begin{Scode}
+hranges = list(mean=list(lower=c(80,50), upper=c(110,80)))
+\end{Scode}
+Maximum likelihood estimation is then performed on the appropriate log
+or logit-transformed scale so that these constraints are
+satisfied. See the \Rfunction{msm} help page for further details.
+Note that initial values should be strictly within the ranges, and not
+on the range boundary.
 
 \paragraph{FEV$_1$ after lung transplants}
 

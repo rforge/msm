@@ -14,7 +14,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       ematrix=NULL, hmodel=NULL, obstype=NULL, obstrue=NULL,
       covariates = NULL, covinits = NULL, constraint = NULL,
       misccovariates = NULL, misccovinits = NULL, miscconstraint = NULL,
-      hcovariates = NULL, hcovinits = NULL, hconstraint = NULL,
+      hcovariates = NULL, hcovinits = NULL, hconstraint = NULL, hranges=NULL,
       qconstraint=NULL, econstraint=NULL, initprobs = NULL,
       est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
       death = FALSE, exacttimes = FALSE, censor=NULL,
@@ -386,6 +386,36 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
     Note this excludes initial state occupancy probabilities and
     covariate effects, which cannot be constrained.
+    }
+
+    \item{hranges}{Range constraints for hidden Markov model parameters.
+      Supplied as a named list, with each element corresponding to the
+      named hidden Markov model parameter.  This element is itself a
+      list with two elements, vectors named "lower" and "upper".  These
+      vectors each have length equal to the number of times that class
+      of parameter appears in the whole model, and give the
+      corresponding mininum amd maximum allowable values for that
+      parameter.  Maximum likelihood estimation is performed with these
+      parameters constrained in these ranges (through a log or logit transformation).
+      Lower bounds of \code{-Inf} and upper bounds of \code{Inf} can
+      be given if the parameter is unbounded above or below.
+
+      For example, in the three-state model above, to constrain the mean
+      for state 1 to be between 0 and 6, and the mean of state 2 to be
+      between 7 and 12, supply
+
+      \code{hranges=list(mean=list(lower=c(0, 7), upper=c(6, 12)))}
+
+      These default to the natural ranges, e.g. the positive real line
+      for variance parameters, and [0,1] for probabilities.  Therefore
+      \code{hranges} need not be specified for such parameters unless an
+      even stricter constraint is desired.  If only one limit is
+      supplied for a parameter, only the first occurrence of that
+      parameter is constrained.      
+
+      Initial values should be strictly within any ranges, and not on
+      the range boundary, otherwise optimisation will fail with a
+      "non-finite value" error.
     }
 
   \item{qconstraint}{A vector of indicators specifying which baseline
