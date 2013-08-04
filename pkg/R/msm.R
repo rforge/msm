@@ -38,6 +38,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 opt.method = c("optim","nlm","fisher"),
                 hessian = NULL,
                 use.deriv = TRUE,
+                use.expm = TRUE,
                 analyticp=TRUE,
                 ... # options to optim or nlm
                 )
@@ -51,7 +52,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
 ### MODEL FOR TRANSITION INTENSITIES
     if (gen.inits)
         qmatrix <- crudeinits.msm(formula, subject, qmatrix, data, censor, censor.states)
-    qmodel <- msm.form.qmodel(qmatrix, qconstraint, exacttimes, analyticp)
+    qmodel <- msm.form.qmodel(qmatrix, qconstraint, exacttimes, analyticp, use.expm)
 
 ### MISCLASSIFICATION MODEL
     if (!missing(ematrix)) {
@@ -415,7 +416,7 @@ msm.fixdiag.ematrix <- function(ematrix)
     ematrix
 }
 
-msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyticp=TRUE)
+msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyticp=TRUE, use.expm=FALSE)
 {
     msm.check.qmatrix(qmatrix)
     nstates <- dim(qmatrix)[1]
@@ -454,7 +455,7 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyti
     }
     qmodel <- list(nstates=nstates, iso=iso, perm=perm, qperm=qperm,
                    npars=npars, imatrix=imatrix, qmatrix=qmatrix, inits=inits,
-                   constr=constr, ndpars=ndpars, exacttimes=exacttimes)
+                   constr=constr, ndpars=ndpars, exacttimes=exacttimes, expm=as.numeric(use.expm))
     class(qmodel) <- "msmqmodel"
     qmodel
 }
@@ -497,7 +498,7 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
             est.initprobs <- FALSE
         }
         else {
-            if (length(initprobs) != qmodel$nstates) stop("initprobs of length ", length(initprobs), ", should be ", qmodel$nstates)
+            if (length(initprobs) != qmodel$nstates) stop("initprobs vector of length ", length(initprobs), ", should be vector of length ", qmodel$nstates, " or a matrix")
             initprobs <- initprobs / sum(initprobs)
             if (est.initprobs && any(initprobs==1)) {
                 est.initprobs <- FALSE
@@ -1486,6 +1487,7 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
               as.integer(qmodel$iso),
               as.integer(qmodel$perm),
               as.integer(qmodel$qperm),
+              as.integer(qmodel$expm),
               as.integer(qmodel$npars),
               as.integer(msmdata$nobs), # number of aggregated transitions
               as.integer(msmdata$n), # number of observations

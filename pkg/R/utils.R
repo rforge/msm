@@ -40,25 +40,28 @@ deltamethod <- function(g,       # a formula or list of formulae (functions) giv
 ### Matrix exponential
 ### If a vector of multipliers t is supplied then a list of matrices is returned.
 
-MatrixExp <- function(mat, t = 1, n = 20, k = 3, method="pade"){
+MatrixExp <- function(mat, t = 1, method=NULL,...){
     if (!is.matrix(mat) || (nrow(mat)!= ncol(mat)))
         stop("\"mat\" must be a square matrix")
-    if (!(method %in% c("pade","series","analytic")))
-        stop("\"method\" should be \"pade\" or \"series\"")
-    qmodel <- if (is.qmatrix(mat) && method=="analytic") msm.form.qmodel(mat) else list(iso=0, perm=0, qperm=0)
-    if (method=="analytic") {
+    qmodel <- if (is.qmatrix(mat) && !is.null(method) && method=="analytic") msm.form.qmodel(mat) else list(iso=0, perm=0, qperm=0)
+    if (!is.null(method) && method=="analytic") {
         if (!is.qmatrix(mat))
-            warning("Analytic method not available since matrix is not a Markov model intensity matrix")
-        else if (qmodel$iso==0) warning("Analytic method not available for this Markov model structure")
+            warning("Analytic method not available since matrix is not a Markov model intensity matrix. Using \"pade\".")
+        else if (qmodel$iso==0) warning("Analytic method not available for this Markov model structure. Using \"pade\".")
 
     }
     if (length(t) > 1) res <- array(dim=c(dim(mat), length(t)))
     for (i in seq(along=t)) {
-        ccall <- .C("MatrixExpR", as.double(mat), as.integer(nrow(mat)), res=double(length(mat)), as.double(t[i]),
-                    as.integer(match(method, c("pade","series"))), # must match macro constants in pijt.c
-                    as.integer(qmodel$iso), as.integer(qmodel$perm), as.integer(qmodel$qperm),
-                    as.integer(0), NAOK=TRUE)
-        resi <- matrix(ccall$res, nrow=nrow(mat))
+        if (is.null(method) || !(method %in% c("pade","series","analytic"))) {
+            if (is.null(method)) method <- eval(formals(expm::expm)$method)
+            resi <- expm::expm(t[i]*mat, method=method, ...)
+        } else { 
+            ccall <- .C("MatrixExpR", as.double(mat), as.integer(nrow(mat)), res=double(length(mat)), as.double(t[i]),
+                        as.integer(match(method, c("pade","series"))), # must match macro constants in pijt.c
+                        as.integer(qmodel$iso), as.integer(qmodel$perm), as.integer(qmodel$qperm),
+                        as.integer(0), NAOK=TRUE)
+            resi <- matrix(ccall$res, nrow=nrow(mat))
+        }
         if (length(t)==1) res <- resi
         else res[,,i] <- resi
     }
@@ -375,7 +378,10 @@ qgeneric <- function(pdist, p, ...)
 ## Vectorised.  a=-Inf or b=Inf represent unbounded below or above.
 
 glogit <- function(x, a, b) {
+    if (is.null(a)) a <- -Inf
+    if (is.null(b)) b <- Inf
     ret <- numeric(length(x))
+    attributes(ret) <- attributes(x)
     nn <- is.infinite(a) & is.infinite(b)
     nb <- is.infinite(a) & is.finite(b)
     an <- is.finite(a) & is.infinite(b)
@@ -392,7 +398,10 @@ glogit <- function(x, a, b) {
 ## represent unbounded below or above.
 
 gexpit <- function(x, a, b) {
+    if (is.null(a)) a <- -Inf
+    if (is.null(b)) b <- Inf
     ret <- numeric(length(x))
+    attributes(ret) <- attributes(x)
     nn <- is.infinite(a) & is.infinite(b)
     nb <- is.infinite(a) & is.finite(b)
     an <- is.finite(a) & is.infinite(b)

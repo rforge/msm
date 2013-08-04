@@ -14,9 +14,10 @@ Stan.
 
 Phase-type models.  Build appropriate parameter constraints in.
 
-Time-inhomogeneous models with smoothly-varying intensities.  Could be
-done by numerically integrating the Kolmogorov equations, as in Titman
-(Biometrics 2011).  deSolve package could be used for this in C.
+Time-inhomogeneous models with smoothly-varying intensities.  Product
+integral method looks easy, e.g. for predictable covariates like age.
+Alternatively, numerically integrate the Kolmogorov equations, as in
+Titman (Biometrics 2011).  deSolve package could be used for this in C.
 Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
 Or Rcpp.
@@ -27,6 +28,8 @@ cross-platform, including Windows.
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
 
+Turnbull method to non-parametrically estimate time to interval-censored event.
+
 Viterbi algorithm.  Probability of each hidden state at each time, instead of just most probable.
 To compute this, need probabilities of all paths ending in state L at time ti: i.e. be sum_k instead of max_k in formula in Sec2.17 of PDF manual.
 
@@ -34,7 +37,7 @@ Bureau survival plots
 
 Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hydroPSO
 
-Borrow matrix exponential code from Matrix package: code in dgeMatrix.c
+Other optimisers (Nash) Rvmmin is modern BFGS with bounds. Bounds recommended to avoid silly solutions. (compute unbounded hessian by hand at solution?). Lots of parameters: Rcgmin much better than CG.   bobyqa (package minqa) for fast derivative free.
 
 Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed).
 

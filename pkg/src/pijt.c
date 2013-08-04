@@ -25,8 +25,17 @@
 #define MEXP_PADE 1
 #define MEXP_SERIES 2
 #include "R_ext/Lapack.h"
+#include "R_ext/Rdynload.h"
 
 #define NODERIVDEBUG
+
+/* Interface to expm package. */
+typedef enum {Ward_2, Ward_1, Ward_buggy_octave} precond_type;
+void (*expm)(double *x, int n, double *z, precond_type precond_kind);
+void R_init_msm(DllInfo *dll)
+{
+    expm = (void (*) (double, int, double, precond_type)) R_GetCCallable("expm", "expm");
+}
 
 /* Set A to be an n x n identity matrix */
 
@@ -323,7 +332,7 @@ void Eigen(Matrix mat, int n, vector revals, vector ievals, Matrix evecs, int *e
    invertibility by calculating determinant, thus reducing number of
    cases where it is necessary to use power series or Pade? */
 
-void MatrixExp(Matrix mat, int n, Matrix expmat, double t,
+void MatrixExpMSM(Matrix mat, int n, Matrix expmat, double t,
 	       int degen, /* currently not used */
 	       int method)
 {
@@ -343,10 +352,10 @@ void MatrixExp(Matrix mat, int n, Matrix expmat, double t,
 	break;
       }
     if (repeated_entries (revals, n) || (err != 0) || degen || complex_evals){
-	if (method == MEXP_PADE)
-	    MatrixExpPade(expmat, mat, n, t);
-	else if (method == MEXP_SERIES)
+	if (method == MEXP_SERIES)
 	    MatrixExpSeries(mat, n, expmat, t);
+	else 
+	    MatrixExpPade(expmat, mat, n, t);
     }
     else {
 	for (i=0; i<n; ++i)
@@ -368,15 +377,31 @@ void MatrixExpR(double *mat, int *n, double *expmat, double *t,
     if (*iso > 0)
 	AnalyticP(expmat, *t, *n, *iso, perm, qperm, mat, degen);
     else
-	MatrixExp(mat, *n, expmat, *t, *degen, *method);
+	MatrixExpMSM(mat, *n, expmat, *t, *degen, *method);
 }
 
+void MatrixExpEXPM(double *mat, int *n, double *expmat, double *t,
+		int *method, int *iso, int *perm, int *qperm,
+		int *degen){
+    int i;
+    int nsq = (*n)*(*n);
+    double *matt = Calloc(nsq, double);
+    if (*iso > 0)
+	AnalyticP(expmat, *t, *n, *iso, perm, qperm, mat, degen);
+    else { 
+	for (i=0; i<((*n)*(*n)); ++i) { 
+	    matt[i] = (*t) * mat[i];
+	}
+	expm(matt, *n, expmat, Ward_2);
+    }
+    Free(matt);
+}
 
 /* Returns i-j transition intensity time t given vectors of intensities and transition indicators */
 
 /* Calculates the whole transition matrix in time t given an intensity matrix */
 
-void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, ivector perm, ivector qperm)
+void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, ivector perm, ivector qperm, int expm)
 {
     int i,j,method=MEXP_PADE,degen=0;
     double pii;
@@ -389,7 +414,10 @@ void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int i
 	}
     }
     else {
-	MatrixExpR(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
+	if (expm)
+	    MatrixExpEXPM(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
+	else 
+	    MatrixExpR(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
 	/* Floating point fuzz sometimes causes trouble */
 	for (i=0; i<nstates; ++i)
 	    for (j=0; j<nstates; ++j) {
@@ -408,8 +436,9 @@ double pijdeath(int r, int s, Matrix pmat, Matrix qmat, int n)
     else {    /* sum over unobserved state at the previous instant */
 	contrib = 0;
 	for (j = 0; j < n; ++j)
-	    if (j != s)
+	    if (j != s) { 
 		contrib += pmat[MI(r, j, n)] * qmat[MI(j,s,n)];
+	    }
     }
     return contrib;
 }

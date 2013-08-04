@@ -1068,37 +1068,50 @@ lrtest.msm <- function(...){
 ## Estimate total length of stay in a given state.
 
 totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
+                       num.integ=FALSE, discount=0,
                        ci=c("none","normal","bootstrap"), # calculate a confidence interval
                        cl = 0.95, # width of symmetric confidence interval
                        B = 1000, # number of bootstrap replicates
                        ...)
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
-    if (! start %in% 1 : x$qmodel$nstates) stop("start should be a state in 1, ..., ", x$qmodel$nstates)
-    if (is.null(end)) end <- 1 : x$qmodel$nstates
-    if (! all(end %in% 1 : x$qmodel$nstates)) stop("end should be a set of states in 1, ..., ", x$qmodel$nstates)
+    nst <- x$qmodel$nstates
+    if (!is.numeric(start) ||
+        ((length(start)==1) && (! start %in% 1 : nst))) stop("start should be a state in 1, ..., ", nst, " or a vector of length ",nst)
+    else if (length(start) == 1) {p0 <- rep(0, nst); p0[start] <- 1; start <- p0}
+    else if (length(start) > 1) {
+        if (length(start) != nst)
+            stop("start should be a state in 1, ..., ", nst, " or a vector of length ",nst)
+    }
+    if (is.null(end)) end <- 1 : nst
+    if (! all(end %in% 1 : nst)) stop("end should be a set of states in 1, ..., ", nst)
     if (!is.numeric(fromt) || !is.numeric(tot) || length(fromt) != 1 || length(tot) != 1 || fromt < 0 || tot < 0)
         stop("fromt and tot must be single non-negative numbers")
     if (fromt > tot) stop("tot must be greater than fromt")
     if (length(absorbing.msm(x)) == 0)
         if (tot==Inf) stop("Must specify a finite end time for a model with no absorbing state")
-    tr <- seq(length=x$qmodel$nstates) # transient.msm(x)
+    tr <- seq(length=nst) # transient.msm(x)
     totlos <- numeric(length(end))
     if (tot==Inf) {
+        num.integ <- TRUE
         totlos[end %in% absorbing.msm(x)] <- Inf # set by hand or else integrate() will fail
         rem <- seq(along=end)[!(end %in% absorbing.msm(x))]
     }
     else rem <- seq(along=end)
-    for (j in rem){
-        f <- function(time) {
-            y <- numeric(length(time))
-            for (i in seq(along=y))
-                y[i] <- pmatrix.msm(x, time[i], t1=0, covariates=covariates, ci="none")[start,end[j]]
-print(time)
-print(y)
-            y
+    if (num.integ) { 
+        for (j in rem){
+            f <- function(time) {
+                y <- numeric(length(time))
+                for (i in seq(along=y))
+                    y[i] <- (start %*% pmatrix.msm(x, time[i], t1=0, covariates=covariates, ci="none")) [end[j]]
+                y
+            }
+            totlos[j] <- integrate(f, fromt, tot, ...)$value
         }
-        totlos[j] <- integrate(f, fromt, tot, ...)$value
+    } else {
+        QQ <- rbind(c(0, start),
+                    cbind(rep(0,nst), qmatrix.msm(x, covariates=covariates, ci="none") - discount*diag(nst)))
+        totlos <- as.vector(c(1, rep(0, nst)) %*% (MatrixExp(tot*QQ) - MatrixExp(fromt*QQ)) %*% rbind(rep(0, nst), diag(nst)))[end]
     }
     names(totlos) <- rownames(x$qmodel$qmatrix)[end]
     ci <- match.arg(ci)

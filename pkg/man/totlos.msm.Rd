@@ -7,13 +7,17 @@
 }
 \usage{
 totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
+           num.integ=FALSE, discount=0,
            ci=c("none","normal","bootstrap"), cl=0.95, B=1000, ...)
 }
 \arguments{
   \item{x}{A fitted multi-state model, as returned by
     \code{\link{msm}}. }
   
-  \item{start}{State at the beginning of the period.}
+  \item{start}{Either a single number giving the state at the beginning
+    of the period, or a vector of probabilities of being in each state
+    at this time.
+  }
 
   \item{end}{States to forecast the total length of stay in. Defaults to all states.}
   
@@ -45,6 +49,11 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
       
   }
 
+  \item{num.integ}{Use numerical integration instead of analytic
+    solution (see below).}
+
+  \item{discount}{Discount rate in continuous time.}
+  
   \item{ci}{If \code{"normal"}, then calculate a confidence interval 
     by simulating \code{B} random vectors
     from the asymptotic multivariate normal distribution implied by the
@@ -75,16 +84,37 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
 \details{
   The expected total length of stay in state \eqn{j} between times
   \eqn{t_1} and \eqn{t_2}, from the point of view of an individual in
-  state \eqn{i} at time 0,
-  is defined by the integral from \eqn{t_1} to
-  \eqn{t_2} of the \eqn{i,j} entry of the transition probability matrix \eqn{P(t)}.
-  As the individual entries of \eqn{P(t) = \exp(tQ)}{P(t) = exp(tQ)}
-  are not available explicitly in terms of
-  \eqn{t} for a general Markov model, this integral is calculated
-  numerically, using the \code{\link{integrate}} function.  This may
-  take a long time for models with many states where \eqn{P(t)} is
-  expensive to calculate. 
+  state \eqn{i} at time 0, is defined by the integral from \eqn{t_1} to
+  \eqn{t_2} of the \eqn{i,j} entry of the transition probability matrix
+  \eqn{P(t) = Exp(tQ)}.
 
+  More generally, suppose that \eqn{\pi_0}{pi0}
+  is the vector of probabilities of being in each state at time 0,
+  supplied in \code{start}, and we want the vector \eqn{\mathbf{x}} giving the expected
+  lengths of stay in each state.  The corresponding integral has the
+  following solution (van Loan 1978; van Rosmalen et al. 2013)
+    
+  \deqn{\mathbf{x} = \left[\begin{array}{ll}1 & \mathbf{0}_K
+  \end{array}\right] Exp(t Q') \left[\begin{array}{ll} \mathbf{0}_K\\I_K
+  \end{array}\right]}{x = [1, 0K] Exp(t Q') [0K, IK]'}
+
+where
+  \deqn{Q' = \left[\begin{array}{ll} 0 & \mathbf{\pi}_0\\ \mathbf{0}_K
+  & Q - rI_K\end{array}\right]}{Q' = rbind(c(0, pi_0), cbind(0K, Q - r
+  IK)),}
+
+\eqn{\pi_0}{pi0} is the row vector of initial state probabilities
+  supplied in \code{start}, \eqn{\mathbf{0}_K}{0K} is
+  the row vector of K zeros, \eqn{r} is the discount rate, \eqn{I_K}{IK} is the K x K identity matrix, and
+  \eqn{Exp} is the matrix exponential. 
+
+  Alternatively, the integrals can be calculated numerically, using the
+  \code{\link{integrate}} function.  This may take a long time for
+  models with many states where \eqn{P(t)} is expensive to calculate.
+  This facility is just provided for checking results against versions 1.2.4 and
+  earlier, and will be removed eventually.  Please let the package maintainer
+  know if any results are different.
+  
   For a model where the individual has only one place to go from each
   state, and each state is visited only once, for example a progressive
   disease model with no recovery or death, these are equal to the mean
@@ -98,12 +128,22 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
   expected total time diseased is a forecast for a healthy
   individual,  who may die before getting the disease. 
 
-  The only time-inhomogeneous models handled by this function are those
+  In the above formulae, \eqn{Q} is assumed to be constant over time,
+  but the results generalise easily to piecewise-constant intensities.
+  Though the only time-inhomogeneous models currently handled by this function are those
   specified using the \code{pci} option to \code{\link{msm}}.
   For any other inhomogeneous models, the function assumes that
   covariates are constant on the forecasted interval.
   
 }
+\references{
+C. van Loan (1978). Computing integrals involving the matrix exponential.
+IEEE Transactions on Automatic Control 23(3)395-404.
+
+J. van Rosmalen, M. Toy and J.F. O'Mahony (2013). A mathematical approach for
+evaluating Markov models in continuous time without discrete-event
+simulation.  Medical Decision Making 33:767-779.
+  }
 \seealso{
   \code{\link{sojourn.msm}}, \code{\link{pmatrix.msm}}, \code{\link{integrate}}, \code{\link{boot.msm}}.
 }

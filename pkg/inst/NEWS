@@ -7,7 +7,21 @@ Version 1.3 (?)
 -------------
 
 o Future CRAN release.  Includes the changes below from versions 1.2.1
-  up to 1.2.4
+  up to 1.2.?
+
+
+Version 1.2.5 (2013-07-??)
+-------------
+
+o R-forge only release
+
+o Analytic formula for totlos.msm implemented, which is vastly more
+  efficient than the numerical integration used previously.  Debugging
+  outputs left in 1.2.3 also removed.
+
+o Matrix exponentials, in MatrixExp and non-analytic likelihood
+  calculations, are now calculated using expm from the expm package by
+  default.  As a result msm now depends on the expm package.
 
 
 Version 1.2.4 (2013-07-23)

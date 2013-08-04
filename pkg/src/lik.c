@@ -168,7 +168,7 @@ void update_likhidden(double *curr, int nc, int obsno, msmdata *d, qmodel *qm,
 #endif
     /* calculate the transition probability (P) matrix for the time interval dt */
     Pmat(pmat, d->time[obsno] - d->time[obsno-1], qmat, qm->nst,
-	 (d->obstype[obsno] == OBS_EXACT), qm->iso, qm->perm, qm->qperm);
+	 (d->obstype[obsno] == OBS_EXACT), qm->iso, qm->perm, qm->qperm, qm->expm);
     for(j = 0; j < qm->nst; ++j)
 	{
 #ifdef DEBUG2
@@ -285,7 +285,7 @@ void update_likcensor(int obsno, double *prev, double *curr, int np, int nc,
     double contrib;
     int i, j, k;
     Pmat(pmat, d->time[obsno] - d->time[obsno-1], qmat, qm->nst,
-	 (d->obstype[obsno] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+	 (d->obstype[obsno] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
     for(i = 0; i < nc; ++i)
 	{
 	    newp[i] = 0.0;
@@ -356,7 +356,7 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
 		   P matrix for this */
 		/* pointer to Q matrix for ith datapoint */
 		qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
-		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 	    }
 	    if (d->obstype[i] == OBS_DEATH)
 		contrib = pijdeath(d->fromstate[i], d->tostate[i], pmat, qmat, qm->nst);
@@ -386,7 +386,7 @@ double liksimple_subj(int pt, /* ordinal subject ID */
 	from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
 	to = fprec(d->obs[i] - 1, 0);
 	qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
-	Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+	Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 	if (d->obstype[i] == OBS_DEATH)
 	    pm = pijdeath(from, to, pmat, qmat, qm->nst);
 	else
@@ -446,7 +446,7 @@ void derivsimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *deriv)
 		/* we have a new timelag/covariates/obstype combination. Recalculate the
 		   P matrix and its derivatives for this */
 		qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
-		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 		dqmat = &(qm->dintens[MI4(0, 0, 0, i, qm->nst, qm->nst, np)]);
  		DPmat(dpmat, d->timelag[i], dqmat, qmat, qm->nst, np, (d->obstype[i] == OBS_EXACT));
 	    }
@@ -500,7 +500,7 @@ void derivsimple_subj(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *de
 		    from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
 		    to = fprec(d->obs[i] - 1, 0);
 		    qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
-		    Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+		    Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 		    dqmat = &(qm->dintens[MI4(0, 0, 0, i, qm->nst, qm->nst, np)]);
 		    DPmat(dpmat, dt, dqmat, qmat, qm->nst, np, (d->obstype[i] == OBS_EXACT));
 		    if (d->obstype[i] == OBS_DEATH) {
@@ -544,7 +544,7 @@ void infosimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *info)
 		/* we have a new timelag/covariates/obstype combination. Recalculate the
 		   P matrix and its derivatives for this */
 		qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
-		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 		dqmat = &(qm->dintens[MI4(0, 0, 0, i, qm->nst, qm->nst, np)]);
  		DPmat(dpmat, d->timelag[i], dqmat, qmat, qm->nst, np, (d->obstype[i] == OBS_EXACT));
 	    }
@@ -709,7 +709,7 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 		    for (tru=0;tru<nc;++tru) printf("curr[%d] = %1.0lf, ",tru, curr[tru]); printf("\n");
 #endif
 		    Pmat(pmat, dt, qmat, qm->nst,
-			 (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm);
+			 (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 
 		    for (tru = 0; tru < qm->nst; ++tru)
 			{
@@ -818,6 +818,7 @@ void msmCEntry(
 	       int *iso, /* graph isomorphism ID */
 	       int *perm, /* permutation to the base isomorphism */
 	       int *qperm, /* permutation of intensity parameters from the base isomorphism */
+	       int *expm, /* use expm package for matrix exponential */
 	       int *nintens,      /* number of intensity parameters */
 	       int *nobs,         /* number of observations in data set (hmm/cens) or number of aggregated transitions (standard) */
 	       int *n,         /* number of observations in data set (used for derivs by individual in standard models. no of rows of covobsvec) */
@@ -844,7 +845,7 @@ void msmCEntry(
 
     qm.nst = *nst; qm.npars = *nintens; qm.intens = Q;
     qm.dintens = DQ; qm.ncpars = *nintens + *ncoveffs;
-    qm.iso = *iso; qm.perm = perm; qm.qperm = qperm;
+    qm.iso = *iso; qm.perm = perm; qm.qperm = qperm; qm.expm = *expm;
 
     cm.ncens = *ncens; cm.censor = censor; cm.censstates=censstates; cm.censstind=censstind;
 

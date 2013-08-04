@@ -6,27 +6,34 @@
   Calculates the exponential of a square matrix.
 }
 \usage{
-MatrixExp(mat, t = 1, n = 20, k = 3, method="pade")
+MatrixExp(mat, t = 1, method=NULL, ...)
 }
 \arguments{
   \item{mat}{A square matrix}
-  \item{t}{An optional scaling factor, or a vector or scaling factors, for the eigenvalues of \code{mat}}
-  \item{n}{Number of terms in the series approximation to the
-    exponential}
-  \item{k}{Underflow correction factor, for the series approximation}
-  \item{method}{\code{"pade"} for the Pade approximation, \code{"series"} for the
+  \item{t}{An optional scaling factor for \code{mat}.}
+  \item{method}{ Under the default of \code{NULL}, this simply wraps
+    the \code{\link[expm]{expm}} function from the \pkg{expm} package.
+    This is recommended.  Options to \code{\link{expm}} can be supplied to
+    \code{\link{MatrixExp}}, including \code{method}.
+
+    Otherwise, for backwards compatibility, the following options, which
+    use code in the \pkg{msm} package, are available:  
+    \code{"pade"} for a Pade approximation method, \code{"series"} for the
     power series approximation, or \code{"analytic"} for the analytic
     formulae for simpler Markov model intensity matrices (see below).
-    Only used if \code{mat} has repeated
-    eigenvalues and isn't an intensity matrix of a simpler
-    Markov model.
+    These options are only used if \code{mat} has repeated
+    eigenvalues, thus the usual eigen-decomposition method cannot be used.
   }
+  \item{...}{Arguments to pass to \code{\link{expm}}.}
 }
 \value{
   The exponentiated matrix \eqn{\exp(mat)}{exp(mat)}. Or, if \code{t} is
   a vector of length 2 or more, an array of exponentiated matrices.
 }
 \details{
+  See the \code{\link[expm]{expm}} documentation for details of the
+    algorithms it uses. 
+
   Generally the exponential \eqn{E} of a square matrix \eqn{M} can
   often be calculated as
 
@@ -38,7 +45,8 @@ MatrixExp(mat, t = 1, n = 20, k = 3, method="pade")
   of \eqn{M} on the diagonal, and \eqn{U} is a matrix whose columns are the
   eigenvectors of \eqn{M}.
 
-  This method of calculation is used if \eqn{M} has distinct
+  This method of calculation is used if \code{"pade"} or \code{"series"}
+  is supplied but \eqn{M} has distinct
   eigenvalues.  I If \eqn{M} has repeated eigenvalues, then its
   eigenvector matrix may be non-invertible. In this case, the matrix
   exponential is calculated using the Pade approximation defined by
@@ -66,7 +74,7 @@ intensity matrix
   values.  However it is the default when calculating likelihoods for models fitted
   by \code{\link{msm}}.
 
-  The implementation of the Pade approximation was taken from
+  The \pkg{msm} implementation of the Pade approximation was taken from
   JAGS by Martyn Plummer (\url{http://www-fis.iarc.fr/~martyn/software/jags}).
 
   The series approximation method was adapted from the corresponding

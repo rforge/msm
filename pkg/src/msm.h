@@ -67,7 +67,7 @@ struct qmodel {
     int iso;
     int *perm;
     int *qperm;
-    int *constr;
+    int expm;
 };
 
 struct cmodel {
@@ -103,6 +103,6 @@ int all_equal(double x, double y);
 void MatrixExpPadeR(double *ExpAt, double *A, int *n, double *t);
 void AnalyticP(Matrix pmat, double t, int nstates, int iso, int *perm, int *qperm, Matrix qmat, int *degen);
 double pijdeath(int r, int s, Matrix pmat, Matrix qmat, int n);
-void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, int *perm, int *qperm);
+void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, int *perm, int *qperm, int expm);
 void DPmat(Array3 dpmat, double t, Array3 dqmat, Matrix qmat, int n, int np, int exacttimes);
 void dpijdeath(int r, int s, Array3 dpmat, Matrix pmat, Array4 dqmat, Matrix qmat, int n, int npars, Matrix dcontrib);

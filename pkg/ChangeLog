@@ -1,3 +1,18 @@
+2013-07-30 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: formula for totlos.msm implemented, which is vastly
+	more efficient than the numerical integration used previously.
+	Debugging outputs left in 1.2.3 also removed.
+
+	* R/msm.R, src/*.c: Likelihood calculations use expm from the expm
+	package by default where matrix exponentiation is required.  As a
+	result msm now depends on the expm package.
+
+	* R/utils.R: MatrixExp now uses expm from the expm package by
+	default.
+
+	* R/various: some fixes for bugs introduced by the range facility.
+
 2013-07-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/(various): Range constraints can now be given for HMM outcome

@@ -82,6 +82,7 @@ importFrom(stats, coef)
 importFrom(mvtnorm, rmvnorm)
 importFrom(survival, Surv)
 importFrom(survival, survfit)
+importFrom(expm, expm)
 
 S3method(print, msm)
 S3method(summary, msm)
@@ -96,3 +97,4 @@ S3method(print, hmmdist)
 S3method(print, msm.est)
 S3method("[", msm.est)
 S3method(print, pearson.msm)
+

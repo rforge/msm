@@ -20,7 +20,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       death = FALSE, exacttimes = FALSE, censor=NULL,
       censor.states=NULL, pci=NULL, cl = 0.95, fixedpars = NULL, center=TRUE,
       opt.method=c("optim","nlm","fisher"), hessian=NULL, use.deriv=TRUE,
-      analyticp=TRUE, ... )
+      use.expm=TRUE, analyticp=TRUE, ... )
 }
 \arguments{
   \item{formula}{ A formula giving the vectors containing the observed
@@ -411,7 +411,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       \code{hranges} need not be specified for such parameters unless an
       even stricter constraint is desired.  If only one limit is
       supplied for a parameter, only the first occurrence of that
-      parameter is constrained.      
+      parameter is constrained.
 
       Initial values should be strictly within any ranges, and not on
       the range boundary, otherwise optimisation will fail with a
@@ -676,6 +676,12 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     that the default for \code{\link{optim}} is a Nelder-Mead method
     which cannot use derivatives. However, these derivatives, if
     supplied, are always used to calculate the Hessian. }
+
+  \item{use.expm}{If \code{TRUE} then any matrix exponentiation needed to
+    calculate the likelihood is done using the \pkg{expm} package.
+    Otherwise the original routines used in \pkg{msm} 1.2.4 and earlier
+    are used.  Set to \code{FALSE} for backward compatibility, and let
+    the package maintainer know if this gives any substantive differences.}
 
   \item{analyticp}{By default, the likelihood for certain simpler 3, 4
     and 5 state models is calculated using an analytic expression for
