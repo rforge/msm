@@ -48,6 +48,75 @@ print.msm <- function(x, ...)
 
 }
 
+## Experimental: more helpful and tidier print output
+## Arrange covariates in columns aligned with baselines as option?
+
+printnew.msm <- function(x, ...)
+{
+    cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
+    if (!attr(x,"fixed")) {
+        cat ("Maximum likelihood estimates: \n\n")
+        covmessage <-
+            if (x$qcmodel$ncovs == 0) ""
+            else paste("with covariates set to", (if (x$center) "their means" else "0"))
+        cat(paste("Transition intensities ",covmessage,":\n\n",sep=""))
+        y <- mattotrans(x, x$Qmatrices$baseline, x$QmatricesL$baseline, x$QmatricesU$baseline, keep.diag=TRUE)
+        print(y)
+        fres <- matrix("", nrow=nrow(y), ncol=x$qcmodel$ncovs+1)
+        colnames(fres) <- c("baseline", x$qcmodel$covlabels)
+        rownames(fres) <- rownames(y)
+        fres[,1] <- format.ci(y[,1],y[,2],y[,3]) # is this worth it?
+        ## HRs(ORs) not log HRs for covariates and misccovariates.
+        cat("\nHazard ratios for covariates on transition intensities:\n\n")
+        hrs <- hazard.msm(x)
+        print(hrs)
+        im <- t(x$qmodel$imatrix); diag(im) <- -1; nd <- which(im[im!=0]==1)
+        for (i in seq(length=x$qcmodel$ncovs)){
+            nm <- x$qcmodel$covlabels[[i]]
+            hrs <- exp(mattotrans(x, x$Qmatrices[[nm]], x$QmatricesL[[nm]], x$QmatricesU[[nm]], keep.diag=FALSE))
+            fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3])
+        }
+        cat ("Maximum likelihood estimates: \n\n")
+        cat ("Transition intensities with hazard ratios for covariates\n")
+        cat(paste("Baseline intensities are ",covmessage,"\n\n",sep=""))
+        print(fres, quote=FALSE)
+        ## initprobs also presented as ORs, note multinomial scale
+        ## Is it also worth presenting transition rates as columns?
+        ## Keep old print method
+        if (x$emodel$misc) {
+            if (any(x$paramdata$plabs[x$paramdata$notfixed] == "initp")) {
+                cat("Initial state occupancy probabilities\n\n")
+                print(x$hmodel$initprobs)
+                cat("\n")
+                if (any(x$hmodel$nicovs > 0)) {
+                    cat("Covariates on logit initial state probabilities\n")
+                    print(x$hmodel$icoveffect)
+                }
+                cat("\n")
+            }
+        }
+        else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
+            print(x$hmodel); cat("\n\n")
+        }
+    }
+    cat ("-2 * log-likelihood: ", x$minus2loglik, "\n")
+}
+
+mattotrans <- function(x, matrix, lower, upper, keep.diag=FALSE){
+    imat <- x$qmodel$imatrix
+    if (keep.diag) diag(imat) <- rowSums(imat)
+    keep <- which(imat==1, arr.ind=TRUE)
+    fromlabs <- rownames(imat)[keep[,1]]
+    tolabs <- colnames(imat)[keep[,2]]
+    res <- matrix(nrow=sum(imat), ncol=3)
+    dimnames(res) <- list(paste(fromlabs, "-", tolabs),
+                              c("Estimate", "L", "U"))
+    res[,1] <- matrix[keep]
+    res[,2] <- lower[keep]
+    res[,3] <- upper[keep]
+    res
+}
+
 summary.msm <- function(object, # fitted model
                         hazard.scale = 1,
                         ...
@@ -518,7 +587,7 @@ print.msm.est.cols <- function(x, digits=NULL, diag=TRUE, ...)
     res
 }
 
-print.ci <- function(x, l, u, digits=NULL)
+format.ci <- function(x, l, u, digits=NULL)
 {
     est <- formatC(x, digits=digits)
     if (!is.null(l)) {
@@ -531,6 +600,11 @@ print.ci <- function(x, l, u, digits=NULL)
     dim(res) <- dim(x)
     dimnames(res) <- dimnames(x)
     names(res) <- names(x)
+    res
+}
+
+print.ci <- function(x, l, u, digits=NULL){
+    res <- format.ci(x, l, u, digits)
     print(res, quote=FALSE)
 }
 

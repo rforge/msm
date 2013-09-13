@@ -83,7 +83,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     transition intensities are generated automatically using the method
     in \code{\link{crudeinits.msm}}. The non-zero
     entries of the supplied \code{qmatrix} are assumed to indicate the
-    allowed transitions of the model.}
+    allowed transitions of the model.   This is not available for hidden
+    Markov models, including models with misclassified states.}
 
   \item{ematrix}{
     If misclassification between states is to be modelled, this should
@@ -498,7 +499,11 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     default) indicates that there is no state of this kind.
 
     The \code{death} argument is overridden by \code{obstype} or
-    \code{exacttimes}.  Note that times of death do not necessarily have
+    \code{exacttimes}.
+
+    Note that you do not always supply a \code{death} argument, even if
+    there are states that correspond to deaths, because they do
+    not necessarily have
     \code{obstype=3}.  If the state is known between the time of death
     and the previous observation, then you should specify
     \code{obstype=2} for the death times, or \code{exacttimes=TRUE} if
@@ -809,6 +814,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     or if \code{center=FALSE}, with covariates fixed to zero.
   }
   \item{cmodel}{A list of objects specifying any model for censoring.}
+  \item{paramdata}{A list of objects giving information about the model
+    parameters and their eatimation.}
 
   Printing a \code{msm} object by typing the object's name at the
   command line implicitly invokes \code{print.msm}.  This

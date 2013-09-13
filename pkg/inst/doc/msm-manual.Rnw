@@ -1035,7 +1035,7 @@ $n_{rs} / n_r$. Then, given a total of $T_r$ years spent in state $r$,
 the mean sojourn time $1 / q_{rr}$ can be estimated as $T_r / n_r$.
 Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. The \Rpackage{msm}
 package provides a function \Rfunction{crudeinits.msm} for calculating
-initial values in this way.
+initial values in this way (for non-hidden Markov models).
 
 <<>>=
 twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
@@ -1076,12 +1076,14 @@ entry times into state 4 are observed in this manner.
 If the model had
 five states, and states 4 and 5 were two competing causes of death with
 times recorded exactly in this way, then we would specify \Rfunarg{death =
-  c(4,5)}.
+  c(4,5)}.   
 
 By default, the data are assumed to represent snapshots of the process
 at arbitrary times.  However, observations can also represent exact
 times of transition, ``exact death times'', or a mixture of these. See the
-\Rfunarg{obstype} argument to \Rfunction{msm}.
+\Rfunarg{obstype} argument to \Rfunction{msm}.  Note you do not always have to specify \Rfunarg{death}, 
+even if there are states which correspond to death.  This is
+only used for states whose entry time is observed in this specific way.
 
 While the \Rfunction{msm} function runs, it searches for the maximum
 of the likelihood of the unknown parameters.  Internally, it uses the

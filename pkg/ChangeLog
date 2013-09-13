@@ -1,3 +1,21 @@
+2013-09-13 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: "missing" for some null default arguments in msm()
+	changed to is.null.
+
+	* DESCRIPTION: Version 1.2.6 released to r-forge.
+
+2013-08-30 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.R): Give an informative error if trying to use
+	gen.inits with a HMM, and document that this is not supported.
+
+2013-08-20 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.check.times): Row numbers reported in error message
+	about different states at the same time corrected to account for
+	missing data.  Thanks to Lucy Leigh for the report.
+
 2013-07-30 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: formula for totlos.msm implemented, which is vastly
@@ -13,6 +31,8 @@
 
 	* R/various: some fixes for bugs introduced by the range facility.
 
+	* DESCRIPTION: Version 1.2.5 released to r-forge.
+
 2013-07-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/(various): Range constraints can now be given for HMM outcome
@@ -22,6 +42,8 @@
 
 	* R/constants.R: Scale parameters of Weibull and t HMM outcome
 	distributions now restricted properly to be positive in estimation.
+
+	* DESCRIPTION: Version 1.2.4 released to r-forge.
 
 2013-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
@@ -44,6 +66,8 @@
 
 	* R/outputs.R: totlos.msm was calculating the wrong thing for
 	fromt > 0.
+
+	* DESCRIPTION: Version 1.2.3 released to r-forge.
 
 2013-06-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
@@ -113,6 +137,8 @@
 	* R/msm.R, src/lik.c: Can now print subject-specific
 	log-likelihoods at the MLE via logLik.msm().
 
+	* DESCRIPTION: Version 1.2.2 released to r-forge.
+
 2013-05-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/utils.R: qtnorm, qmenorm, qmeunif and qpexp changed to use
@@ -137,6 +163,8 @@
 
 	* R/msm.R,R/hmm.R,src/lik.c: Allow matrix by patient to be
 	supplied for the initial state occupancy probabilities.
+
+	* DESCRIPTION: Version 1.2.1 released to r-forge.
 
 2013-05-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

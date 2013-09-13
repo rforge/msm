@@ -3,11 +3,25 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
-Version 1.3 (?)
+Version 1.3
 -------------
 
 o Future CRAN release.  Includes the changes below from versions 1.2.1
   up to 1.2.?
+
+
+Version 1.2.6 (2013-09-13)
+-------------
+
+o R-forge only release
+
+o Row numbers reported in error message about different states at the
+  same time corrected to account for missing data.  Thanks to Lucy
+  Leigh for the report.
+
+o An informative error is now shown if trying to use gen.inits with a
+  hidden Markov model, and it is now documented that this is not
+  supported.
 
 
 Version 1.2.5 (2013-07-30)
@@ -67,7 +81,7 @@ o Bug fix in totlos.msm: calculations were wrong for fromt > 0.
 o Memory bug in Viterbi, which could crash R, fixed.
 
 
-Version 1.2.2 (2013-05-14)
+Version 1.2.2 (2013-05-21)
 -------------
 
 o R-forge only release
@@ -80,7 +94,7 @@ o The state can now be a factor with levels (1:nstates), as well as
   behaviour and potential crashes.
 
 
-Version 1.2.1 (2013-05-14)
+Version 1.2.1 (2013-05-16)
 -------------
 
 o R-forge only release

@@ -1,3 +1,10 @@
+Change default print output to HRs instead of log HRs for covs
+what about transition rates in a column?  Try it out
+Document changes
+
+Make sure all components of msm objects are documented properly, e.g. paramdata.
+No need to duplicate stuff like deriv
+
 More developer documentation - comments for definitions of variables
    in internal data structures like qmodel, emodel etc.
 
@@ -22,8 +29,9 @@ Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
 Or Rcpp.
 
-Multicore bootstrapping using "parallel" package.  Must work
-cross-platform, including Windows.
+Multicore bootstrapping using "parallel" package.  Must work cross-platform, including Windows.
+http://stackoverflow.com/questions/18588896/custom-package-using-parallel-or-doparallel-for-multiple-os-as-a-cran-package
+gives alternatives: compare these for speed.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
@@ -40,6 +48,7 @@ Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hy
 Other optimisers (Nash) Rvmmin is modern BFGS with bounds. Bounds recommended to avoid silly solutions. (compute unbounded hessian by hand at solution?). Lots of parameters: Rcgmin much better than CG.   bobyqa (package minqa) for fast derivative free.
 
 Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed).
+cf. multiple multi-state processes with shared random effects?
 
 For hidden models, cache Pmatrix once for frequently-occurring each from, to, time combinations
 

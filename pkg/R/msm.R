@@ -50,25 +50,28 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
     if (missing(data)) data <- environment(formula)
 
 ### MODEL FOR TRANSITION INTENSITIES
-    if (gen.inits)
-        qmatrix <- crudeinits.msm(formula, subject, qmatrix, data, censor, censor.states)
+    if (gen.inits) {
+        if (is.null(hmodel) && is.null(ematrix))
+            qmatrix <- crudeinits.msm(formula, subject, qmatrix, data, censor, censor.states)
+        else warning("gen.inits not supported for hidden Markov models, ignoring")
+    }
     qmodel <- msm.form.qmodel(qmatrix, qconstraint, exacttimes, analyticp, use.expm)
 
 ### MISCLASSIFICATION MODEL
-    if (!missing(ematrix)) {
+    if (!is.null(ematrix)) {
         emodel <- msm.form.emodel(ematrix, econstraint, initprobs, est.initprobs, qmodel)
     }
     else emodel <- list(misc=FALSE, npars=0, ndpars=0)
     if (emodel$npars==0) emodel <- list(misc=FALSE, npars=0, ndpars=0) # user supplied degenerate ematrix with no misclassification
 
 ### GENERAL HIDDEN MARKOV MODEL
-    if (!missing(hmodel)) {
+    if (!is.null(hmodel)) {
         msm.check.hmodel(hmodel, qmodel$nstates)
-        if (!missing(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
+        if (!is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
         hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
     }
     else {
-        if (!missing(hcovariates)) stop("hcovariates have been specified, but no hmodel")
+        if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
         hmodel <- list(hidden=FALSE, models=rep(0, qmodel$nstates), nipars=0, nicoveffs=0, totpars=0, ncoveffs=0) # might change later if misc
     }
 
@@ -611,7 +614,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
     subject <- subject[final.rows]
     time <- subset(time, statetimerows.kept %in% final.rows)
     state <- subset(state, statetimerows.kept %in% final.rows)
-    msm.check.times(time, subject, state)
+    msm.check.times(time, subject, state, final.rows)
     obstype <- subset(obstype, statetimerows.kept %in% final.rows)
     obstrue <- subset(obstrue, statetimerows.kept %in% final.rows)
     covmat <- covmat.orig <- covmeans <- numeric()
@@ -657,7 +660,8 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
                 covdata=covdata, misccovdata=misccovdata, hcovdata=hcovdata, icovdata=icovdata,
                 covmeans=covmeans,
                 covmat=covmat, # covariates including factors as 0/1 contrasts
-                covmat.orig=covmat.orig # covariates in which a factor is a single variable
+                covmat.orig=covmat.orig, # covariates in which a factor is a single variable
+                nonmiss.rows=final.rows
                 )
     class(dat) <- "msmdata"
     dat
@@ -680,7 +684,7 @@ msm.check.state <- function(nstates, state=NULL, censor)
     invisible()
 }
 
-msm.check.times <- function(time, subject, state=NULL)
+msm.check.times <- function(time, subject, state=NULL, final.rows)
 {
 ### Check if any individuals have only one observation (after excluding missing data)
 ### Note this shouldn't happen after 1.2 addition to msm.form.data
@@ -723,8 +727,8 @@ msm.check.times <- function(time, subject, state=NULL)
         prevsubj <- c(-Inf, subj.num[1:length(subj.num)-1])
         prevtime <- c(-Inf, time[1:length(time)-1])
         prevstate <- c(-Inf, state[1:length(state)-1])
-        sametime <- (subj.num==prevsubj & prevtime==time & prevstate!=state)
-        badlist <- paste(paste(which(sametime)-1, which(sametime), sep=" and "), collapse=", ")
+        sametime <- final.rows[subj.num==prevsubj & prevtime==time & prevstate!=state]
+        badlist <- paste(paste(sametime-1, sametime, sep=" and "), collapse=", ")
         if (any(sametime))
             warning("Different states observed at the same time on the same subject at observations ", badlist)
     }
