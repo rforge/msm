@@ -364,8 +364,9 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
 		contrib = pmat[MI(d->fromstate[i], d->tostate[i], qm->nst)];
 	    lik += d->nocc[i] * log(contrib);
 #ifdef DEBUG
-	    printf("obs %d, from %d, to %d, time %lf, obstype %d, ", i, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i]);
-	    printf("nocc %d, con %lf, lik %lf\n", d->nocc[i], log(contrib), lik);
+/*	    printf("obs %d, from %d, to %d, time %lf, obstype %d, ", i, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i]);
+	    printf("nocc %d, con %lf, lik %lf\n", d->nocc[i], log(contrib), lik);*/
+	    printf("%d-%d in %lf, q=%lf,%lf, ll=%lf\n",d->fromstate[i], d->tostate[i], d->timelag[i],qmat[0],qmat[1], d->nocc[i] * log(contrib));
 #endif
 	}
     Free(pmat);
@@ -385,12 +386,15 @@ double liksimple_subj(int pt, /* ordinal subject ID */
 	dt = d->time[i] - d->time[i-1];
 	from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
 	to = fprec(d->obs[i] - 1, 0);
-	qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
+	qmat = &(qm->intens[MI3(0, 0, i-1, qm->nst, qm->nst)]); /* use covariate at start of transition */
 	Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 	if (d->obstype[i] == OBS_DEATH)
 	    pm = pijdeath(from, to, pmat, qmat, qm->nst);
 	else
 	    pm = pmat[MI(from, to, qm->nst)];
+#ifdef DEBUG
+	printf("i=%d, %d-%d in %lf, q=%lf,%lf, ll=%lf\n",i,from,to,dt,qmat[0],qmat[1],log(pm));
+#endif
 	lik += log(pm);
     }
     Free(pmat);
@@ -499,9 +503,9 @@ void derivsimple_subj(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *de
 		    dt = d->time[i] - d->time[i-1];
 		    from = fprec(d->obs[i-1] - 1, 0); /* convert state outcome to integer */
 		    to = fprec(d->obs[i] - 1, 0);
-		    qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
+		    qmat = &(qm->intens[MI3(0, 0, i-1, qm->nst, qm->nst)]); /* use covariate at start of transition */
 		    Pmat(pmat, dt, qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
-		    dqmat = &(qm->dintens[MI4(0, 0, 0, i, qm->nst, qm->nst, np)]);
+		    dqmat = &(qm->dintens[MI4(0, 0, 0, i-1, qm->nst, qm->nst, np)]);
 		    DPmat(dpmat, dt, dqmat, qmat, qm->nst, np, (d->obstype[i] == OBS_EXACT));
 		    if (d->obstype[i] == OBS_DEATH) {
 			pm = pijdeath(from, to, pmat, qmat, qm->nst);

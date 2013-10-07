@@ -1,3 +1,7 @@
+Give informative error if initprobs not changed from default, but observed initial states other than 1.
+
+No point printing CIs for fixed parameters?
+
 Change default print output to HRs instead of log HRs for covs
 what about transition rates in a column?  Try it out
 Document changes
@@ -11,6 +15,8 @@ More developer documentation - comments for definitions of variables
 In extractor functions, warn that polynomial contrasts not supported,
 only treatment contrasts. (factorcov2numeric.msm)
 store in covdata whether model matrix built using treat/poly for factors
+
+
 
 POSSIBLE MAJOR DEVELOPMENTS
 
@@ -32,6 +38,7 @@ Or Rcpp.
 Multicore bootstrapping using "parallel" package.  Must work cross-platform, including Windows.
 http://stackoverflow.com/questions/18588896/custom-package-using-parallel-or-doparallel-for-multiple-os-as-a-cran-package
 gives alternatives: compare these for speed.
+
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.

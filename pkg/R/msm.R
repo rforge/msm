@@ -1159,10 +1159,14 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
         whichst <- match(states[plabs=="p"], unique(states[plabs=="p"]))
         if (is.matrix(pars)) {# will be used when applying covariates
             for (i in unique(whichst)) {
-                psum <- colSums(exp(pars[plabs=="p",][whichst==i,,drop=FALSE]))
-                res[plabs=="pbase",][i,] <- 1 / (1 + psum)
-                res[plabs=="p",][whichst==i,] <- exp(pars[plabs=="p",][whichst==i,]) /
-                    rep(1 + psum, each=sum(whichst==i))
+###                psum <- colSums(exp(pars[plabs=="p",][whichst==i,,drop=FALSE]))
+                psum <- colSums(exp(pars[which(plabs=="p")[whichst==i],,drop=FALSE]))
+###                res[plabs=="pbase",,drop=FALSE][i,,drop=FALSE] <- 1 / (1 + psum)
+                res[which(plabs=="pbase")[i],] <- 1 / (1 + psum)
+###                res[plabs=="p",,drop=FALSE][whichst==i,,drop=FALSE] <-
+                res[which(plabs=="p")[whichst==i],] <- 
+                    exp(pars[plabs=="p",,drop=FALSE][whichst==i,]) /
+                        rep(1 + psum, each=sum(whichst==i))
             }
         }
         else {

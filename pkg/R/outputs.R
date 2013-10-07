@@ -49,37 +49,50 @@ print.msm <- function(x, ...)
 }
 
 ## Experimental: more helpful and tidier print output
-## Arrange covariates in columns aligned with baselines as option?
+## TODO allow covariates=? option?
 
-printnew.msm <- function(x, ...)
+printnew.msm <- function(x, rect=TRUE, ...)
 {
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
     if (!attr(x,"fixed")) {
         cat ("Maximum likelihood estimates: \n\n")
+        y <- mattotrans(x, x$Qmatrices$baseline, x$QmatricesL$baseline, x$QmatricesU$baseline, keep.diag=TRUE)
         covmessage <-
             if (x$qcmodel$ncovs == 0) ""
-            else paste("with covariates set to", (if (x$center) "their means" else "0"))
-        cat(paste("Transition intensities ",covmessage,":\n\n",sep=""))
-        y <- mattotrans(x, x$Qmatrices$baseline, x$QmatricesL$baseline, x$QmatricesU$baseline, keep.diag=TRUE)
-        print(y)
-        fres <- matrix("", nrow=nrow(y), ncol=x$qcmodel$ncovs+1)
-        colnames(fres) <- c("baseline", x$qcmodel$covlabels)
-        rownames(fres) <- rownames(y)
-        fres[,1] <- format.ci(y[,1],y[,2],y[,3]) # is this worth it?
-        ## HRs(ORs) not log HRs for covariates and misccovariates.
-        cat("\nHazard ratios for covariates on transition intensities:\n\n")
-        hrs <- hazard.msm(x)
-        print(hrs)
-        im <- t(x$qmodel$imatrix); diag(im) <- -1; nd <- which(im[im!=0]==1)
-        for (i in seq(length=x$qcmodel$ncovs)){
-            nm <- x$qcmodel$covlabels[[i]]
-            hrs <- exp(mattotrans(x, x$Qmatrices[[nm]], x$QmatricesL[[nm]], x$QmatricesU[[nm]], keep.diag=FALSE))
-            fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3])
+            else paste(" with covariates set to", (if (x$center) "their means" else "0"))
+
+        if (rect) {
+            ## ALTERNATIVE RECTANGULAR FORMAT
+            ## COVARIATES IN COLUMNS ALIGNED WITH BASELINES
+            fres <- matrix("", nrow=nrow(y), ncol=x$qcmodel$ncovs+1)
+            colnames(fres) <- c("baseline", x$qcmodel$covlabels)
+            rownames(fres) <- rownames(y)
+            fres[,1] <- format.ci(y[,1],y[,2],y[,3]) # is this worth it?
+            im <- t(x$qmodel$imatrix); diag(im) <- -1; nd <- which(im[im!=0]==1)
+            for (i in seq(length=x$qcmodel$ncovs)){
+                nm <- x$qcmodel$covlabels[[i]]
+                hrs <- exp(mattotrans(x, x$Qmatrices[[nm]], x$QmatricesL[[nm]], x$QmatricesU[[nm]], keep.diag=FALSE))
+                fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3])
+            }
+            cat ("Transition intensities")
+            if (x$qcmodel$ncovs> 0) {
+                cat(" with hazard ratios for covariates\n")
+                cat(paste("Baseline intensities are",covmessage,"\n",sep=""))
+            }
+            cat("\n")
+            print(fres, quote=FALSE)
+        }  else {
+            ## COVARIATES IN SEPARATE BLOCKS FROM BASELINES
+            cat(paste("Transition intensities",covmessage,":\n\n",sep=""))
+            print(y)
+            ## HRs(ORs) not log HRs for covariates and misccovariates.
+            if (x$qcmodel$ncovs> 0) {
+                cat("\nHazard ratios for covariates on transition intensities:\n\n")
+                hrs <- hazard.msm(x)
+                print(hrs)
+            }
         }
-        cat ("Maximum likelihood estimates: \n\n")
-        cat ("Transition intensities with hazard ratios for covariates\n")
-        cat(paste("Baseline intensities are ",covmessage,"\n\n",sep=""))
-        print(fres, quote=FALSE)
+
         ## initprobs also presented as ORs, note multinomial scale
         ## Is it also worth presenting transition rates as columns?
         ## Keep old print method
@@ -99,13 +112,14 @@ printnew.msm <- function(x, ...)
             print(x$hmodel); cat("\n\n")
         }
     }
-    cat ("-2 * log-likelihood: ", x$minus2loglik, "\n")
+    cat ("\n-2 * log-likelihood: ", x$minus2loglik, "\n")
 }
 
 mattotrans <- function(x, matrix, lower, upper, keep.diag=FALSE){
     imat <- x$qmodel$imatrix
-    if (keep.diag) diag(imat) <- rowSums(imat)
-    keep <- which(imat==1, arr.ind=TRUE)
+    if (keep.diag) diag(imat) <- as.numeric(rowSums(imat) > 0)
+    keep <- which(t(imat)==1, arr.ind=TRUE)
+    keep <- keep[,2:1]  # order by row(from-state), not column(to-state)
     fromlabs <- rownames(imat)[keep[,1]]
     tolabs <- colnames(imat)[keep[,2]]
     res <- matrix(nrow=sum(imat), ncol=3)
@@ -1172,7 +1186,7 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
         rem <- seq(along=end)[!(end %in% absorbing.msm(x))]
     }
     else rem <- seq(along=end)
-    if (num.integ) { 
+    if (num.integ) {
         for (j in rem){
             f <- function(time) {
                 y <- numeric(length(time))
@@ -1313,12 +1327,20 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
 {
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
     ## For general HMMs use the Viterbi estimate of the observed state.
-    state <- if ((x$hmodel$hidden && !x$emodel$misc) || (!x$hmodel$hidden && x$cmodel$ncens>0) )
-        viterbi.msm(x)$fitted else x$data$state
-    if (is.null(subset)) subset <- unique(x$data$subject)
-    subject <- x$data$subject[x$data$subject %in% subset] ## fixme subj char/factor?
-    time <- x$data$time[x$data$subject %in% subset]
-    state <- state[x$data$subject %in% subset]
+    if (!is.null(x$pci)) {
+        state <- x$data$state[!x$data$pci.imp]
+        time <- x$data$time[!x$data$pci.imp]
+        subject <- x$data$subject[!x$data$pci.imp]
+    }
+    else {
+        state <- if ((x$hmodel$hidden && !x$emodel$misc) || (!x$hmodel$hidden && x$cmodel$ncens>0) )
+            viterbi.msm(x)$fitted else x$data$state
+        time <- x$data$time; subject <- x$data$subject
+    }
+    if (is.null(subset)) subset <- unique(subject)
+    time <- time[subject %in% subset]
+    state <- state[subject %in% subset]
+    subject <- subject[subject %in% subset] ## fixme subj char/factor?
     if (is.null(times))
         times <- seq(min(time), max(time), (max(time) - min(time))/10)
     states.expand <- matrix(nrow=length(unique(subject)), ncol=length(times))
@@ -1379,6 +1401,34 @@ observed.msm <- function(x, times=NULL, interp=c("start","midpoint"), censtime=I
 
     list(obstab=obstab, obsperc=obsperc, risk=risk)
 }
+
+### TODO cleaner observed.msm.   Works for interp=start.
+### TODO debug midpoint. apply censoring times
+
+## times <- seq(0, 2, 0.5)
+## dat <- data.frame(time=msm_export_r$fu_year, state=msm_export_r$state3)
+## pt <- msm_export_r$ptid
+## nstates <- 3
+## trans <- c(1,2) # transient states
+
+## if (interp=="midpoint"){
+## t <- dat$time; n <- length(t)
+## t[duplicated(pt)] <- ((t + t[c(1, 1:(n-1))])/2)[duplicated(pt)]
+## dat$time <- t
+## }
+## spl <- split(dat, pt)
+## ## findInterval returns 0 if before first time.
+## st <- sapply(spl, function(x){y <- findInterval(times, x$time)
+##                               y[y==0] <- NA
+##                               res <- x$state[y]
+##                               res[(y==length(x$time)) & (res %in% trans)] <- NA
+##                               res
+##                           })
+## obstab <- t(apply(st, 1, function(x){table(factor(na.omit(x), levels=1:nstates))}))
+
+## observed.msm(pap.msm.noskip, times=times)
+## observed.msm(pap.msm.noskip, times=times, interp="midpoint")
+
 
 expected.msm <- function(x,
                          times=NULL,

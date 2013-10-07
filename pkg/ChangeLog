@@ -1,3 +1,22 @@
+2013-10-07 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* DESCRIPTION: Version 1.2.7 released to r-forge.
+
+2013-10-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(observed.msm): Don't use Viterbi imputed states at
+	change points when computing observed prevalences in "pci" models
+	with piecewise-constant intensities.
+
+2013-10-01 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.mninvlogit.transform): Fix for bug with
+	misclassification models with only one misclassification
+	probability.
+
+	* src/lik.c: Match Q matrices with covariates from start of
+	transition, not end, in likelihoods and derivatives by subject.
+
 2013-09-13 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/msm.R: "missing" for some null default arguments in msm()
