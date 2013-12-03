@@ -55,7 +55,7 @@ MatrixExp <- function(mat, t = 1, method=NULL,...){
         if (is.null(method) || !(method %in% c("pade","series","analytic"))) {
             if (is.null(method)) method <- eval(formals(expm::expm)$method)
             resi <- expm::expm(t[i]*mat, method=method, ...)
-        } else { 
+        } else {
             ccall <- .C("MatrixExpR", as.double(mat), as.integer(nrow(mat)), res=double(length(mat)), as.double(t[i]),
                         as.integer(match(method, c("pade","series"))), # must match macro constants in pijt.c
                         as.integer(qmodel$iso), as.integer(qmodel$perm), as.integer(qmodel$qperm),
@@ -95,8 +95,14 @@ dtnorm <- function(x, mean=0, sd=1, lower=-Inf, upper=Inf, log=FALSE)
 ptnorm <- function(q, mean=0, sd=1, lower=-Inf, upper=Inf, lower.tail=TRUE, log.p=FALSE)
   {
       ret <- numeric(length(q))
-      ret[q < lower] <- 0
-      ret[q > upper] <- 1
+      if (lower.tail) {
+          ret[q < lower] <- 0
+          ret[q > upper] <- 1
+      }
+      else {
+          ret[q < lower] <- 1
+          ret[q > upper] <- 0
+      }
       ret[upper < lower] <- NaN
       ind <- q >=lower & q <=upper
       if (any(ind)) {

@@ -1,3 +1,25 @@
+2013-12-03 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: Experimental new print method available as
+	printnew.msm.
+
+	* srcR/pijt.c(MatrixExpPade): Fix for int coercion from special
+	values, to pass CRAN UBSanitizer check.
+
+	* src/analyticp.c: Some algebra rearranged to fix potential
+	division by zeros.
+
+	* src/analyticp.c, R/msm.R(msm.form.qmodel): Corrected permutation
+	for Q matrix, fixing bug from 1.2.3 which broke models with
+	non-standard state ordering.
+
+	* R/outputs.R: New "start" argument to efpt.msm, allowing
+	averaging over a set of starting states.
+
+	* DESCRIPTION: Datasets now lazy loaded so data() not required.
+
+	* DESCRIPTION: Version 1.3 released to CRAN.
+
 2013-10-07 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.2.7 released to r-forge.

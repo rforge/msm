@@ -348,6 +348,7 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
     int i;
     double lik=0, contrib=0;
     double *pmat = Calloc((qm->nst)*(qm->nst), double), *qmat;
+    qmat = &(qm->intens[MI3(0, 0, 0, qm->nst, qm->nst)]);
     for (i=0; i < d->nobs; ++i)
 	{
 	    R_CheckUserInterrupt();
@@ -358,8 +359,9 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
 		qmat = &(qm->intens[MI3(0, 0, i, qm->nst, qm->nst)]);
 		Pmat(pmat, d->timelag[i], qmat, qm->nst, (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 	    }
-	    if (d->obstype[i] == OBS_DEATH)
+	    if (d->obstype[i] == OBS_DEATH) {
 		contrib = pijdeath(d->fromstate[i], d->tostate[i], pmat, qmat, qm->nst);
+	    }
 	    else
 		contrib = pmat[MI(d->fromstate[i], d->tostate[i], qm->nst)];
 	    lik += d->nocc[i] * log(contrib);
@@ -442,6 +444,8 @@ void derivsimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *deriv)
     double *dpmat = Calloc(qm->nst * qm->nst * np, double);
     double *dp = Calloc(np, double);
     double pm;
+    qmat = &(qm->intens[MI3(0, 0, 0, qm->nst, qm->nst)]);
+    dqmat = &(qm->dintens[MI4(0, 0, 0, 0, qm->nst, qm->nst, np)]);
     for (p = 0; p < np; ++p) deriv[p] = 0;
     for (i=0; i < d->nobs; ++i)
     {
@@ -464,7 +468,8 @@ void derivsimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *deriv)
 		    dp[p] = dpmat[MI3(d->fromstate[i], d->tostate[i], p, qm->nst, qm->nst)];
 	    }
 	    for (p = 0; p < np; ++p) {
-		deriv[p] += d->nocc[i] * dp[p] / pm;
+		if (pm > 0)
+		    deriv[p] += d->nocc[i] * dp[p] / pm;
 #ifdef DERIVDEBUG
 		printf("%d, %d, %d, %d, %6.4f, %d, %d, %lf, %lf\n", i, p, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i], d->nocc[i], dp[p], -2 * d->nocc[i] * dp[p]/pm);
 #endif

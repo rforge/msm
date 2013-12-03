@@ -17,6 +17,7 @@ the matrix exponential.
 */
 
 #include "msm.h"
+#include <stdio.h>
 
 void p2q1(Matrix pmat, double t, Matrix qmat, int *degen);
 void p2q12(Matrix pmat, double t, Matrix qmat, int *degen);
@@ -56,15 +57,21 @@ pfn P5FNS[] = {
 void AnalyticP(Matrix pmat, double t, int nstates, int iso, int *perm, int *qperm, Matrix qmat, int *degen)
 {
     int i, j;
+    Matrix qmat_base = (Matrix) Calloc( (nstates)*(nstates), double);
     Matrix pmat_base = (Matrix) Calloc( (nstates)*(nstates), double);
+    for (i=0; i<nstates; ++i) {
+	for (j=0; j<nstates; ++j) {
+	    qmat_base[MI(i,j,nstates)] = qmat[MI(qperm[i]-1,qperm[j]-1,nstates)];
+	}
+    }
     if (nstates==2)
-	(P2FNS[iso-1])(pmat_base, t, qmat, degen);
+	(P2FNS[iso-1])(pmat_base, t, qmat_base, degen);
     else if (nstates==3)
-	(P3FNS[iso-1])(pmat_base, t, qmat, degen);
+	(P3FNS[iso-1])(pmat_base, t, qmat_base, degen);
     else if (nstates==4)
-	(P4FNS[iso-1])(pmat_base, t, qmat, degen);
+	(P4FNS[iso-1])(pmat_base, t, qmat_base, degen);
     else if (nstates==5)
-	(P5FNS[iso-1])(pmat_base, t, qmat, degen);
+	(P5FNS[iso-1])(pmat_base, t, qmat_base, degen);
     else error("internal error in GetAnalyticP. Send a bug report to the package maintainer.");
     if (*degen) return;
     for (i=0; i<nstates; ++i)
@@ -95,10 +102,16 @@ void p2q12(Matrix pmat, double t, Matrix qmat, int *degen)
 {
     double a = qmat[MI(0,1,2)], b=qmat[MI(1,0,2)];
     double e1 = exp(-((a + b)*t));
-    pmat[MI(0,0,2)] = (b + a*e1)/(a + b);
-    pmat[MI(0,1,2)] = (a - a*e1)/(a + b);
-    pmat[MI(1,0,2)] = (b - b*e1)/(a + b);
-    pmat[MI(1,1,2)] = (a + b*e1)/(a + b);
+    if (all_equal(a+b, 0)) {
+	pmat[MI(0,0,2)] = 1; pmat[MI(1,1,2)] = 1;
+	pmat[MI(0,1,2)] = 0; pmat[MI(1,0,2)] = 0;
+    }
+    else {
+	pmat[MI(0,0,2)] = (b + a*e1)/(a + b);
+	pmat[MI(0,1,2)] = (a - a*e1)/(a + b);
+	pmat[MI(1,0,2)] = (b - b*e1)/(a + b);
+	pmat[MI(1,1,2)] = (a + b*e1)/(a + b);
+    }
 }
 
 
@@ -108,10 +121,15 @@ void p2q12(Matrix pmat, double t, Matrix qmat, int *degen)
 void p3q12(Matrix pmat, double t, Matrix qmat, int *degen)
 {
     double a = qmat[MI(0,1,3)], b=qmat[MI(0,2,3)];
-    double e1 = exp(-((a + b)*t));
+    double e1 = exp(-(a + b)*t);
     pmat[MI(0,0,3)] = e1;
-    pmat[MI(0,1,3)] = (a - a*e1)/(a + b);
-    pmat[MI(0,2,3)] = (b - b*e1)/(a + b);
+    if (all_equal(a+b, 0)) {
+	pmat[MI(0,1,3)] = 0; pmat[MI(0,2,3)] = 0;
+    }
+    else {
+	pmat[MI(0,1,3)] = (a - a*e1)/(a + b);
+	pmat[MI(0,2,3)] = (b - b*e1)/(a + b);
+    }
     pmat[MI(1,0,3)] = 0;
     pmat[MI(1,1,3)] = 1;
     pmat[MI(1,2,3)] = 0;
@@ -123,15 +141,17 @@ void p3q12(Matrix pmat, double t, Matrix qmat, int *degen)
 void p3q14(Matrix pmat, double t, Matrix qmat, int *degen)
 {
     double a = qmat[MI(0,1,3)], b=qmat[MI(1,2,3)];
-    double e1 = exp(-(a*t));
-    double e2 = exp(-(b*t));
+    double e1 = exp(-a*t);
+    double e2 = exp(-b*t);
     pmat[MI(0,0,3)] = e1;
     pmat[MI(0,1,3)] = ( all_equal(a,b) ?
-			(a*t)*e1 :
-			-((a*(e1 - e2))/(a - b)) );
+			a*t*e1 :
+			(a*(e1 - e2)/(b - a)) );
     pmat[MI(0,2,3)] = ( all_equal(a,b) ?
-			(-1 + 1/e1 - a*t)*e1 :
-			(a - a*e2 + b*(-1 + e1))/(a - b) );
+			1 - e1 - a*t*e1 :
+			1 - e1 - pmat[MI(0,1,3)] );
+    /*			(a - a*e2 + b*(-1 + e1))/(a - b) ); */
+    /*    printf("t=%f,a=%f,b=%f,p01=%f,p02=%f\n",t,a,b,pmat[MI(0,1,3)],pmat[MI(0,2,3)]); */
     pmat[MI(1,0,3)] = 0;
     pmat[MI(1,1,3)] = e2;
     pmat[MI(1,2,3)] = 1 - e2;
@@ -166,9 +186,9 @@ void p3q124(Matrix pmat, double t, Matrix qmat, int *degen)
     pmat[MI(0,0,3)] = e1;
     pmat[MI(0,1,3)] = ( all_equal(a + b, c) ?
 			(a*t)*e1 :
-			(a*(-1 + e2/e1))*e1/(a + b - c) );
+			(a*(-e1 + e2))/(a + b - c) );
     pmat[MI(0,2,3)] = ( all_equal(a + b, c) ?
-			(-1 + 1/e1 - a*t)*e1 :
+			(-e1 + 1 - a*t*e1) :
 			1 + (-b + c)*e1/(a + b - c) - a*e2/(a + b - c) );
     pmat[MI(1,0,3)] = 0;
     pmat[MI(1,1,3)] = e2;
@@ -184,23 +204,28 @@ void p3q135(Matrix pmat, double t, Matrix qmat, int *degen)
     double e1 = exp(-(a + b)*t);
     double e2 = exp(-(c*t));
     double e3 = exp((a + b - c)*t);
-    pmat[MI(0,0,3)] = (b + a*e1)/(a + b);
-    pmat[MI(0,1,3)] = (a - a*e1)/(a + b);
+    if (all_equal(a+b, 0)) {
+	pmat[MI(0,0,3)] = 1; pmat[MI(1,1,3)] = 1;
+	pmat[MI(0,1,3)] = 0; pmat[MI(1,0,3)] = 0;
+    }
+    else {
+	pmat[MI(0,0,3)] = (b + a*e1)/(a + b);
+	pmat[MI(0,1,3)] = (a - a*e1)/(a + b);
+	pmat[MI(1,0,3)] = (b - b*e1)/(a + b);
+	pmat[MI(1,1,3)] = (a + b*e1)/(a + b);
+    }
     pmat[MI(0,2,3)] = 0;
-    pmat[MI(1,0,3)] = (b - b*e1)/(a + b);
-    pmat[MI(1,1,3)] = (a + b*e1)/(a + b);
     pmat[MI(1,2,3)] = 0;
     pmat[MI(2,0,3)] = (all_equal(a + b, c) ?
-		       (pow(a,2)*t + b*(-1 + 1/e1 + a*t))/
-		       ((a + b)/e1) :
-		       (b*(b - c)*(-1 + 1/e2) +
-			a*(c - c/e3 + b*(-1 + 1/e2)))/
-		       ((a + b)*(a + b - c)/e2) );
+		       (pow(a,2)*t*e1 + b*(-e1 + 1 + a*t*e1))/
+		       (a + b) :
+		       (b*(b - c)*(-e2 + 1) +
+			a*(c*e2 - c*e2/e3 + b*(-e2 + 1)))/
+		       ((a + b)*(a + b - c)) );
     pmat[MI(2,1,3)] = (all_equal(a + b, c) ?
-		       (a*(-1 + 1/e1 - a*t - b*t))/((a + b)/e1) :
-		       (a*(c - c/e1 + (a + b)*
-			   (1/e1 - e3)))/
-		       ((a + b)*(a + b - c)/e1) );
+		       (a*(-e1 + 1 - (a+b)*e1*t))/(a + b) :
+		       (a*(e1*c - c + (a + b)* (1 - e1*e3)))/
+		       ((a + b)*(a + b - c)) );
     pmat[MI(2,2,3)] = e2;
 }
 
@@ -213,16 +238,16 @@ void p3q1246(Matrix pmat, double t, Matrix qmat, int *degen)
     double e2 = exp(-((c + d)*t));
     pmat[MI(0,0,3)] = e1;
     pmat[MI(0,1,3)] = (all_equal( a + b, c + d) ?
-		       (a + b - c)/(a + b) - (a + b - c)/((a + b)/e1) +
+		       (a + b - c)/(a + b) - (a + b - c)*e1/(a + b) +
 		       ((-b + c)*t)*e1 :
 		       (a*(d*(-1 + e1) +
 			   c*(e1 - e2)) +
-			d*(((c + d)*(-1 + 1/e1))*e1 +
+			d*(((c + d)*(-e1 + 1)) +
 			   b*(-1 + e2)))/((c + d)*(-a - b + c + d)) );
     pmat[MI(0,2,3)] = (all_equal(a + b, c + d) ?
-		       (b*(a + b)*t + c*(-1 + 1/e1 - a*t - b*t))/
-		       ((a + b)/e1) :
-		       ((c*(c + d)*(-1 + 1/e1))*e1 +
+		       (b*(a + b)*t*e1 + c*(-e1 + 1 - a*e1*t - b*e1*t))/
+		       ((a + b)) :
+		       ((c*(c + d)*(-e1 + 1)) +
 			a*c*(-1 + e2) +
 			b*(c*(-1 + e1) +
 			   d*(e1 - e2)))/
@@ -260,52 +285,53 @@ void p4q159(Matrix pmat, double t, Matrix qmat, int *degen){
 
     if (all_equal(a,b) && !all_equal(b,c)){
       pmat[MI(0,1,4)] = (a*t)*e1;
-      pmat[MI(0,2,4)] = -((pow(a,2)*(-1/e1 + 1/e3*(1 + a*t - c*t)))/
-			  (pow(a - c,2)/(e1*e3)));
-      pmat[MI(0,3,4)] = 1 + ((2*a - c)*c)/(pow(a - c,2)/e1) -
-	pow(a,2)/(pow(a - c,2)/e3) + (a*c*t)/((a - c)/e1);
+      pmat[MI(0,2,4)] = -((pow(a,2)*(-e3 + e1*(1 + a*t - c*t)))/
+			  (pow(a - c,2)));
+      pmat[MI(0,3,4)] = 1 + ((2*a - c)*c*e1)/pow(a - c,2) -
+	  pow(a,2)*e3/pow(a - c,2) + (a*c*t*e1)/(a - c);
       pmat[MI(1,2,4)] = -((a*(e1 - e3))/(a - c));
       pmat[MI(1,3,4)] = (a - a*e3 + c*(-1 + e1))/(a - c);
     }
     else if (all_equal(a,c) && !all_equal(b,c)){
       pmat[MI(0,1,4)] = -((a*(e1 - e2))/(a - b));
-      pmat[MI(0,2,4)] = -((a*b*(-1/e1 + 1/e2*(1 + a*t - b*t)))/
-			  (pow(a - b,2)/(e1*e2)));
-      pmat[MI(0,3,4)] = 1 + ((2*a - b)*b)/(pow(a - b,2)/e1) -
-	pow(a,2)/(pow(a - b,2)/e2) + (a*b*t)/((a - b)/e1);
+      pmat[MI(0,2,4)] = -((a*b*(-e2 + e1*(1 + a*t - b*t)))/
+			  (pow(a - b,2)));
+      pmat[MI(0,3,4)] = 1 + ((2*a - b)*b*e1)/(pow(a - b,2)) -
+	pow(a,2)*e2/(pow(a - b,2)) + (a*b*t*e1)/((a - b));
       pmat[MI(1,2,4)] = -((b*(e1 - e2))/(a - b));
       pmat[MI(1,3,4)] = (a - a*e2 + b*(-1 + e1))/(a - b);
     }
     else if (!all_equal(a,b) && all_equal(b,c)){
       pmat[MI(0,1,4)] = -((a*(e1 - e2))/(a - b));
-      pmat[MI(0,2,4)] = (a*b*(1/e2 + 1/e1*(-1 + a*t - b*t)))/
-	  (pow(a - b,2)/(e1*e2));
-      pmat[MI(0,3,4)] = 1 - pow(b,2)/(pow(a - b,2)/e1) +
-	(a*b)/(pow(a - b,2)/e2) - (a*(1 + b*t))/((a - b)/e2);
+      pmat[MI(0,2,4)] = (a*b*(e1 + e2*(-1 + a*t - b*t)))/
+	  (pow(a - b,2));
+      pmat[MI(0,3,4)] = 1 - pow(b,2)*e1/(pow(a - b,2)) +
+	(a*b*e2)/(pow(a - b,2)) - (a*(1 + b*t)*e2)/((a - b));
       pmat[MI(1,2,4)] = (b*t)*e2;
       pmat[MI(1,3,4)] = (-1 + 1/e2 - b*t)*e2;
     }
     else if (all_equal(a,b) && all_equal(b,c)){
       pmat[MI(0,1,4)] = (a*t)*e1;
-      pmat[MI(0,2,4)] = (pow(a,2)*pow(t,2))/(2/e1);
-      pmat[MI(0,3,4)] = (-2 + 2/e1 - 2*a*t - pow(a,2)*pow(t,2))/(2/e1);
+      pmat[MI(0,2,4)] = (pow(a,2)*pow(t,2)*e1)/(2);
+      pmat[MI(0,3,4)] = (-2*e1 + 2 - 2*e1*a*t - pow(a,2)*pow(t,2)*e1)/(2);
       pmat[MI(1,2,4)] = (a*t)*e1;
       pmat[MI(1,3,4)] = (-1 + 1/e1 - a*t)*e1;
     }
     else {
       pmat[MI(0,1,4)] = -((a*(e1 - e2))/(a - b));
-      pmat[MI(0,2,4)] = (a*b*(a*(1/(e1*e2) - 1/(e1*e3)) +
-			      c*(1/(e1*e3) - 1/(e2*e3)) +
-			      b*(-1/(e1*e2) + 1/(e2*e3))))/
-	  ((a - b)*(a - c)*(b - c)/(e1*e2*e3));
-      pmat[MI(0,3,4)] = 1 + (a*c)/((a - b)*(b - c)/e2) +
-	  (b*(-(c/((a - b)/e1)) + a/((-b + c)/e3)))/(a - c);
+      pmat[MI(0,2,4)] = (a*b*(a*(e3 - e2) +
+			      c*(e2 - e1) +
+			      b*(-e3 + e1)))/
+	  ((a - b)*(a - c)*(b - c));
+      pmat[MI(0,3,4)] = 1 + (a*c*e2)/((a - b)*(b - c)) +
+	  (b*(-(c*e1/(a - b)) + a*e3/(-b + c)))/(a - c);
       pmat[MI(1,2,4)] = -((b*(e2 - e3))/(b - c));
       pmat[MI(1,3,4)] = (b - b*e3 + c*(-1 + e2))/(b - c);
     }
 }
 
 /* Progression and death from every state */
+/* TODO more rearrangements to avoid division by zero */
 
 void p4q13569(Matrix pmat, double t, Matrix qmat, int *degen){
   double a = qmat[MI(0,1,4)], b = qmat[MI(0,3,4)], c=qmat[MI(1,2,4)], d=qmat[MI(1,3,4)], e=qmat[MI(2,3,4)];
@@ -323,17 +349,16 @@ void p4q13569(Matrix pmat, double t, Matrix qmat, int *degen){
   pmat[MI(3,1,4)] = 0;
   pmat[MI(3,2,4)] = 0;
   pmat[MI(3,3,4)] = 1;
-
   if (all_equal(a+b, c+d) && !all_equal(a+b, e)) {
     pmat[MI(0,1,4)] = (a*t)*e1;
-    pmat[MI(0,2,4)] = (a*c*(-1 + e3/e1 - a*t - b*t + e*t))/
-      (pow(a + b - e,2)/e1);
+    pmat[MI(0,2,4)] = (a*c*(-e1 + e3 + e1*(-a*t - b*t + e*t)))/
+      (pow(a + b - e,2));
     pmat[MI(0,3,4)] = 1 - (a*(1/a - c/pow(a + b - e,2)))*e1 -
-      (a*c)/(pow(a + b - e,2)/e3) -
-      (a*(a + b - c - e)*t)/((a + b - e)/e1);
-    pmat[MI(1,2,4)] = (c*(-1 + e3/e1))/((a + b - e)/e1);
-    pmat[MI(1,3,4)] = 1 + (-a - b + c + e)/((a + b - e)/e1) -
-      c/((a + b - e)/e3);
+	(a*c*e3)/(pow(a + b - e,2)) -
+	(a*(a + b - c - e)*t*e1)/(a + b - e);
+    pmat[MI(1,2,4)] = (c*(-e1 + e3))/(a + b - e);
+    pmat[MI(1,3,4)] = 1 + (-a - b + c + e)*e1/(a + b - e) -
+      c*e3/(a + b - e);
   }
   else if (!all_equal(a+b, c+d) && all_equal(a+b, e)) {
     pmat[MI(0,1,4)] = (a*(e2 - e1))/(a + b - c - d);
@@ -361,22 +386,22 @@ void p4q13569(Matrix pmat, double t, Matrix qmat, int *degen){
   }
   else if (all_equal(a+b, c+d) && all_equal(a+b, e)) {
     pmat[MI(0,1,4)] = (a*t)*e1;
-    pmat[MI(0,2,4)] = (a*c*pow(t,2))/(2/e1);
-    pmat[MI(0,3,4)] = (-2 + 2/e1 - a*t*(2 + c*t))/(2/e1);
+    pmat[MI(0,2,4)] = (a*c*pow(t,2)*e1)/(2);
+    pmat[MI(0,3,4)] = (-2*e1 + 2 - a*t*e1*(2 + c*t))/(2);
     pmat[MI(1,2,4)] = (c*t)*e1;
-    pmat[MI(1,3,4)] = (-1 + 1/e1 - c*t)*e1;
+    pmat[MI(1,3,4)] = (-e1 + 1 - c*t*e1);
   }
   else {
     pmat[MI(0,1,4)] = (a*(e2 - e1))/(a + b - c - d);
-    pmat[MI(0,2,4)] = a*c*(1/((a + b - c - d)*(a + b - e)/e1) -
-			   1/((a + b - c - d)*(c + d - e)/e2) -
-			   1/((a + b - e)*(-c - d + e)/e3));
-    pmat[MI(0,3,4)] = 1 - (a*(b - d) + (b - c - d)*(b - e))/
-      ((a + b - c - d)*(a + b - e)/e1) +
-      (a*(-d + e))/((a + b - c - d)*(c + d - e)/e2) -
-      (a*c)/((a + b - e)*(c + d - e)/e3);
-    pmat[MI(1,2,4)] = (c*(-1 + e3/e2))/((c + d - e)/e2);
-    pmat[MI(1,3,4)] = 1 + (-d + e)/((c + d - e)/e2) - c/((c + d - e)/e3);
+    pmat[MI(0,2,4)] = a*c*(e1/((a + b - c - d)*(a + b - e)) -
+			   e2/((a + b - c - d)*(c + d - e)) -
+			   e3/((a + b - e)*(-c - d + e)));
+    pmat[MI(0,3,4)] = 1 - (a*(b - d) + (b - c - d)*(b - e))*e1/
+	((a + b - c - d)*(a + b - e)) +
+	(a*(-d + e)*e2)/((a + b - c - d)*(c + d - e)) -
+	(a*c*e3)/((a + b - e)*(c + d - e));
+    pmat[MI(1,2,4)] = (c*(-e2 + e3))/((c + d - e));
+    pmat[MI(1,3,4)] = 1 + (-d + e)*e2/(c + d - e) - c*e3/(c + d - e);
   }
 }
 
@@ -1201,26 +1226,26 @@ void p5q1_6_7_11_12(Matrix pmat, double t, Matrix qmat, int *degen){
   pmat[MI(4,4,5)] = 1;
   if (all_equal(a,b+c) && !all_equal(a,d+e)){
       pmat[MI(0,1,5)] = (a*t)*e1;
-      pmat[MI(0,2,5)] = (a*b*(-1 + e3/e1 - a*t + d*t + e*t))/
-	  (pow(-a + d + e,2)/e1);
+      pmat[MI(0,2,5)] = (a*b*(-e1 + e3 + e1*(-a*t + d*t + e*t)))/
+	  (pow(-a + d + e,2));
       pmat[MI(0,3,5)] = (-(b*e) + a*(d + e))/(a*(d + e)) +
 	  (-pow(a,3) + b*e*(d + e) - a*(pow(d,2) + 2*d*e + e*(2*b + e)) +
-	   pow(a,2)*(b + 2*(d + e)))/(a*pow(-a + d + e,2)/e1) -
-	  (a*b*d)/((d + e)*pow(-a + d + e,2)/e3) -
-	  ((pow(a,2) + b*e - a*(b + d + e))*t)/((a - d - e)/e1);
+	   pow(a,2)*(b + 2*(d + e)))*e1/(a*pow(-a + d + e,2)) -
+	  (a*b*d)*e3/((d + e)*pow(-a + d + e,2)) -
+	  ((pow(a,2) + b*e - a*(b + d + e))*t)*e1/((a - d - e));
       pmat[MI(0,4,5)] = (b*e*(pow(d + e,2)*(-1 + 1/e1) -
 			      a*(d + e)*(-2 + 2/e1 + d*t + e*t) +
 			      pow(a,2)*(1/e1 - e3/e1 + (d + e)*t)))/
 	  (a*(d + e)*pow(-a + d + e,2)/e1);
-      pmat[MI(1,2,5)] = (b*(-1 + e3/e1))/((a - d - e)/e1);
+      pmat[MI(1,2,5)] = (b*(-e1 + e3))/((a - d - e));
       pmat[MI(1,3,5)] = (-(b*e) + a*(d + e))/(a*(d + e)) +
-	  (-pow(a,2) - b*e + a*(b + d + e))/(a*(a - d - e)/e1) +
+	  (-pow(a,2) - b*e + a*(b + d + e))*e1/(a*(a - d - e)) +
 	  (b*d)/((d + e)*(-a + d + e)/e3);
       pmat[MI(1,4,5)] = (b*e*(d + e - d/e1 - e/e1 +
 			      a*(1/e1 - e3/e1)))/
 	  (a*(a - d - e)*(d + e)/e1);
       pmat[MI(2,3,5)] = (d - d*e3)/(d + e);
-      pmat[MI(2,4,5)] = (e - e*e3)/(d + e);
+      pmat[MI(2,4,5)] = (e - e*e3)/(d + e); 
   }
   else if (!all_equal(a,b+c) && all_equal(a,d+e)){
       pmat[MI(0,1,5)] = (a*(-1 + e2/e1))/((a - b - c)/e1);

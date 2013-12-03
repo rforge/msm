@@ -1,10 +1,20 @@
+hazard ratio for different covariate unit? or encourage people to store meaningful unit in data?
+
+Go over basic usage again in manual with new print format, attention to variable naming and initial values.
+
+Show convergence codes from optim
+
+Common interface to different optimisation methods
+
+Total length of stay with piecewise-constant time-dependent covariates.
+
+Probability of passage (document clearly as different from pmatrix)
+
+EFPT with time dependent covs?
+
 Give informative error if initprobs not changed from default, but observed initial states other than 1.
 
 No point printing CIs for fixed parameters?
-
-Change default print output to HRs instead of log HRs for covs
-what about transition rates in a column?  Try it out
-Document changes
 
 Make sure all components of msm objects are documented properly, e.g. paramdata.
 No need to duplicate stuff like deriv
@@ -42,6 +52,8 @@ gives alternatives: compare these for speed.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
+
+More intelligent use of model frames and formulae when forming data, e.g. na.action to omit NAs.  expand.model.frame should be useful here
 
 Turnbull method to non-parametrically estimate time to interval-censored event.
 

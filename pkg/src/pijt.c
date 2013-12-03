@@ -34,7 +34,7 @@ typedef enum {Ward_2, Ward_1, Ward_buggy_octave} precond_type;
 void (*expm)(double *x, int n, double *z, precond_type precond_kind);
 void R_init_msm(DllInfo *dll)
 {
-    expm = (void (*) (double, int, double, precond_type)) R_GetCCallable("expm", "expm");
+    expm = (void (*) (double*, int, double*, precond_type)) R_GetCCallable("expm", "expm");
 }
 
 /* Set A to be an n x n identity matrix */
@@ -232,7 +232,7 @@ MatrixExpPade(double *ExpAt, double *A, int n, double t)
   double l1 = F77_CALL(dlange)("1", &n, &n, At, &n, 0); /* L-1 norm */
   double linf = F77_CALL(dlange)("i", &n, &n, At, &n, Temp); /* L-Infinity norm */
   double K = (log(l1) + log(linf))/log(4);
-  int npower =  (int)(K) + 4;
+  int npower = (R_FINITE(K) ? (int)(K)+4 : NA_INTEGER);
   double scale = 1;
 
   /* Multiply by t */
@@ -354,7 +354,7 @@ void MatrixExpMSM(Matrix mat, int n, Matrix expmat, double t,
     if (repeated_entries (revals, n) || (err != 0) || degen || complex_evals){
 	if (method == MEXP_SERIES)
 	    MatrixExpSeries(mat, n, expmat, t);
-	else 
+	else
 	    MatrixExpPade(expmat, mat, n, t);
     }
     else {
@@ -388,8 +388,8 @@ void MatrixExpEXPM(double *mat, int *n, double *expmat, double *t,
     double *matt = Calloc(nsq, double);
     if (*iso > 0)
 	AnalyticP(expmat, *t, *n, *iso, perm, qperm, mat, degen);
-    else { 
-	for (i=0; i<((*n)*(*n)); ++i) { 
+    else {
+	for (i=0; i<((*n)*(*n)); ++i) {
 	    matt[i] = (*t) * mat[i];
 	}
 	expm(matt, *n, expmat, Ward_2);
@@ -401,7 +401,7 @@ void MatrixExpEXPM(double *mat, int *n, double *expmat, double *t,
 
 /* Calculates the whole transition matrix in time t given an intensity matrix */
 
-void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, ivector perm, ivector qperm, int expm)
+void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int iso, ivector perm, ivector qperm, int use_expm)
 {
     int i,j,method=MEXP_PADE,degen=0;
     double pii;
@@ -414,9 +414,9 @@ void Pmat(Matrix pmat, double t, Matrix qmat, int nstates, int exacttimes, int i
 	}
     }
     else {
-	if (expm)
+	if (use_expm)
 	    MatrixExpEXPM(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
-	else 
+	else
 	    MatrixExpR(qmat, &nstates, pmat, &t, &method, &iso, perm, qperm, &degen);
 	/* Floating point fuzz sometimes causes trouble */
 	for (i=0; i<nstates; ++i)
@@ -436,7 +436,7 @@ double pijdeath(int r, int s, Matrix pmat, Matrix qmat, int n)
     else {    /* sum over unobserved state at the previous instant */
 	contrib = 0;
 	for (j = 0; j < n; ++j)
-	    if (j != s) { 
+	    if (j != s) {
 		contrib += pmat[MI(r, j, n)] * qmat[MI(j,s,n)];
 	    }
     }

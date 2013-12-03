@@ -3,11 +3,12 @@
 source("local.R")
 
 library(msm)
-# library(msm, lib.loc="../../lib/sun/0.7.5")
-data(cav)
+# library(msm, lib.loc="~/msm/src/1.2.7")
+# data(cav) # not needed since 1.3
+
 oneway4.q <- rbind(c(0, 0.148, 0, 0.0171), c(0, 0, 0.202, 0.081), c(0, 0, 0, 0.126), c(0, 0, 0, 0))
-rownames(oneway4.q) <- colnames(oneway4.q) <- c("Well","Mild","Severe","Death")
 ematrix <- rbind(c(0, 0.1, 0, 0),c(0.1, 0, 0.1, 0),c(0, 0.1, 0, 0),c(0, 0, 0, 0))
+rownames(oneway4.q) <- colnames(oneway4.q) <- rownames(ematrix) <- colnames(ematrix) <- c("Well","Mild","Severe","Death")
 
 ## Plain misc model with no covs
 
@@ -49,7 +50,7 @@ if (developer.local) {
     ##    stopifnot(isTRUE(all.equal(3929.39438312539, misccov.msm$minus2loglik, tol=1e-06))) ## 0.7.1 and earlier
 ##    stopifnot(isTRUE(all.equal(3929.59504496140, misccov.msm$minus2loglik, tol=1e-06))) # 1.2.2 and earlier
     stopifnot(isTRUE(all.equal(3929.60136975058, misccov.msm$minus2loglik, tol=1e-06)))
-    if(interactive()) save(misccov.msm, file="~/msm/devel/models/misccov.msm.rda")
+    if(interactive()) save(misccov.msm, file="~/work/msm/devel/models/misccov.msm.rda")
 
     system.time(misccovboth.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                                        qmatrix = oneway4.q, ematrix=ematrix, death = 4, fixedpars=FALSE,
@@ -60,15 +61,15 @@ if (developer.local) {
     ##    stopifnot(isTRUE(all.equal(3921.40046811911, misccovboth.msm$minus2loglik, tol=1e-06))) # 0.7.1 and earlier
 ##     stopifnot(isTRUE(all.equal(3921.42240883417, misccovboth.msm$minus2loglik, tol=1e-06))) 1.2.2 and earlier
     stopifnot(isTRUE(all.equal(3921.42117997675, misccovboth.msm$minus2loglik, tol=1e-06)))
-    if(interactive()) save(misccovboth.msm, file="~/msm/devel/models/misccovboth.msm.rda")
-    if(interactive()) load("~/msm/devel/models/misccovboth.msm.rda")
+    if(interactive()) save(misccovboth.msm, file="~/work/msm/devel/models/misccovboth.msm.rda")
+    if(interactive()) load("~/work/msm/devel/models/misccovboth.msm.rda")
     print(misccovboth.msm)
 
 ##########    OUTPUT FUNCTIONS    ###################
 
-    if(interactive()) load("~/msm/devel/models/misc.msm.rda")
-    if(interactive()) load("~/msm/devel/models/misccov.msm.rda")
-    if(interactive()) load("~/msm/devel/models/misccovboth.msm.rda")
+    if(interactive()) load("~/work/msm/devel/models/misc.msm.rda")
+    if(interactive()) load("~/work/msm/devel/models/misccov.msm.rda")
+    if(interactive()) load("~/work/msm/devel/models/misccovboth.msm.rda")
 
     e <- ematrix.msm(misc.msm)
     stopifnot(isTRUE(all.equal(0.00766164690017842, e$estimates[1,2], tol=1e-06)))
@@ -84,6 +85,7 @@ if (developer.local) {
 ### TEST VITERBI ON SUBSET WITH FIXEDPARS BUG REPORT
 
     if(interactive()) load("~/work/msm/devel/models/misc.msm.rda")
+    if(interactive()) load("~/work/msm/devel/models/misccov.msm.rda")
     pt <- 100046
     v <- viterbi.msm(misc.msm)
     for (pt in unique(cav$PTNUM)){
@@ -97,30 +99,26 @@ if (developer.local) {
     }
 
     odds <- odds.msm(misccov.msm)
-#    stopifnot(isTRUE(all.equal(0.924920277547759, odds$dage[1,2], tol=1e-06)))
-#    stopifnot(isTRUE(all.equal(0.9350691888108385, odds$dage[2,2], tol=1e-06)))
-#    stopifnot(isTRUE(all.equal(24.76686951404301, odds$sex[1,3], tol=1e-04)))
-#    stopifnot(isTRUE(all.equal(30.90173037227264, odds$sex[3,3], tol=1e-04)))
-    stopifnot(isTRUE(all.equal(0.92024511282455, odds$dage[1,2], tol=1e-03)))
-    stopifnot(isTRUE(all.equal(0.937622692212605, odds$dage[2,2], tol=1e-03)))
-    stopifnot(isTRUE(all.equal(23.6267954503319, odds$sex[1,3], tol=1e-01)))
-    stopifnot(isTRUE(all.equal(30.7225710461079, odds$sex[3,3], tol=1e-01)))
+    stopifnot(isTRUE(all.equal(0.92024511282455, odds$dage[2,2], tol=1e-03))) # tests hadn't been updated since change in order in Version 0.9
+    stopifnot(isTRUE(all.equal(0.937622692212605, odds$dage[1,2], tol=1e-03)))
+    stopifnot(isTRUE(all.equal(23.6267954503319, odds$sex[2,3], tol=1e-01)))
+    stopifnot(isTRUE(all.equal(30.7225710461079, odds$sex[4,3], tol=1e-01)))
 
-    e <- ematrix.msm(misccov.msm)
-    stopifnot(isTRUE(all.equal(0.00271289377320006, e$estimates[1,2], tol=1e-02)))
-    stopifnot(isTRUE(all.equal(0.0351301610655661, e$SE[1,2], tol=1e-02)))
+    e <- ematrix.msm(misccov.msm) # 1.3 chenge
+    stopifnot(isTRUE(all.equal(0.00425, e$estimates[1,2], tol=1e-02)))
+    stopifnot(isTRUE(all.equal(0.0089, e$SE[1,2], tol=1e-02)))
 
     e <- ematrix.msm(misccov.msm, covariates=0)
     stopifnot(isTRUE(all.equal(0.00523189426375198, e$estimates[1,2], tol=1e-02)))
     stopifnot(isTRUE(all.equal(0.00717339683841909, e$SE[1,2], tol=1e-02)))
     stopifnot(isTRUE(all.equal(0.000182524613416697, e$L[1,2], tol=1e-02)))
-    stopifnot(isTRUE(all.equal(0.0389554284408482, e$U[1,2], tol=1e-02)))
+    stopifnot(isTRUE(all.equal(0.06105006, e$U[1,2], tol=1e-02)))
 
     e <- ematrix.msm(misccov.msm, covariates=list(dage=50, sex=0))
     stopifnot(isTRUE(all.equal(0.0126402839581582, e$estimates[1,2], tol=1e-02)))
     stopifnot(isTRUE(all.equal(0.0127991364840901, e$SE[1,2], tol=1e-02)))
-    stopifnot(isTRUE(all.equal(0.000364352259872661, e$L[1,2], tol=1e-02)))
-    stopifnot(isTRUE(all.equal(0.0198983271598344, e$U[1,2], tol=1e-02)))
+    stopifnot(isTRUE(all.equal(0.000570, e$L[1,2], tol=1e-02)))
+    stopifnot(isTRUE(all.equal(0.031, e$U[1,2], tol=1e-02)))
 
 ### Non misclassification-specific output functions
 
@@ -158,15 +156,15 @@ if (developer.local) {
     if (interactive()) plot.msm(misccov.msm)
 
     cf <- coef.msm(misccovboth.msm)
-    stopifnot(isTRUE(all.equal(-0.535346454908361, cf$Qmatrices$sex[1,2], tol=1e-04)))
-    stopifnot(isTRUE(all.equal(-6.71038434136682, cf$Ematrices$sex[1,2], tol=1e-04)))
+    stopifnot(isTRUE(all.equal(-0.533, cf$Qmatrices$sex[1,2], tol=1e-03)))
+    stopifnot(isTRUE(all.equal(-7.83, cf$Ematrices$sex[1,2], tol=1e-03)))
 
     stopifnot(isTRUE(all.equal(c(1,2,3), as.numeric(transient.msm(misccov.msm)), tol=1e-03)))
 
     stopifnot(isTRUE(all.equal(4, as.numeric(absorbing.msm(misccov.msm)), tol=1e-03)))
 
     tot <- totlos.msm(misccov.msm)
-    stopifnot(isTRUE(all.equal(c(6.83075273082287, 2.75543070960308, 2.13503613252349), as.numeric(tot), tol=1e-03)))
+    stopifnot(isTRUE(all.equal(c(6.83075273082287, 2.75543070960308, 2.13503613252349), as.numeric(tot[1:3]), tol=1e-03)))
 
     stopifnot(isTRUE(all.equal(-1964.79752248070, as.numeric(logLik.msm(misccov.msm)), tol=1e-03)))
 
@@ -176,9 +174,10 @@ if (developer.local) {
     ## Baseline intens constraints
     misc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                     qmatrix = oneway4.q, ematrix=ematrix, death = 4, fixedpars=4:7,
-                    qconstraint = c(1, 2, 1, 2, 3),
+                    qconstraint = c(1, 2, 1, 2, 3), analyticp=TRUE, 
                     control = list(trace=1, REPORT=1), method="BFGS")
     stopifnot(isTRUE(all.equal(4209.65938095232, misc.msm$minus2loglik, tol=1e-06)))
+
     q <- qmatrix.msm(misc.msm)
     stopifnot(isTRUE(all.equal(-0.145819054714827, q$estimates[1,1], tol=1e-06)))
 
@@ -200,9 +199,10 @@ if (developer.local) {
                     control = list(trace=1, REPORT=1), method="BFGS",
                     covariates = ~ sex, covinits=list(sex=c(0, 0, 0.1, 0, 0)),
                     constraint = list(sex = c(1, 2, 1, 2, 3))  )
-    stopifnot(isTRUE(all.equal(4277.77801412343, misc.msm$minus2loglik, tol=1e-06)))
+    stopifnot(isTRUE(all.equal(4276.385, misc.msm$minus2loglik, tol=1e-06)))
+#    stopifnot(isTRUE(all.equal(4277.77801412343, misc.msm$minus2loglik, tol=1e-06))) # pre 1.3
     q <- qmatrix.msm(misc.msm, covariates=0)
-    stopifnot(isTRUE(all.equal(-0.17619654476216, q$estimates[1,1], tol=1e-06)))
+    stopifnot(isTRUE(all.equal(-0.176, q$estimates[1,1], tol=1e-02)))
 
     ## misc covariate constraints.
     misccov.msm <- msm(state ~ years, subject = PTNUM, data = cav,
@@ -213,11 +213,12 @@ if (developer.local) {
                        control = list(trace=1, REPORT=1), method="BFGS")
     stopifnot(isTRUE(all.equal(4017.02699645160, misccov.msm$minus2loglik, tol=1e-06)))
     e <- ematrix.msm(misccov.msm)
-    stopifnot(isTRUE(all.equal(0.999683601766175, e$estimates[1,1], tol=1e-06)))
+    stopifnot(isTRUE(all.equal(0.9997, e$estimates[1,1], tol=1e-04)))
     e <- ematrix.msm(misccov.msm, covariates=0)
     stopifnot(isTRUE(all.equal(0.992813688955682, e$estimates[1,1], tol=1e-06)))
 
     ## fixedpars for misc covariates.  Parameters are ordered within covariate, within parameter, within state.
+    ## memory errors with this
     misccov.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                        qmatrix = oneway4.q, ematrix=ematrix, death = 4,
                        misccovariates = ~dage + sex,
@@ -229,7 +230,7 @@ if (developer.local) {
 ## multiple death states (Jean-Luc's data)
 ## Misclassification between states 2 and 3
 
-  c2.df <- read.table("~/msm/tests/jeanluc/donneesaveccancerPT.txt", header=TRUE)
+  c2.df <- read.table("~/work/msm/tests/jeanluc/donneesaveccancerPT.txt", header=TRUE)
   print(statetable.msm(state, PTNUM, c2.df))
   qx <- rbind( c(0, 0.005, 0, 0, 0), c(0, 0, 0.01, 0.02,0), c(0, 0, 0, 0.04, 0.03), c(0, 0, 0, 0, 0), c(0, 0, 0, 0, 0))
   ex <- rbind( c(0, 0, 0, 0, 0), c(0, 0, 0.1, 0, 0), c(0, 0.1, 0, 0, 0), c(0, 0, 0, 0, 0), c(0, 0, 0, 0, 0) )

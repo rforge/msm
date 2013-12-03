@@ -329,7 +329,7 @@ msm.form.hcovconstraint <- function(constraint, hmodel)
 msm.form.hranges <- function(ranges, hmodel)
 {
     hranges <- .msm.PARRANGES[hmodel$plabs,]
-    if (hmodel$ncoveffs>0) { 
+    if (hmodel$ncoveffs>0) {
         hcovranges <- matrix(rep(c(-Inf, Inf), hmodel$ncoveffs), nrow=hmodel$ncoveffs, byrow=TRUE)
         rownames(hcovranges) <- hmodel$covlabels
         hranges <- rbind(hranges, hcovranges)
@@ -339,15 +339,15 @@ msm.form.hranges <- function(ranges, hmodel)
         for (i in names(ranges)) {
             if ( ! (i %in% c(hmodel$plabs, hmodel$covlabels)))
                 stop("parameter \"", i, "\" in \"hranges\" unknown")
-            ran.default <- hranges[rownames(hranges)==i,]
+            ran.default <- hranges[rownames(hranges)==i,,drop=FALSE]
             ran.user <- do.call("cbind", ranges[[i]])
-            for (j in seq_len(nrow(ran.user))) { 
-                if (ran.user[j,1] < ran.default[j,1]) { 
+            for (j in seq_len(nrow(ran.user))) {
+                if (ran.user[j,1] < ran.default[j,1]) {
                     warning("User-supplied lower bound of ",ran.user[j,1]," for ", i,
                             " less than theoretical minimum of ", ran.default[j,1], ", ignoring")
                     ran.user[j,1] <- ran.default[j,1]
                 }
-                if (ran.user[j,2] > ran.default[j,2]) { 
+                if (ran.user[j,2] > ran.default[j,2]) {
                     warning("User-supplied upper bound of ",ran.user[j,2]," for ", i,
                             " less than theoretical maximum of ", ran.default[j,2], ", ignoring")
                     ran.user[j,2] <- ran.default[j,2]
@@ -357,7 +357,7 @@ msm.form.hranges <- function(ranges, hmodel)
         }
     }
     ## ideally should be strict here if estimated, but allow inits on Inf boundary if not estimated.
-    for (i in seq(along=hmodel$pars)){ 
+    for (i in seq(along=hmodel$pars)){
         if (!in.range(hmodel$pars[i], hranges[i,], strict=FALSE))
             stop("Initial value ", hmodel$pars[i], " of parameter \"", hmodel$plabs[i], "\" outside allowed range ",
                  "[", paste(hranges[i,], collapse=","), "]")
@@ -370,7 +370,7 @@ in.range <- function(x, interval, strict=FALSE) {
     if (!is.numeric(x)) stop("x should be numeric")
     if (strict)
         ( (x > interval[1]) & (x < interval[2]) )
-    else 
+    else
         ( (x >= interval[1]) & (x <= interval[2]) )
 }
 

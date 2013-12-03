@@ -32,7 +32,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                 censor = NULL,
                 censor.states = NULL,
                 pci = NULL,
-                cl = 0.95, # width of confidence intervals
+                cl = 0.95, # width of confidence intervals in saved result components
                 fixedpars = NULL, # specify which parameters to fix. TRUE for all parameters
                 center = TRUE, # center covariates at their means during optimisation
                 opt.method = c("optim","nlm","fisher"),
@@ -105,6 +105,8 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
             pci <- tdmodel$tcut
         }
     }
+
+### AGGREGATE DATA
     if (hmodel$hidden || (cmodel$ncens > 0)) {
         msmdata <- msm.aggregate.hmmdata(msmdata.obs)
         msmdata$fromstate <- msmdata$tostate <- msmdata$timelag <- numeric(0)
@@ -298,7 +300,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
 #            for (lab in rownames(.msm.TRANSFORMS))
 #                p$ci[p$plabs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(p$ci[p$plabs==lab, ])
             for (i in 1:2)
-                p$ci[,i] <- gexpit(p$ci[,i], p$ranges[,"lower"], p$ranges[,"upper"])
+                p$ci[,i] <- gexpit(p$ci[,i], p$ranges[,"lower",drop=FALSE], p$ranges[,"upper",drop=FALSE])
         }
         else {
             p$foundse <- FALSE
@@ -368,7 +370,8 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                        hmodel = hmodel,
                        cmodel = cmodel,
                        pci = pci,
-                       paramdata=p
+                       paramdata=p,
+                       cl=cl
                        )
     attr(msmobject, "fixed") <- p$fixed
     class(msmobject) <- "msm"
@@ -445,12 +448,7 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, exacttimes=FALSE, analyti
         ## analytic P matrix is implemented for this particular intensity matrix
         iso <- .msm.graphs[[paste(nstates)]][[graphid]]$iso
         perm <- .msm.graphs[[paste(nstates)]][[graphid]]$perm
-        iperm <- match(1:nstates, perm)
-        imatrix.ind <- t(imatrix)
-        imatrix.ind[t(imatrix)>0] <- 1:npars
-        imatrix.ind <- t(imatrix.ind)
-        qperm <- imatrix.ind[iperm,iperm]
-        qperm <- t(qperm)[t(qperm)>0]
+        qperm <- order(perm) # diff def in 1.2.3, indexes q matrices not vectors
     }
     else {
         iso <- 0
@@ -541,6 +539,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
         msm.check.state(qmodel$nstates, state=state, cmodel$censor)  ## replace after splitting form.hmodel
     if (is.factor(state)) state <- as.numeric(levels(state))[state]
     time <- mf[,2]
+    ## TODO for v2.0: use model.frame more intelligently for handling missing data in different formulae and variables, and length checking.
     droprows <- as.numeric(attr(mf, "na.action"))
     n <- length(c(state, droprows))
     statetimerows.kept <- (1:n)[! ((1:n) %in% droprows)]
@@ -660,8 +659,7 @@ msm.form.data <- function(formula, subject=NULL, obstype=NULL, obstrue=NULL, cov
                 covdata=covdata, misccovdata=misccovdata, hcovdata=hcovdata, icovdata=icovdata,
                 covmeans=covmeans,
                 covmat=covmat, # covariates including factors as 0/1 contrasts
-                covmat.orig=covmat.orig, # covariates in which a factor is a single variable
-                nonmiss.rows=final.rows
+                covmat.orig=covmat.orig # covariates in which a factor is a single variable
                 )
     class(dat) <- "msmdata"
     dat
@@ -850,6 +848,7 @@ msm.form.covdata <- function(covariates, data,
     ## We shouldn't drop NA covariates at the subject's final
     ## observation, since they are not used in the analysis, therefore
     ## we impute observed zeros when final observations are NA.
+    ## TODO for v2.0: use model frames more intelligently with a new na.omit method
     mf.imp <- mf1
     for (i in names(mf.imp))
         if (!is.null(ignore.obs))
@@ -1164,7 +1163,7 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
 ###                res[plabs=="pbase",,drop=FALSE][i,,drop=FALSE] <- 1 / (1 + psum)
                 res[which(plabs=="pbase")[i],] <- 1 / (1 + psum)
 ###                res[plabs=="p",,drop=FALSE][whichst==i,,drop=FALSE] <-
-                res[which(plabs=="p")[whichst==i],] <- 
+                res[which(plabs=="p")[whichst==i],] <-
                     exp(pars[plabs=="p",,drop=FALSE][whichst==i,]) /
                         rep(1 + psum, each=sum(whichst==i))
             }
@@ -1182,9 +1181,7 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
 
 msm.transform <- function(pars, hmodel, ranges){
     labs <- names(pars)
-    pars <- glogit(pars, ranges[,"lower"], ranges[,"upper"]) # TESTME
-#    for (lab in rownames(.msm.TRANSFORMS))
-#        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"fn"])(pars[labs==lab])
+    pars <- glogit(pars, ranges[,"lower"], ranges[,"upper"])
     hpinds <- which(!(labs %in% c("qbase","qcov","hcov","initpbase","initp","initp0","initpcov")))
     hpars <- pars[hpinds]
     hpars <- msm.mnlogit.transform(hpars, hmodel$plabs, hmodel$parstate)
@@ -1197,9 +1194,7 @@ msm.transform <- function(pars, hmodel, ranges){
 
 msm.inv.transform <- function(pars, hmodel, ranges){
     labs <- names(pars)
-    pars <- gexpit(pars, ranges[,"lower"], ranges[,"upper"]) # TESTME
-#    for (lab in rownames(.msm.TRANSFORMS))
-#        pars[labs==lab] <- get(.msm.TRANSFORMS[lab,"inv"])(pars[labs==lab])
+    pars <- gexpit(pars, ranges[,"lower"], ranges[,"upper"])
     hpinds <- which(!(labs %in% c("qbase","qcov","hcov","initp","initp0","initpcov")))
     hpars <- pars[hpinds]
     hpars <- msm.mninvlogit.transform(hpars, hmodel$plabs, hmodel$parstate)
@@ -1244,7 +1239,7 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
     hmmpars <- which(!(plabs %in% c("qbase","qcov","hcov","initpbase","initp","initp0","initpcov")))
     hmmparscov <- which(!(plabs %in% c("qbase","qcov","initpbase","initp","initp0","initpcov")))
     names(inits) <- plabs
-    ranges <- .msm.PARRANGES[plabs,]
+    ranges <- .msm.PARRANGES[plabs,,drop=FALSE]
     if (!is.null(hmodel$ranges)) ranges[hmmparscov,] <- hmodel$ranges
     inits <- msm.transform(inits, hmodel, ranges)
     ## Form constraint vector for complete set of parameters

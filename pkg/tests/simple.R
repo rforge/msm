@@ -178,7 +178,7 @@ if (0) {
 
 ## Multiple death states (Jean-Luc's data)
 if (developer.local) {
-    c2.df <- read.table("~/msm/tests/jeanluc/donneesaveccancerPT.txt", header=TRUE)
+    c2.df <- read.table("~/work/msm/tests/jeanluc/donneesaveccancerPT.txt", header=TRUE)
     qx <- rbind( c(0, 0.005, 0, 0, 0), c(0, 0, 0.01, 0.02,0), c(0, 0, 0, 0.04, 0.03), c(0, 0, 0, 0, 0), c(0, 0, 0, 0, 0))
     c2.msm <- msm(state~years, subject=PTNUM, data=c2.df,
                   qmatrix=qx, death=c(4, 5), method="BFGS", fixedpars = 1:5,
@@ -202,7 +202,7 @@ if (developer.local) {
     stopifnot(isTRUE(all.equal(62915.1638036017, c2.msm$minus2loglik, tol=1e-06)))
 
 ### G Marshall's diabetic retinopathy data
-    marsh.df <- read.table("~/msm/tests/markov/test.dat", col.names=c("subject","eyes","time","duration","hba1"))
+    marsh.df <- read.table("~/work/msm/tests/markov/test.dat", col.names=c("subject","eyes","time","duration","hba1"))
     marsh.df$hba1 <- marsh.df$hba1 - mean(marsh.df$hba1)
     marsh.msm <-
       msm(eyes ~ time, subject=subject, qmatrix = rbind(c(0,0.02039,0,0), c(0.007874,0,0.01012,0), c(0,0.01393,0,0.01045), c(0,0,0,0)),
@@ -211,8 +211,8 @@ if (developer.local) {
     system.time(marsh.msm <-
       msm(eyes ~ time, subject=subject, qmatrix = rbind(c(0,0.02039,0,0), c(0.007874,0,0.01012,0), c(0,0.01393,0,0.01045), c(0,0,0,0)),
           covariates = ~ hba1, data = marsh.df))
-    stopifnot(isTRUE(all.equal(310.989863258621, marsh.msm$minus2loglik, tol=1e-06)))
-    stopifnot(isTRUE(all.equal(-0.0496235211442196, qmatrix.msm(marsh.msm, covariates=0)$estimates[1,1], tol=1e-06)))
+    stopifnot(isTRUE(all.equal(310.386917624764, marsh.msm$minus2loglik, tol=1e-06)))
+    stopifnot(isTRUE(all.equal(-0.0566956605634377, qmatrix.msm(marsh.msm, covariates=0)$estimates[1,1], tol=1e-06)))
 }
 
 

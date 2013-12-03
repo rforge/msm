@@ -5,6 +5,7 @@ print.msm <- function(x, ...)
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
 
     if (!attr(x,"fixed")) {
+        cat("[Note: a cleaner summary is available from \"printnew.msm\", which will be the default in future versions.]\n")
         cat ("Maximum likelihood estimates: \n")
         covmessage <-
             if (x$qcmodel$ncovs == 0) ""
@@ -49,82 +50,97 @@ print.msm <- function(x, ...)
 }
 
 ## Experimental: more helpful and tidier print output
-## TODO allow covariates=? option?
 
-printnew.msm <- function(x, rect=TRUE, ...)
+printnew.msm <- function(x, covariates=NULL, digits=4, ...)
 {
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
-    if (!attr(x,"fixed")) {
-        cat ("Maximum likelihood estimates: \n\n")
-        y <- mattotrans(x, x$Qmatrices$baseline, x$QmatricesL$baseline, x$QmatricesU$baseline, keep.diag=TRUE)
-        covmessage <-
-            if (x$qcmodel$ncovs == 0) ""
-            else paste(" with covariates set to", (if (x$center) "their means" else "0"))
-
-        if (rect) {
-            ## ALTERNATIVE RECTANGULAR FORMAT
-            ## COVARIATES IN COLUMNS ALIGNED WITH BASELINES
+    if (!x$foundse) {
+        cat("Optimisation probably not converged to the maximum likelihood.\noptim() reported convergence but estimated Hessian not positive-definite.\n")
+#        cat("See $opt component of fitted model object for current parameter values,\nwith positive parameters log-transformed.\n")
+    }
+    else { 
+        if (is.null(x$cl)) {
+            cl <- 0.95
+            warning("Found msm object saved before version 1.3. Assuming this was run with the default cl=0.95")
+        } else cl <- x$cl
+        if (!attr(x,"fixed")) {
+                                        #        cat("[New print format for \"msm\" objects since version 1.3. See help(print.msm) for more details. To obtain old format, use \"printold.msm\"]\n\n",sep="")
+            cat ("Maximum likelihood estimates: \n\n")
+            if (is.null(covariates)) {
+                covvalue <- (if (x$center) "their means" else "0")
+                covariates <- if (x$center) "mean" else 0
+            }
+            else covvalue <- "the values supplied in \"covariates\""
+            qbase <- qmatrix.msm(x, covariates=covariates, cl=cl)
+            y <- mattotrans(x, qbase$estimates, qbase$L, qbase$U, keep.diag=TRUE)
+            covmessage <-
+                if (x$qcmodel$ncovs == 0) ""
+                else paste(" with covariates set to", covvalue)
             fres <- matrix("", nrow=nrow(y), ncol=x$qcmodel$ncovs+1)
-            colnames(fres) <- c("baseline", x$qcmodel$covlabels)
+            colnames(fres) <- c("Baseline", x$qcmodel$covlabels)
             rownames(fres) <- rownames(y)
-            fres[,1] <- format.ci(y[,1],y[,2],y[,3]) # is this worth it?
+            fres[,1] <- format.ci(y[,1],y[,2],y[,3],digits=digits,...)
             im <- t(x$qmodel$imatrix); diag(im) <- -1; nd <- which(im[im!=0]==1)
             for (i in seq(length=x$qcmodel$ncovs)){
                 nm <- x$qcmodel$covlabels[[i]]
                 hrs <- exp(mattotrans(x, x$Qmatrices[[nm]], x$QmatricesL[[nm]], x$QmatricesU[[nm]], keep.diag=FALSE))
-                fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3])
+                fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3], digits=digits, ...)
             }
             cat ("Transition intensities")
             if (x$qcmodel$ncovs> 0) {
-                cat(" with hazard ratios for covariates\n")
-                cat(paste("Baseline intensities are",covmessage,"\n",sep=""))
+                cat(" with hazard ratios for each covariate\n")
+                cat(paste("Baselines are",covmessage,sep=""))
             }
             cat("\n")
             print(fres, quote=FALSE)
-        }  else {
-            ## COVARIATES IN SEPARATE BLOCKS FROM BASELINES
-            cat(paste("Transition intensities",covmessage,":\n\n",sep=""))
-            print(y)
-            ## HRs(ORs) not log HRs for covariates and misccovariates.
-            if (x$qcmodel$ncovs> 0) {
-                cat("\nHazard ratios for covariates on transition intensities:\n\n")
-                hrs <- hazard.msm(x)
-                print(hrs)
-            }
-        }
-
-        ## initprobs also presented as ORs, note multinomial scale
-        ## Is it also worth presenting transition rates as columns?
-        ## Keep old print method
-        if (x$emodel$misc) {
-            if (any(x$paramdata$plabs[x$paramdata$notfixed] == "initp")) {
-                cat("Initial state occupancy probabilities\n\n")
-                print(x$hmodel$initprobs)
-                cat("\n")
-                if (any(x$hmodel$nicovs > 0)) {
-                    cat("Covariates on logit initial state probabilities\n")
-                    print(x$hmodel$icoveffect)
+            if (x$emodel$misc) {
+                ebase <- ematrix.msm(x, covariates=covariates, cl=cl)
+                y <- mattotrans(x, ebase$estimates, ebase$L, ebase$U, keep.diag=TRUE, intmisc="misc")
+                frese <- matrix("", nrow=nrow(y), ncol=x$ecmodel$ncovs+1)
+                colnames(frese) <- c("Baseline", x$ecmodel$covlabels)
+                rownames(frese) <- rownames(y)
+                frese[,1] <- format.ci(y[,1],y[,2],y[,3],digits=digits,...)
+                im <- t(x$emodel$imatrix); diag(im) <- -1; nd <- which(im[im!=0]==1)
+                for (i in seq(length=x$ecmodel$ncovs)){
+                    nm <- x$ecmodel$covlabels[[i]]
+                    ors <- exp(mattotrans(x, x$Ematrices[[nm]], x$EmatricesL[[nm]], x$EmatricesU[[nm]], keep.diag=FALSE, intmisc="misc"))
+                    frese[nd,1+i] <- format.ci(ors[,1], ors[,2], ors[,3], digits=digits,...)
+                }
+                cat ("\nMisclassification probabilities")
+                if (x$ecmodel$ncovs> 0) {
+                    cat(" with odds ratios for each covariate")
                 }
                 cat("\n")
+                print(frese, quote=FALSE)
+                if (any(x$paramdata$plabs[x$paramdata$notfixed] == "initp")) {
+                    cat("Initial state occupancy probabilities\n\n")
+                    print(x$hmodel$initprobs) # old print method
+                    cat("\n")
+                    if (any(x$hmodel$nicovs > 0)) {
+                        cat("Covariates on logit initial state probabilities\n")
+                        print(x$hmodel$icoveffect)
+                    }
+                    cat("\n")
+                }
             }
-        }
-        else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
-            print(x$hmodel); cat("\n\n")
+            else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
+                cat("\n"); print(x$hmodel)
+            }
         }
     }
     cat ("\n-2 * log-likelihood: ", x$minus2loglik, "\n")
 }
 
-mattotrans <- function(x, matrix, lower, upper, keep.diag=FALSE){
-    imat <- x$qmodel$imatrix
+mattotrans <- function(x, matrix, lower, upper, keep.diag=FALSE, intmisc="intens"){
+    imat <- if (intmisc=="intens") x$qmodel$imatrix else x$emodel$imatrix
     if (keep.diag) diag(imat) <- as.numeric(rowSums(imat) > 0)
     keep <- which(t(imat)==1, arr.ind=TRUE)
     keep <- keep[,2:1]  # order by row(from-state), not column(to-state)
     fromlabs <- rownames(imat)[keep[,1]]
     tolabs <- colnames(imat)[keep[,2]]
     res <- matrix(nrow=sum(imat), ncol=3)
-    dimnames(res) <- list(paste(fromlabs, "-", tolabs),
-                              c("Estimate", "L", "U"))
+    rnames <- if (intmisc=="intens") paste(fromlabs, "-", tolabs) else paste("Obs", tolabs, "|", fromlabs)
+    dimnames(res) <- list(rnames, c("Estimate", "L", "U"))
     res[,1] <- matrix[keep]
     res[,2] <- lower[keep]
     res[,3] <- upper[keep]
@@ -601,12 +617,14 @@ print.msm.est.cols <- function(x, digits=NULL, diag=TRUE, ...)
     res
 }
 
-format.ci <- function(x, l, u, digits=NULL)
+format.ci <- function(x, l, u, digits=NULL, ...)
 {
-    est <- formatC(x, digits=digits)
+    if (is.null(digits)) digits <- 4
+    ## note format() aligns nicely on point, unlike formatC
+    est <- format(x, digits=digits, ...)
     if (!is.null(l)) {
-        low <- formatC(l, digits=digits)
-        upp <- formatC(u, digits=digits)
+        low <- format(l, digits=digits, ...)
+        upp <- format(u, digits=digits, ...)
         res <- paste(est, " (", low, ",", upp, ")", sep="")
         res[x==0] <- 0
     }
@@ -725,7 +743,7 @@ initp.ci.msm <- function(paramdata, cl=0.95){
     mu <- p$params[p$plabs%in%c("initp")]
     rr <- rmvnorm(10000, mu, Sig)
     initp.rep <- exp(rr) / (1 + rowSums(exp(rr)))
-    p$ci[p$plabs=="initp",] <- t(apply(initp.rep, 2, quantile, c(0.5*(1-cl), 1 - 0.5*(1-cl))))
+    p$ci[p$plabs=="initp",] <- t(apply(initp.rep, 2, quantile, c(0.5*(1-cl), 1 - 0.5*(1-cl)), na.rm=TRUE))
     initp.rep <- 1 / (1 + rowSums(exp(rr)))
     p$ci[p$plabs=="initpbase",] <- quantile(initp.rep, c(0.5*(1-cl), 1 - 0.5*(1-cl)))
     p$ci[p$plabs=="initp0"] <- 0
@@ -1777,8 +1795,8 @@ scoreresid.msm <- function(x, plot=FALSE){
 # Returns vector with EFPT for each "from" state in the state space.
 # Could also get CDF simply by making tostate absorbing and calculating pmatrix.
 
-efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
-                     ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000)
+efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean", 
+                     ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000, ...)
 {
     ci <- match.arg(ci)
     if (!is.null(x)) {
@@ -1797,12 +1815,11 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
     ## EFPT is infinite for other absorbing states
     est[setdiff(abstate,tostate)] <- Inf
     fromstate <- setdiff(1:nrow(qmatrix), union(abstate,tostate))
-
     ## EFPT is infinite if any chance of absorbing elsewhere before
     ## hitting tostate.  To calculate this, form Q matrix with tostate
     ## made absorbing, and look at P matrix in unit time.
     Qred <- qmatrix; Qred[tostate,] <- 0
-    Pmat <- MatrixExp(Qred)
+    Pmat <- MatrixExp(Qred, ...)
     Pmat[Pmat < 1e-16] <- 0
     p.abs <- rowSums(Pmat[fromstate,setdiff(abstate,tostate),drop=FALSE])
     est[fromstate][p.abs>0] <- Inf
@@ -1815,9 +1832,50 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
         Q <- as.matrix(qmatrix[fromstate, fromstate])
         est[fromstate] <- solve(-Q, rep(1,nrow(Q)))
     }
+    if (!is.character(start)) {
+        if (!is.numeric(start) || (length(start)!=nrow(qmatrix)))
+            stop("Expected \"start\" to be \"all\" or a numeric vector of length ", nrow(qmatrix))
+        start <- start / sum(start)
+        est <- est %*% start
+    }
+    else if (any(start!="all"))
+        stop("Expected \"start\" to be \"all\" or a numeric vector of length ", nrow(qmatrix))
     e.ci <- switch(ci,
-                   bootstrap = efpt.ci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
-                   normal = efpt.normci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
+                   bootstrap = efpt.ci.msm(x=x, qmatrix=qmatrix, tostate=tostate, start=start, covariates=covariates, cl=cl, B=B),
+                   normal = efpt.normci.msm(x=x, qmatrix=qmatrix, tostate=tostate, start=start, covariates=covariates, cl=cl, B=B),
                    none = NULL)
     if (ci=="none") est else rbind(est, e.ci)
 }
+
+## TODO matrix probabilities of passage through each to-state in an interval, given start in each from-state
+## Make every state other than the from-state absorbing,
+## and calculate the P matrix
+
+## ppass.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
+##                       ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000)
+## {
+##     ci <- match.arg(ci)
+##     if (!is.null(x)) {
+##         if (!inherits(x, "msm")) stop("expected x to be a msm model")
+##         qmatrix <- qmatrix.msm(x, covariates=covariates, ci="none")
+##     }
+##     else if (!is.null(qmatrix)) {
+##         if (!is.matrix(qmatrix) || (nrow(qmatrix) != ncol(qmatrix)))
+##             stop("expected qmatrix to be a square matrix")
+##         if (ci != "none") {warning("No fitted model supplied: not calculating confidence intervals."); ci <- "none"}
+##     }
+
+##     res <- matrix(dim=dim(qmatrix))
+##     states <- 1:nrow(qmatrix)
+##     for (i in states) {
+##         Qred <- qmatrix; Qred[,states[-i]] <- 0
+##         res[i,] <- MatrixExp(Qred)
+##     }
+
+## TODO handle time dependent covs in x
+
+#    p.ci <- switch(ci,
+#                   bootstrap = ppass.ci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
+#                   normal = ppass.normci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
+#                   none = NULL)
+#}

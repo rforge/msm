@@ -356,9 +356,10 @@ q_{12}te^{(-(q_{12} + q_{13})t} &  (q_{12} + q_{13} = q_{23})
   p_{33}(t) & = & 1\\
 \end{eqnarray*}
 The \Rpackage{msm} package calculates $P(t)$ analytically for selected
-2, 3, 4 and 5-state models. These models are illustrated in
-Figures \ref{fig:anp2}--\ref{fig:anp5}.  For other models, $P(t)$ is
-determined from the matrix exponential, calculated using eigensystem
+2, 3, 4 and 5-state models, illustrated in
+Figures \ref{fig:anp2}--\ref{fig:anp5}.  For other models, which can have any transition
+structure on any number of states in principle, $P(t)$ is
+determined from the matrix exponential.  This is calculated using eigensystem
 decomposition (if eigenvalues are distinct) or a method based on
 Pad\'e approximants with scaling and squaring \cite{matrixexp} (if
 there are repeated eigenvalues). Notice that the states are not
@@ -455,7 +456,7 @@ observation times, then the contributions would be of the form
 
 \begin{equation}
   \label{eq:multi:lik:exact}
-  L_{i, j} =  \exp(-q_{S(t_j)S(t_{j})}(t_{j+1} - t_j)) q_{S(t_j)S(t_{j+1})}
+  L_{i, j} =  \exp(q_{S(t_j)S(t_{j})}(t_{j+1} - t_j)) q_{S(t_j)S(t_{j+1})}
 \end{equation}
 since the state is assumed to be $S(t_j)$ throughout the interval
 between $t_j$ and $t_{j+1}$ with a known transition to state
@@ -1034,7 +1035,7 @@ $n_{rs} / n_r$. Then, given a total of $T_r$ years spent in state $r$,
 the mean sojourn time $1 / q_{rr}$ can be estimated as $T_r / n_r$.
 Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. The \Rpackage{msm}
 package provides a function \Rfunction{crudeinits.msm} for calculating
-initial values in this way.
+initial values in this way (for non-hidden Markov models).
 
 <<>>=
 twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
@@ -1080,7 +1081,9 @@ times recorded exactly in this way, then we would specify \Rfunarg{death =
 By default, the data are assumed to represent snapshots of the process
 at arbitrary times.  However, observations can also represent exact
 times of transition, ``exact death times'', or a mixture of these. See the
-\Rfunarg{obstype} argument to \Rfunction{msm}.
+\Rfunarg{obstype} argument to \Rfunction{msm}.  Note you do not always have to specify \Rfunarg{death},
+even if there are states which correspond to death.  This is
+only used for states whose entry time is observed in this specific way.
 
 While the \Rfunction{msm} function runs, it searches for the maximum
 of the likelihood of the unknown parameters.  Internally, it uses the
@@ -1151,7 +1154,8 @@ default, all linear covariate effects $\beta_{rs}$ are initialised to
 zero. To specify different initial values, use a \Rfunarg{covinits}
 argument, as described in \Rfunction{help(msm)}.  Initial values given
 in the \Rfunarg{qmatrix} represent the intensities with covariate values
-set to their means in the data.
+set to their means in the data.  In the following model, all transition
+intensities are modelled in terms of sex.
 
 \paragraph{Model 2: sex as a covariate}
 <<>>=
@@ -1181,6 +1185,21 @@ section \ref{sec:extractor}.
 <<>>=
 qmatrix.msm(cavsex.msm, covariates=list(sex=0)) # Male
 qmatrix.msm(cavsex.msm, covariates=list(sex=1)) # Female
+@
+
+Different transition rates may be easily modelled on different
+covariates by specifying a named list of formulae as the
+\Rfunarg{covariates} argument.  Each element of the list has a name
+identifying the transition.  In the model below, the transition rate
+from state 1 to state 2 and the rate from state 3 to state 4 are each
+modelled on sex as a covariate, but no other intensities have
+covariates on them.
+
+\paragraph{Model 2a: transition-specific covariates}
+<<eval=FALSE>>=
+cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                     qmatrix = twoway4.q, death = 4,
+                     covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
 @
 
 We may also want to constrain the effect of a covariate to be equal for
@@ -1571,6 +1590,23 @@ maximum likelihood, or it may be close to the maximum.
   is expected to be faster than the generic methods, but less robust to
   bad initial values.
 
+\item[\Rfunction{optim} "function cannot be evaluated at initial parameters"]
+  To diagnose this problem, run \Rfunction{msm} again with
+  \Rfunarg{fixedpars=TRUE} set, to calculate the -2 log-likelihood at
+  the initial values.  This will probably be \Robject{Inf}. To show
+  the contributions of individual subjects to the overall log
+  likelihood, call \Rfunction{logLik.msm(x, by.subject=TRUE)}, where
+  \Robject{x} is the fitted model object.  If only a few subjects give
+  an infinite log-likelihood, then you can check whether their state
+  histories are particularly unusual and conflict with the model.  For
+  example, they might appear to make unusually large jumps between
+  states in short periods of time.  For models with misclassification,
+  note that the default true initial state distribution
+  \Rfunarg{initprobs} puts all individuals in true state 1 at their
+  first observation.  If someone starts in a much higher state, this
+  may result in an infinite log-likelihood, and changing
+  \Rfunarg{initprobs} would be sensible.
+
 \item[Model simplification]
 
   If none of these numerical adjustments lead to convergence, then the
@@ -1634,9 +1670,9 @@ A set of expected counts can be produced if the process begins at a
 common time for all individuals.  Suppose at this time, each
 individual is in state 0.  Then given $n(t)$ individuals are under
 observation at time $t$, the expected number of individuals in state
-$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which 
-$P(t)$ depends vary between individuals, then this can be 
-averaged over the covariates observed in the data. 
+$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which
+$P(t)$ depends vary between individuals, then this can be
+averaged over the covariates observed in the data.
 
 For example, we calculate the observed and expected numbers and
 percentages at two-yearly intervals up to 20 years after transplant,
@@ -1896,11 +1932,13 @@ than the default Nelder-Mead simplex-based algorithm.  An optional
 argument \Rfunarg{initprobs} could also have been given here,
 representing the vector of the probabilities of occupying each true
 state at the initial observation
-(equation \ref{eq:multi:hidden:matprod}).  If not given, all
+(equation \ref{eq:multi:hidden:matprod}).  This can also be a matrix
+with number of rows equal to the number of subjects, if these
+probabilities are subject-dependent and known. If not given, all
 individuals are assumed to be in true state 1 at their initial
 observation.  If \Rfunarg{est.initprobs=TRUE} is specified, then these
 probabilites are estimated as part of the model fit, using
-\Rfunarg{initprobs} as initial values.  Covariate effects on these
+a vector \Rfunarg{initprobs} as initial values.  Covariate effects on these
 probabilities can also be estimated using a multinomial logistic
 regression model, if an \Rfunarg{initcovariates} argument is
 specified.  See \Rfunction{help(msm)} for further details.
@@ -2239,7 +2277,7 @@ As for the other constraint arguments such as \Rfunarg{qconstraint},
 identical values of this vector indicate parameters constrained to be
 equal.
 
-For example consider the three-state hidden Markov model described
+For example, consider the three-state hidden Markov model described
 above, with normally-distributed outcomes for states 1 and 2.
 To constrain the outcome variance to be equal for states 1 and 2,
 and to also constrain the effect of \Robject{x} on the outcome mean
@@ -2248,8 +2286,19 @@ to be equal for states 1 and 2, specify
 hconstraint = list(sd = c(1,1), x=c(1,1))
 \end{Scode}
 
-
-
+Parameters of the
+outcome distributions may also be constrained within specific ranges.
+If chosen carefully, this may improve identifiability of hidden Markov states.
+For example to constrain the mean for state 1 to be between 80 and 110,
+and the mean for state 2 to be between 50 and 80, specify
+\begin{Scode}
+hranges = list(mean=list(lower=c(80,50), upper=c(110,80)))
+\end{Scode}
+Maximum likelihood estimation is then performed on the appropriate log
+or logit-transformed scale so that these constraints are
+satisfied. See the \Rfunction{msm} help page for further details.
+Note that initial values should be strictly within the ranges, and not
+on the range boundary.
 
 \paragraph{FEV$_1$ after lung transplants}
 
@@ -2284,10 +2333,13 @@ event effect is equal between state 1 and state 2.
 Days of death are coded as 999 in the \texttt{fev} outcome variable.
 
 <<>>=
-hmodel1 <- list(hmmNorm(mean=100, sd=16), hmmNorm(mean=54, sd=18), hmmIdent(999))
+hmodel1 <- list(hmmNorm(mean=100, sd=16), hmmNorm(mean=54, sd=18),
+                hmmIdent(999))
 
-fev1.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q, death=3, hmodel=hmodel1,
-                hcovariates=list(~acute, ~acute, NULL), hcovinits = list(-8, -8, NULL),
+fev1.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
+                death=3, hmodel=hmodel1,
+                hcovariates=list(~acute, ~acute, NULL),
+                hcovinits = list(-8, -8, NULL),
                 hconstraint = list(acute = c(1,1)), method="BFGS")
 
 fev1.msm
@@ -2312,7 +2364,7 @@ outcome with an additional normal measurement error.  The explicit
 probability density for this distribution is given in
 Table \ref{tab:hmm:dists}.
 
-Our initial values are again 100 and 54 for the means of the
+Our initial values are 90 and 54 for the means of the
 within-state distribution of \emph{underlying} FEV$_1$, and 16 and 18
 for the standard errors.  This time, underlying FEV$_1$ is truncated
 normal. The truncation limits \Rfunarg{lower} and \Rfunarg{upper} are
@@ -2325,14 +2377,25 @@ variance $\sigma^2_\epsilon$ is equal between responses in states 1
 and 2, as is the effect of short-term acute events on the FEV$_1$
 response.
 
+The convergence of maximum likelihood estimation in this example is
+particularly sensitive to the optimisation method and options, initial values,
+the unit of the time variable and whether covariates are centered,
+probably because the likelihood surface is irregular near to the
+true maximum.
+
 <<>>=
-hmodel2 <- list(hmmMETNorm(mean=100, sd=16, sderr=8, lower=80, upper=Inf, meanerr=0),
-                hmmMETNorm(mean=54, sd=18, sderr=8, lower=0, upper=80, meanerr=0),
+hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
+                           lower=80, upper=Inf, meanerr=0),
+                hmmMETNorm(mean=54, sd=18, sderr=8,
+                           lower=0, upper=80, meanerr=0),
                 hmmIdent(999))
 
-fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q, death=3, hmodel=hmodel2,
-                hcovariates=list(~acute, ~acute, NULL), hcovinits = list(-8, -8, NULL),
-                hconstraint = list(sderr = c(1,1), acute = c(1,1)), method="BFGS")
+fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
+                death=3, hmodel=hmodel2,
+                hcovariates=list(~acute, ~acute, NULL),
+                hcovinits = list(-8, -8, NULL),
+                hconstraint = list(sderr = c(1,1), acute = c(1,1)),
+                control=list(maxit=10000), center=TRUE)
 
 fev2.msm
 
@@ -2551,6 +2614,12 @@ For a detailed list of the changes in recent versions of
 of the installed package.  The \texttt{Changelog} file in the
 top-level directory of the source package contains more technical
 detail about these changes.
+
+Development versions of \Rpackage{msm} are to be found on R-Forge,
+\url{http://msm.r-forge.r-project.org/}.  These are often more recent
+than the version released on CRAN, so if you think you have found a
+bug, then please check first to see whether it has been fixed on the
+R-Forge version.
 
 \section{Get in touch}
 

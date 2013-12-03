@@ -620,8 +620,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     strong assumption of constant (or piecewise-constant) transition
     rates.  Knowing the exact transition times allows
     potentially more realistic models to be fitted with other
-    packages, such as semi-parametric models with the \pkg{mstate}
-    package.
+    packages.  For example parametric models with sojourn distributions
+    more flexible than the exponential can be fitted with the \pkg{survival} package,
+    or semi-parametric models can be fitted with \pkg{mstate}.
   }
 
   \item{cl}{Width of symmetric confidence intervals for maximum
@@ -820,9 +821,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   Printing a \code{msm} object by typing the object's name at the
   command line implicitly invokes \code{print.msm}.  This
   formats and prints the important information in the model fit.
-  This includes the fitted transition intensity matrix, matrices
-  containing covariate effects on intensities, and mean sojourn times
-  from a fitted \code{\link{msm}} model.  When there is a hidden Markov
+  This includes estimates and confidence intervals for the transition intensities and (log) hazard
+  ratios for the corresponding covariates. When there is a hidden Markov
   model, the chief information in the
   \code{hmodel} component is also formatted and printed. This includes
   estimates and confidence intervals for each
@@ -938,7 +938,7 @@ c(0, 0.25, -0.5, 0.25), c(0, 0, 0, 0))
 statetable.msm(state, PTNUM, data=cav)
 crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
 cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                 qmatrix = twoway4.q, death = 4,
+                 qmatrix = twoway4.q, death = 4, method="BFGS",
                  control = list ( trace = 2, REPORT = 1 )  )
 cav.msm
 qmatrix.msm(cav.msm)
