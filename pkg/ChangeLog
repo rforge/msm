@@ -1,4 +1,4 @@
-2013-12-03 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+2013-12-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: Experimental new print method available as
 	printnew.msm.
