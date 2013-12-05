@@ -18,8 +18,9 @@
 \newcommand{\Rclass}[1]{{\textit{#1}}}
 
 <<echo=FALSE>>=
-version <- gsub("Version: +", "",
-                packageDescription("msm", lib.loc="../../..")$Version)
+#version <- gsub("Version: +", "",
+#                packageDescription("msm", lib.loc="../../..")$Version)
+version <- 1.3
 @
 
 \title{Multi-state modelling with R: the {\tt msm} package \vskip 0.2in
