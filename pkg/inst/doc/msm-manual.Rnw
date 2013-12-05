@@ -2015,12 +2015,12 @@ The confidence intervals for the estimates for women are higher, since
 there are only 87 women in this set of 622 patients.
 
 \item[Odds ratios for misclassification] The function
-  \Rfunction{odds.msm} gives the estimated odds ratios corresponding to
+  \Rfunction{odds.msm} would give the estimated odds ratios corresponding to
   each covariate effect on the misclassification probabilities.
 
-<<>>=
+\begin{Scode}
 odds.msm(cavmiscsex.msm)
-@
+\end{Scode}
 
 
 \item[Observed and expected prevalences]
