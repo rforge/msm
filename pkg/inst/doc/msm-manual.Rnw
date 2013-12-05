@@ -2373,7 +2373,7 @@ the unit of the time variable and whether covariates are centered,
 probably because the likelihood surface is irregular near to the
 true maximum.
 
-<<>>=
+\begin{Scode}
 hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
                            lower=80, upper=Inf, meanerr=0),
                 hmmMETNorm(mean=54, sd=18, sderr=8,
@@ -2390,7 +2390,7 @@ fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
 fev2.msm
 
 sojourn.msm(fev2.msm)
-@
+\end{Scode}
 
 Under this model the standard deviation of FEV$_1$ measurements caused
 by measurement error (more realistically, natural short-term
@@ -2398,16 +2398,15 @@ fluctuation) is around 9\% baseline.  The estimated effect of acute
 events on FEV$_1$ and sojourn times in the BOS-free state and in BOS
 before death are similar to Model 1.
 
-The following plot illustrates a trajectory of declining FEV$_1$ from
-the first lung transplant recipient in this dataset.  This is produced
-by the following R code.  The Viterbi algorithm is used to locate the
+The following code will create a plot that illustrates a trajectory of declining FEV$_1$ from
+the first lung transplant recipient in this dataset.  The Viterbi algorithm is used to locate the
 most likely point at which this individual moved from BOS state 1 to
 BOS state 2, according to the fitted Model 2.  This is illustrated by
-the vertical dotted line.  This is the point at which the individual's
+a vertical dotted line.  This is the point at which the individual's
 lung function started to remain consistently below 80\% baseline
 FEV$_1$.
 
-<<fig=TRUE>>=
+\begin{Scode}
 keep <- fev$ptnum==1 & fev$fev<999
 plot(fev$days[keep], fev$fev[keep], type="l",
 ylab=expression(paste("% baseline ", FEV[1])), xlab="Days after transplant")
@@ -2417,7 +2416,7 @@ vit <- viterbi.msm(fev2.msm)[keep,]
 abline(v = mean(max1,min2), lty=2)
 text(max1 - 500, 50, "STATE 1")
 text(min2 + 500, 50, "STATE 2")
-@
+\end{Scode}
 
 
 
