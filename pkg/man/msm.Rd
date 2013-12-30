@@ -691,8 +691,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
   \item{analyticp}{By default, the likelihood for certain simpler 3, 4
     and 5 state models is calculated using an analytic expression for
-    the transition probability (P) matrix.  To revert to the original method
-    of using the matrix exponential, specify \code{analyticp=FALSE}. See
+    the transition probability (P) matrix. For all other models, matrix
+    exponentiation is used to obtain P. To revert to the original method
+    of using the matrix exponential for all models, specify \code{analyticp=FALSE}. See
     the PDF manual for a list of the models for which analytic P
     matrices are implemented. }
 
@@ -817,6 +818,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   \item{cmodel}{A list of objects specifying any model for censoring.}
   \item{paramdata}{A list of objects giving information about the model
     parameters and their eatimation.}
+  \item{cl}{The width of the confidence interval defining
+    \code{QmatricesL} and similar objects mentioned above.}
 
   Printing a \code{msm} object by typing the object's name at the
   command line implicitly invokes \code{print.msm}.  This
@@ -881,10 +884,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   known at a series of snapshots, are particularly susceptible to
   non-identifiability, especially when combined with a complex
   transition matrix.
-
   Choosing an appropriate set of initial values for the optimisation can
   also be important.  For flat likelihoods, 'informative' initial values
-  will often be required.
+  will often be required.   See the PDF manual for other tips.
 
 }
 \references{

@@ -1,5 +1,9 @@
 hazard ratio for different covariate unit? or encourage people to store meaningful unit in data?
 
+option to log hazard ratios, or log intens
+
+put in format for mstate
+
 Go over basic usage again in manual with new print format, attention to variable naming and initial values.
 
 Show convergence codes from optim

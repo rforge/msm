@@ -13,17 +13,17 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
 \arguments{
   \item{x}{A fitted multi-state model, as returned by
     \code{\link{msm}}. }
-  
+
   \item{start}{Either a single number giving the state at the beginning
     of the period, or a vector of probabilities of being in each state
     at this time.
   }
 
   \item{end}{States to forecast the total length of stay in. Defaults to all states.}
-  
+
   \item{fromt}{Time from which to estimate total length of
     stay. Defaults to 0, the beginning of the process.}
-  
+
   \item{tot}{Time up to which total length of stay is estimated. Defaults
     to infinity, giving the expected time spent in the state until
     absorption. For models without an absorbing state, \code{t}
@@ -43,24 +43,24 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
     \code{list (60, 1)}
 
     where the order of the list follows the order of the covariates
-    originally given in the model formula, or a named list, 
+    originally given in the model formula, or a named list,
 
     \code{list (age = 60, sex = 1)}
-      
+
   }
 
   \item{num.integ}{Use numerical integration instead of analytic
     solution (see below).}
 
   \item{discount}{Discount rate in continuous time.}
-  
-  \item{ci}{If \code{"normal"}, then calculate a confidence interval 
+
+  \item{ci}{If \code{"normal"}, then calculate a confidence interval
     by simulating \code{B} random vectors
     from the asymptotic multivariate normal distribution implied by the
     maximum likelihood estimates (and covariance matrix) of the log
     transition intensities and covariate effects, then calculating the
     total length of stay for each replicate.
-    
+
     If \code{"bootstrap"} then calculate a confidence interval by
     non-parametric bootstrap refitting.  This is 1-2 orders of magnitude
     slower than the \code{"normal"} method, but is expected to be more
@@ -69,7 +69,7 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
 
     If \code{"none"} (the default) then no confidence interval is
     calculated.}
-  
+
   \item{cl}{Width of the symmetric confidence interval, relative to 1}
 
   \item{B}{Number of bootstrap replicates}
@@ -88,25 +88,24 @@ totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
   \eqn{t_2} of the \eqn{i,j} entry of the transition probability matrix
   \eqn{P(t) = Exp(tQ)}.
 
-  More generally, suppose that \eqn{\pi_0}{pi0}
+  More generally, suppose that \eqn{\pi_0}{pi_0}
   is the vector of probabilities of being in each state at time 0,
-  supplied in \code{start}, and we want the vector \eqn{\mathbf{x}} giving the expected
+  supplied in \code{start}, and we want the vector \eqn{\mathbf{x}}{x} giving the expected
   lengths of stay in each state.  The corresponding integral has the
   following solution (van Loan 1978; van Rosmalen et al. 2013)
-    
+
   \deqn{\mathbf{x} = \left[\begin{array}{ll}1 & \mathbf{0}_K
   \end{array}\right] Exp(t Q') \left[\begin{array}{ll} \mathbf{0}_K\\I_K
-  \end{array}\right]}{x = [1, 0K] Exp(t Q') [0K, IK]'}
+  \end{array}\right]}{x = [1, 0_K] Exp(t Q') [0_K, I_K]'}
 
 where
-  \deqn{Q' = \left[\begin{array}{ll} 0 & \mathbf{\pi}_0\\ \mathbf{0}_K
-  & Q - rI_K\end{array}\right]}{Q' = rbind(c(0, pi_0), cbind(0K, Q - r
-  IK)),}
+\deqn{Q' = \left[\begin{array}{ll} 0 & \mathbf{\pi}_0\\ \mathbf{0}_K
+    & Q - rI_K\end{array}\right]}{Q' = rbind(c(0, pi_0), cbind(0_K, Q - r I_K)),}
 
-\eqn{\pi_0}{pi0} is the row vector of initial state probabilities
-  supplied in \code{start}, \eqn{\mathbf{0}_K}{0K} is
-  the row vector of K zeros, \eqn{r} is the discount rate, \eqn{I_K}{IK} is the K x K identity matrix, and
-  \eqn{Exp} is the matrix exponential. 
+  \eqn{\pi_0}{pi_0} is the row vector of initial state probabilities
+  supplied in \code{start}, \eqn{\mathbf{0}_K}{0_K} is
+  the row vector of K zeros, \eqn{r} is the discount rate, \eqn{I_K}{I_K} is the K x K identity matrix, and
+  \eqn{Exp} is the matrix exponential.
 
   Alternatively, the integrals can be calculated numerically, using the
   \code{\link{integrate}} function.  This may take a long time for
@@ -114,7 +113,7 @@ where
   This facility is just provided for checking results against versions 1.2.4 and
   earlier, and will be removed eventually.  Please let the package maintainer
   know if any results are different.
-  
+
   For a model where the individual has only one place to go from each
   state, and each state is visited only once, for example a progressive
   disease model with no recovery or death, these are equal to the mean
@@ -126,7 +125,7 @@ where
   stay in the disease state.  This is because the mean sojourn time in a
   state is conditional on entering the state, whereas the
   expected total time diseased is a forecast for a healthy
-  individual,  who may die before getting the disease. 
+  individual,  who may die before getting the disease.
 
   In the above formulae, \eqn{Q} is assumed to be constant over time,
   but the results generalise easily to piecewise-constant intensities.
@@ -134,7 +133,7 @@ where
   specified using the \code{pci} option to \code{\link{msm}}.
   For any other inhomogeneous models, the function assumes that
   covariates are constant on the forecasted interval.
-  
+
 }
 \references{
 C. van Loan (1978). Computing integrals involving the matrix exponential.
