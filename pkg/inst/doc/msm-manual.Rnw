@@ -4,16 +4,11 @@
 
 \begin{document}
 
-\maketitle
-
 \begin{abstract}
 
 Test
 
 \end{abstract}
-
-\tableofcontents
-\clearpage
 
 \section{Multi-state models}
 \label{sec:multistate}
