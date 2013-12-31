@@ -2,11 +2,80 @@
 %\VignettePackage{msm}
 \documentclass{article}
 
+%% Need to modify Sweave.sty to pass pdftex option to graphicx.
+\usepackage{Sweave-local}
+\usepackage{times}
+\usepackage{url}
+\addtolength{\textwidth}{2cm}
+
+\newcommand{\Exp}{\mathop{\mathrm{Exp}}}
+\newcommand{\etal}{{\textit{et al.}}}
+\newcommand{\Rfunction}[1]{{\texttt{#1}}}
+\newcommand{\Robject}[1]{{\texttt{#1}}}
+\newcommand{\Rpackage}[1]{{\textit{#1}}}
+\newcommand{\Rmethod}[1]{{\texttt{#1}}}
+\newcommand{\Rfunarg}[1]{{\texttt{#1}}}
+\newcommand{\Rclass}[1]{{\textit{#1}}}
+
+
+%% version <- 1.3
+
+<<echo=FALSE>>=
+version <- gsub("Version: +", "",
+               packageDescription("msm", lib.loc="../../..")$Version)
+@
+
+\title{Multi-state modelling with R: the {\tt msm} package \vskip 0.2in
+  \large{Version %
+<<echo=FALSE,results=tex>>=
+cat(version)
+@
+\vskip 0.1in
+<<echo=FALSE,results=tex>>=
+cat(format(Sys.time(), "%d %B, %Y"))
+@
+}}
+\author{Christopher Jackson\\MRC Biostatistics Unit\\Cambridge, U.K.\\ \texttt{chris.jackson@mrc-bsu.cam.ac.uk}}
+\date{}
+%% label with date when Rnw is compiled, not when tex is compiled. should be release date of package
+
+\bibliographystyle{unsrt}
+
 \begin{document}
+
+\maketitle
 
 \begin{abstract}
 
-Test
+  The multi-state Markov model is a useful way of describing a process
+  in which an individual moves through a series of states in
+  continuous time.  The \Rpackage{msm} package for R allows a general
+  multi-state model to be fitted to longitudinal data. Data often
+  consist of observations of the process at arbitrary times, so that
+  the exact times when the state changes are unobserved.  For example,
+  the progression of chronic diseases is often described by stages of
+  severity, and the state of the patient may only be known at doctor
+  or hospital visits.  Features of \Rpackage{msm} include the ability
+  to model transition rates and hidden Markov output models in terms
+  of covariates, and the ability to model data with a variety of
+  observation schemes, including censored states.
+
+  Hidden Markov models, in which the true path through states is only
+  observed through some error-prone marker, can also be fitted.  The
+  observation is generated, conditionally on the underlying states,
+  via some distribution.  An example is a screening misclassification
+  model in which states are observed with error.  More generally,
+  hidden Markov models can have a continuous response, with some
+  arbitrary distribution, conditionally on the underlying state.
+
+  This manual introduces the theory behind multi-state Markov and
+  hidden Markov models, and gives a tutorial in the typical use of the
+  \Rpackage{msm} package, illustrated by some typical applications to
+  modelling chronic diseases.
+
+  Much of the material in this manual is published, in a more concise
+  form, in Journal of Statistical Software (2011) 38(8):1-29,
+  \url{http://www.jstatsoft.org/v38/i08/}
 
 \end{abstract}
 
