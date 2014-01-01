@@ -1858,4 +1858,141 @@ Titman \cite{titman:asympnull}.  For all models,
 \Rfunction{pearson.msm} provides an option for parametric
 bootstrapping to obtain an accurate p-value.
 
+
+\subsection{Fitting misclassification models with \Rpackage{msm}}
+\label{sec:fitting:hmm:misc}
+
+In fact, in the heart transplant example from
+section \ref{sec:datain}, it is not medically realistic for patients
+to recover from a diseased state to a healthy state.  Progression of
+coronary artery vasculopathy is thought to be an irreversible process.
+The angiography scan for CAV is actually subject to error, which leads
+to some false measurements of CAV states and apparent recoveries.
+Thus we account for misclassification by fitting a \emph{hidden Markov
+model} using \Rpackage{msm}.  Firstly we replace the two-way multi-state
+model by a one-way model with transition intensity matrix
+\[
+Q = \left(
+  \begin{array}{llll}
+    -(q_{12} + q_{14}) & q_{12} &  0     & q_{14}\\
+      0    & -(q_{23}+q_{24}) & q_{23} & q_{24}\\
+      0    &   0    & -q_{34} & q_{34}\\
+      0    &   0    &   0    &   0   \\
+  \end{array}
+\right )
+\]
+We also assume that true state 1 (CAV-free) can be classified as state
+1 or 2, state 2 (mild/moderate CAV) can be classified as state 1, 2 or
+3, while state 3 (severe CAV) can be classified as state 2 or 3.
+Recall that state 4 represents death.  Thus our matrix of misclassification
+probabilities is
+\[
+E = \left(
+  \begin{array}{llll}
+    1 - e_{12} & e_{12} & 0 & 0 \\
+    e_{21} & 1 - e_{21} - e_{23} & e_{23} & 0 \\
+    0 & e_{32} & 1 - e_{32} & 0 \\
+    0 & 0 & 0 & 0\\
+  \end{array}
+  \right)
+\]
+with underlying states as rows, and observed states as columns.
+
+To model observed states with misclassification, we define an matrix
+\Rfunarg{ematrix} indicating the states that can be misclassified.
+Rows of this matrix correspond to true states, columns to observed
+states.  It should contains zeroes in the positions where
+misclassification is not permitted.  Non-zero entries are initial
+values for the corresponding misclassification probabilities. We then
+call \Rfunction{msm} as before, but with this matrix as the
+\Rfunarg{ematrix} argument.  Initial values of 0.1 are assumed for
+each of the four misclassification probabilities $e_{12}, e_{21},
+e_{23}, e_{32}$.  Zeroes are given where the elements of $E$ are zero.
+The diagonal elements supplied in \Rfunarg{ematrix} are ignored, as
+rows must sum to one. The matrix \Rfunarg{qmatrix}, specifying
+permitted transition intensities and their initial values, also
+changes to correspond to the new $Q$ representing the progression-only
+model for the underlying states.
+
+The true state for every patient at the date of transplant is known to
+be ``CAV-free'', not misclassified.  To indicate this we use the
+argument \Rfunarg{obstrue} to \Rfunction{msm}.  This is set to be a
+variable in the dataset, \Rfunarg{firstobs}, indicating where the
+observed state equals the true state.  This takes the value of 1 at
+the patient's first observation, at the transplant date, and 0
+elsewhere.
+
+We use an alternative quasi-Newton optimisation algorithm
+\Rfunarg{(method="BFGS")} which can often be faster or more robust
+than the default Nelder-Mead simplex-based algorithm.  An optional
+argument \Rfunarg{initprobs} could also have been given here,
+representing the vector of the probabilities of occupying each true
+state at the initial observation
+(equation \ref{eq:multi:hidden:matprod}).  This can also be a matrix
+with number of rows equal to the number of subjects, if these
+probabilities are subject-dependent and known. If not given, all
+individuals are assumed to be in true state 1 at their initial
+observation.  If \Rfunarg{est.initprobs=TRUE} is specified, then these
+probabilites are estimated as part of the model fit, using
+a vector \Rfunarg{initprobs} as initial values.  Covariate effects on these
+probabilities can also be estimated using a multinomial logistic
+regression model, if an \Rfunarg{initcovariates} argument is
+specified.  See \Rfunction{help(msm)} for further details.
+
+
+\paragraph{Model 5: multi-state model with misclassification}
+
+<<>>=
+oneway4.q <- rbind(c(0, 0.148, 0, 0.0171),
+                     c(0, 0, 0.202, 0.081),
+                     c(0, 0, 0, 0.126),
+                     c(0, 0, 0, 0))
+ematrix <- rbind(c(0, 0.1, 0, 0),
+                 c(0.1, 0, 0.1, 0),
+                 c(0, 0.1, 0, 0),
+                 c(0, 0, 0, 0))
+cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
+                   qmatrix = oneway4.q, ematrix = ematrix, death = 4,
+                   obstrue = firstobs, method="BFGS")
+cavmisc.msm
+@
+
+Thus there is an estimated probability of about 0.03 that
+mild/moderate CAV will be diagnosed erroneously, but a rather higher
+probability of 0.17 that underlying mild/moderate CAV will be
+diagnosed as CAV-free.  Between the two CAV states, the mild state
+will be misdiagnosed as severe with a probability of 0.06, and the
+severe state will be misdiagnosed as mild with a probability of 0.12.
+
+The model also estimates the progression rates through underlying
+states.  An average of 8 years is spent disease-free, an average of
+about 3 years is spent with mild/moderate disease, and periods of severe
+disease also last about 3 years on average before death.
+
+\subsection{Effects of covariates on misclassification rates}
+
+We can investigate how the probabilities of misclassification depend
+on covariates in a similar way to the transition intensities, using a
+\Rfunarg{misccovariates} argument to \Rfunction{msm}. For example, we
+now include female sex as a covariate for the misclassification
+probabilities.  The linear effects on the log odds of each misclassified
+state relative to the true state are initialised to zero by default (but
+this can be changed with the \Rfunarg{misccovinits} argument).
+
+
+\paragraph{Model 6: misclassification model with misclassification probabilities modelled on sex}
+
+<<>>=
+cavmiscsex.msm <- msm(state ~ years, subject = PTNUM, data = cav,
+                          qmatrix = oneway4.q, ematrix = ematrix, death = 4,
+                          misccovariates = ~sex, obstrue=firstobs, method="BFGS")
+@
+<<>>=
+cavmiscsex.msm
+@
+The large confidence interval for the 1/2 misclassification suggests
+that women are no more or less likely than men to have a false
+positive angiography scan. On the other hand, women have slightly more
+false negatives.
+
 \end{document}
