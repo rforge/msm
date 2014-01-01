@@ -1995,4 +1995,347 @@ that women are no more or less likely than men to have a false
 positive angiography scan. On the other hand, women have slightly more
 false negatives.
 
+
+\subsection{Extractor functions}
+
+As well as the functions described in section \ref{sec:extractor} for
+extracting useful information from fitted models, there are a number
+of extractor functions specific to models with misclassification.
+
+\begin{description}
+\item[Misclassification matrix] The function \Rfunction{ematrix.msm}
+gives the estimated misclassification probability matrix at the given
+covariate values.  For illustration, the fitted misclassification
+probabilities for men and women in model 6 are given by
+
+<<>>=
+ematrix.msm(cavmiscsex.msm, covariates=list(sex=0))
+ematrix.msm(cavmiscsex.msm, covariates=list(sex=1))
+@
+The confidence intervals for the estimates for women are higher, since
+there are only 87 women in this set of 622 patients.
+
+\item[Odds ratios for misclassification] The function
+  \Rfunction{odds.msm} would give the estimated odds ratios corresponding to
+  each covariate effect on the misclassification probabilities.
+
+\begin{Scode}
+odds.msm(cavmiscsex.msm)
+\end{Scode}
+
+
+\item[Observed and expected prevalences]
+
+  The function \Rfunction{prevalence.msm} is intended to assess the
+  goodness of fit of the hidden Markov model for the \emph{observed}
+  states to the data.  Tables of observed prevalences of observed
+  states are calculated as described in
+  section \ref{sec:model-assessment}, by assuming that observed states
+  are retained between observation times.
+
+  The expected numbers of individuals in each observed state are
+  calculated similarly. Suppose the process begins at a common time
+  for all individuals, and at this time, the probability of occupying
+  \emph{true} state $r$ is $f_r$.  Then given $n(t)$ individuals under
+  observation at time $t$, the expected number of individuals in true
+  state $r$ at time $t$ is the $r$th element of the vector $n(t) f
+  P(t)$. Thus the expected number of individuals in \emph{observed}
+  state $r$ is the $r$th element of the vector $n(t) f P(t) E$, where
+  $E$ is the misclassification probability matrix.
+
+  The expected prevalences (not shown) for this example are similar to
+  those forecasted by the model without misclassification, with
+  underestimates of the rates of death from 8 years onwards.  To
+  improve this model's long-term prediction ability, it is probably
+  necessary to account for the natural increase in the hazard of death
+  from any cause as people become older.
+
+\item[Goodness-of-fit test] The Pearson-type goodness-of-fit test is
+  performed, as in Section \ref{sec:pearson}.  The table of deviances
+  indicates that there are more 1-3 and 1-4 transitions than expected
+  in short intervals, and fewer in long intervals.  This may indicate
+  some time-dependence in the transition rates. Indeed, Titman
+  \cite{titman:phd} found that a model with piecewise-constant
+  transition intensities gave a greatly improved fit to these data.
+<<>>=
+pearson.msm(cavmisc.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+@
+
+
+\end{description}
+
+
+\subsection{Recreating the path through underlying states}
+
+In speech recognition and signal processing, {\em decoding} is the
+procedure of determining the underlying states that are most likely to
+have given rise to the observations. The most common method of
+reconstructing the most likely state path is the {\em Viterbi}
+algorithm. Originally proposed by Viterbi \cite{viterbi}, it is also
+described by Durbin \etal \cite{biolog:seq} and Macdonald and
+Zucchini \cite{macdonald:zucchini} for discrete-time hidden Markov
+chains.  For continuous-time models it proceeds as follows. Suppose
+that a hidden Markov model has been fitted and a Markov transition
+matrix $P(t)$ and misclassification matrix $E$ are known.  Let
+$v_k(t_i)$ be the probability of the most probable path ending in state
+$k$ at time $t_i$.
+\begin{enumerate}
+\item Estimate $v_k(t_1)$ using known or estimated initial-state
+  occupation probabilities.
+\item For $i = 1 \ldots N$, calculate $v_l(t_i) = e_{l,O_{t_i}} \max_k
+  v_k(t_{i-1}) P_{kl}(t_{i} - t_{i-1})$. Let $K_i(l)$ be the
+  maximising value of $k$.
+\item At the final time point $t_N$, the most likely underlying
+  state $S^*_N$ is the value of $k$ which maximises $v_k(t_N)$.
+\item Retrace back through the time points, setting $S^*_{i-1} =
+  K_i(S^*_i)$.
+\end{enumerate}
+
+The computations should be done in log space to prevent underflow.
+The \Rpackage{msm} package provides the function \Rfunction{viterbi.msm} to
+implement this method.  For example, the following is an extract from
+a result of calling \Rfunction{viterbi.msm} to determine the most likely
+underlying states for all patients. The results for patient 100103 are
+shown, who appeared to `recover' to a less severe state of disease
+while in state 3.  We assume this is not biologically possible for the
+true states, so we expect that either the observation of state 3 at
+time 4.98 was an erroneous observation of state 2, or their apparent
+state 2 at time 5.94 was actually state 3.  According to the expected
+path constructed using the Viterbi algorithm, it is the observation at
+time 5.94 which is most probably misclassified.
+
+<<>>=
+vit <- viterbi.msm(cavmisc.msm)
+vit[vit$subject==100103,]
+@
+
+
+\subsection{Fitting general hidden Markov models with \Rpackage{msm}}
+\label{sec:fitting:hmm:general}
+
+The \Rpackage{msm} package provides a framework for fitting
+continuous-time hidden Markov models with general, continuous
+outcomes.  As before, we use the \Rfunction{msm} function itself.
+
+\paragraph{Specifying the hidden Markov model}
+
+A hidden Markov model consists of two related components:
+\begin{itemize}
+\item the model for the evolution of the underlying Markov chain,
+\item the set of models for the observed data conditionally on each
+  underlying state.
+\end{itemize}
+
+The model for the transitions between underlying states is specified
+as before, by supplying a \Rfunarg{qmatrix}.  The model for the
+outcomes is specified using the argument \Rfunarg{hmodel} to
+\Rfunction{msm}.  This is a list, with one element for each underlying
+state, in order.  Each element of the list should be an object
+returned by a hidden Markov model \emph{constructor function}.  The
+HMM constructor functions provided with \Rpackage{msm} are listed in
+Table \ref{tab:hmm:dists}.  There is a separate constructor function
+for each class of outcome distribution, such as uniform, normal or
+gamma.
+
+Consider a three-state hidden Markov model, with a transition
+intensity matrix of
+\[
+Q = \left(
+  \begin{array}{llll}
+    -q_{12} & q_{12} &  0  \\
+    0  & -q_{23} & q_{23}\\
+    0    &   0    &   0   \\
+  \end{array}
+\right )
+\]
+Suppose the outcome distribution for state 1 is Normal$(\mu_1,
+\sigma^2_1)$, the distribution for state 2 is Normal$(\mu_2,
+\sigma^2_2)$, and state 3 is exactly observed. Observations of state 3
+are given a label of -9 in the data.  Here our \Rfunarg{hmodel}
+argument should be a list of objects returned by \Rfunction{hmmNorm} and
+\Rfunction{hmmIdent} constructor functions.
+
+We must specify initial values for the parameters as the arguments to
+the constructor functions.  For example, we take initial values of
+$\mu_1 = 90, \sigma_1 = 8, \mu_2 = 70, \sigma_2 = 8$.  Initial values
+for $q_{12}$ and $q_{23}$ are 0.25 and 0.2. Finally suppose the
+observed data are in a variable called \Robject{y}, the measurement
+times are in \Robject{time}, and subject identifiers are in
+\Robject{ptnum}.  The call to \Rfunction{msm} to estimate the
+parameters of this hidden Markov model would then be
+\begin{Scode}
+  msm( y ~ time, subject=ptnum, data = example.df,
+  qmatrix = rbind( c(0, 0.25, 0), c(0, 0, 0.2), c(0, 0, 0)),
+  hmodel = list (hmmNorm(mean=90, sd=8), hmmNorm(mean=70, sd=8),
+                 hmmIdent(-9)) )
+\end{Scode}
+
+
+\begin{table}[htbp]
+\scriptsize
+  \centering
+  \begin{tabular}{lp{0.8in}p{0.6in}p{0.6in}p{0.7in}l}
+    \hline
+    Function & Distribution & Parameters &  &  Location (link) & Density for an observation $x$  \\
+    \hline
+    \Rfunction{hmmCat}   & Categorical   & \Rfunarg{prob, basecat}  & $p,c_0$ & $p$ (logit) & $p_x$, $x = 1, \ldots, n$  \\
+    \Rfunction{hmmIdent}   & Identity  & \Rfunarg{x}  & $x_0$  & & $I_{x = x_0}$  \\
+    \Rfunction{hmmUnif}   & Uniform  & \Rfunarg{lower, upper}  & $l,u$  & & $1 / (u - l)$, $u \leq x \leq l$  \\
+    \Rfunction{hmmNorm}   & Normal  & \Rfunarg{mean, sd}  & $\mu,\sigma$  & $\mu$ (identity) & $\phi(x, \mu, \sigma) = \frac{1}{\sqrt{2 \pi \sigma^2}} \exp(-(x - \mu)^2/(2 \sigma^2) )$  \\
+    \Rfunction{hmmLNorm}   & Log-normal  & \Rfunarg{meanlog, sdlog}  & $\mu,\sigma$  & $\mu$ (identity) & $\frac{1}{x \sqrt{2 \pi \sigma^2}} \exp(-(\log x - \mu)^2 / (2 \sigma^2))$   \\
+    \Rfunction{hmmExp}   & Exponential  & \Rfunarg{rate}  & $\lambda$  & $\lambda$ (log) & $\lambda e^{- \lambda x}$, $x > 0$  \\
+    \Rfunction{hmmGamma}   & Gamma  & \Rfunarg{shape, rate}  & $n,\lambda$  &  $\lambda$ (log) & $\frac{\lambda^n}{\Gamma(n)}x^{n-1} \exp(-\lambda x)$, $x > 0, n > 0, \lambda > 0$   \\
+    \Rfunction{hmmWeibull}   & Weibull  & \Rfunarg{shape, scale}  & $a, b$  & $b$ (log) & $\frac{a}{b} (\frac{x}{b})^{a-1} \exp{(-(\frac{x}{b})^a)}$, $x > 0$  \\
+    \Rfunction{hmmPois}   & Poisson  & \Rfunarg{rate}  & $\lambda$  & $\lambda$ (log) & $\lambda^x \exp(-\lambda)/x!$, $x = 0, 1, 2, \ldots$  \\
+    \Rfunction{hmmBinom}   & Binomial  & \Rfunarg{size, prob}  & $n,p$  & $p$ (logit) & ${n \choose x} p^x (1-p)^{n-x}$  \\
+    \Rfunction{hmmNBinom}   & Negative binomial  & \Rfunarg{disp, prob}  & $n,p$  & $p$ (logit) & $\Gamma(x+n)/(\Gamma(n)x!) p^n (1-p)^x$ \\
+    \Rfunction{hmmBeta}   & Beta  & \Rfunarg{shape1,shape2}  & $a,b$  & & $ \Gamma(a+b) / (\Gamma(a)\Gamma(b))x^{a-1}(1-x)^{b-1}$ \\
+    \Rfunction{hmmT}   & Student $t$  & \Rfunarg{mean, scale, df}  & $\mu,\sigma,k$  &  $\mu$ (identity) & $\frac{\Gamma\left((k+1)/2\right)}{\Gamma(k/2)}{\sqrt{\frac{1}{k\pi\sigma^2}}}\left\{1 + \frac{1}{k\sigma^2}(x - \mu)^{2} \right\}^{-(k + 1)/2}$ \\
+    \Rfunction{hmmTNorm}   & Truncated normal  & \Rfunarg{mean, sd, lower, upper}  & $\mu,\sigma,l,u$  & $\mu$ (identity) &
+\parbox[t]{2in}{$\phi(x, \mu, \sigma) / \\ (\Phi(u, \mu, \sigma) - \Phi(l, \mu, \sigma))$, \\ where $\Phi(x,\mu,\sigma) = \int_{-\infty}^x \phi(u,\mu,\sigma) du$}
+ \\
+    \Rfunction{hmmMETNorm}   & Normal with truncation and measurement error  & \Rfunarg{mean, sd, lower, upper, sderr, meanerr}  & \parbox[t]{1in} {$\mu_0,\sigma_0,l,u$, \\ $\sigma_\epsilon,\mu_\epsilon$}  &  $\mu_\epsilon$ (identity) &
+\parbox[t]{2in}{$( \Phi(u, \mu_2, \sigma_3) - \Phi(l, \mu_2, \sigma_3)) / $ \\
+$(\Phi(u, \mu_0, \sigma_0) - \Phi(l, \mu_0, \sigma_0)) $ \\
+$\times \phi(x, \mu_0 + \mu_\epsilon, \sigma_2)$, \\
+$\sigma_2^2 = \sigma_0^2 + \sigma_\epsilon^2$, \\
+$\sigma_3 = \sigma_0 \sigma_\epsilon / \sigma_2$, \\
+$\mu_2 = (x - \mu_\epsilon) \sigma_0^2 + \mu_0 \sigma_\epsilon^2$}
+ \\
+    \Rfunction{hmmMEUnif}   & Uniform with measurement error  & \Rfunarg{lower, upper, sderr, meanerr}  & $l,u,\mu_\epsilon,\sigma_\epsilon$  & $\mu_\epsilon$ (identity) &
+    \parbox[t]{2in}{$(\Phi(x, \mu_\epsilon+l, \sigma_\epsilon) - \Phi(x, \mu_\epsilon+u, \sigma_\epsilon)) / \\ (u - l)$} \\
+    \hline
+  \end{tabular}
+  \caption{Hidden Markov model distributions in \Rpackage{msm}.}
+  \label{tab:hmm:dists}
+\end{table}
+
+
+
+
+\paragraph{Covariates on hidden Markov model parameters}
+
+Most of the outcome distributions can be parameterised by covariates,
+using a link-transformed linear model.  For example, an observation
+$y_{ij}$ may have distribution $f_1$ conditionally on underlying state
+1. The link-transformed parameter $\theta_1$ is a linear function of
+the covariate vector $x_{ij}$ at the same observation time.
+\begin{eqnarray*}
+  \label{eq:hmm:covs}
+  y_{ij} | S_{ij} &  \sim &   f_1 (y | \theta_1, \gamma_1)\\
+  g(\theta_1) & = & \alpha + \beta^T x_{ij}
+\end{eqnarray*}
+Specifically, parameters named as the ``Location'' parameter in
+Table \ref{tab:hmm:dists} can be modelled in terms of covariates, with
+the given link function.
+
+The \Rfunarg{hcovariates} argument to \Rfunction{msm} specifies the
+model for covariates on the hidden Markov outcome distributions.  This
+is a list of the same length as the number of underlying states, and
+the same length as the \Rfunarg{hmodel} list.  Each element of the
+list is a formula, in standard R linear model notation, defining the
+covariates on the distribution for the corresponding state.  If there
+are no covariates for a certain hidden state, then insert a \texttt{NULL} in
+the corresponding place in the list.  For example, in the three-state
+normal-outcome example above, suppose that the normal means on states
+1 and 2 are parameterised by a single covariate $x$.
+\[
+\mu_1 = \alpha_1 + \beta_1 x_{ij}, \qquad \mu_2 = \alpha_2 + \beta_2 x_{ij}.
+\]
+The equivalent call to \Rfunction{msm} would be
+\begin{Scode}
+  msm( state ~ time, subject=ptnum, data = example.df,
+  qmatrix = rbind( c(0, 0.25, 0), c(0, 0, 0.2), c(0, 0, 0)),
+  hmodel = list (hmmNorm(mean=90, sd=8), hmmNorm(mean=70, sd=8),
+                 hmmIdent(-9)),
+  hcovariates = list ( ~ x, ~ x, NULL)
+ ).
+\end{Scode}
+
+
+
+\paragraph{Constraints on hidden Markov model parameters}
+
+Sometimes it is realistic that parameters are shared between some of
+the state-specific outcome distributions.  For example, the
+Normally-distributed outcome in the previous example could have a
+common variance $\sigma^2_1 = \sigma^2_2 = \sigma^2$ between states 1
+and 2, but differing means.  It would also be realistic for any
+covariates on the mean to have a common effect $\beta_1 = \beta_2 =
+\beta$ on the state 1 and 2 outcome distributions.
+
+The argument \Rfunarg{hconstraint} to \Rfunction{msm} specifies which
+hidden Markov model parameters are constrained to be equal.  This is a
+named list.  Each element is a vector of constraints on the named
+hidden Markov model parameter. The vector has length equal to the
+number of times that class of parameter appears in the whole model.
+As for the other constraint arguments such as \Rfunarg{qconstraint},
+identical values of this vector indicate parameters constrained to be
+equal.
+
+For example, consider the three-state hidden Markov model described
+above, with normally-distributed outcomes for states 1 and 2.
+To constrain the outcome variance to be equal for states 1 and 2,
+and to also constrain the effect of \Robject{x} on the outcome mean
+to be equal for states 1 and 2, specify
+\begin{Scode}
+hconstraint = list(sd = c(1,1), x=c(1,1))
+\end{Scode}
+
+Parameters of the
+outcome distributions may also be constrained within specific ranges.
+If chosen carefully, this may improve identifiability of hidden Markov states.
+For example to constrain the mean for state 1 to be between 80 and 110,
+and the mean for state 2 to be between 50 and 80, specify
+\begin{Scode}
+hranges = list(mean=list(lower=c(80,50), upper=c(110,80)))
+\end{Scode}
+Maximum likelihood estimation is then performed on the appropriate log
+or logit-transformed scale so that these constraints are
+satisfied. See the \Rfunction{msm} help page for further details.
+Note that initial values should be strictly within the ranges, and not
+on the range boundary.
+
+\paragraph{FEV$_1$ after lung transplants}
+
+Now we give an example of fitting a hidden Markov model to a real
+dataset.  The data on FEV$_1$ measurements from lung transplant
+recipients, described in \ref{sec:hmm:example:fev}, are provided with
+the \Rpackage{msm} package in a dataset called \Robject{fev}.
+We fit models Models 1 and 2, each with three states and common $Q$
+matrix.
+<<>>=
+three.q <- rbind(c(0, exp(-6), exp(-9)), c(0, 0, exp(-6)), c(0, 0, 0))
+@
+
+The simpler Model 1 is specified as follows. Under this model the
+FEV$_1$ outcome is Normal with unknown mean and variance, and the mean
+and variance are different between BOS state 1 and state 2.
+\Rfunarg{hcovariates} specifies that the mean of the Normal outcome
+depends linearly on acute events.  Specifically, this covariate is an
+indicator for the occurrence of an acute event within 14 days of the
+observation, denoted \texttt{acute} in the data.  As an initial guess,
+we suppose the mean FEV$_1$ is 100\% baseline in state 1, and 54\%
+baseline in state 2, with corresponding standard deviations 16 and 18,
+and FEV$_1$ observations coinciding with acute events are on average
+8\% baseline lower. \Rfunarg{hconstraint} specifies that the acute
+event effect is equal between state 1 and state 2.
+
+Days of death are coded as 999 in the \texttt{fev} outcome variable.
+
+<<>>=
+hmodel1 <- list(hmmNorm(mean=100, sd=16), hmmNorm(mean=54, sd=18),
+                hmmIdent(999))
+
+fev1.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
+                death=3, hmodel=hmodel1,
+                hcovariates=list(~acute, ~acute, NULL),
+                hcovinits = list(-8, -8, NULL),
+                hconstraint = list(acute = c(1,1)), method="BFGS")
+
+fev1.msm
+
+sojourn.msm(fev1.msm)
+@
+
 \end{document}
