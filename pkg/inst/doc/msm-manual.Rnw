@@ -1058,4 +1058,804 @@ transitions, and initial values. We are ready to run \Rfunction{msm}.
 
 \paragraph{Model 1: simple bidirectional model}
 
+
+<<>>=
+cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                    qmatrix = twoway4.q, death = 4 )
+@
+
+In this example the day of death is assumed to be recorded exactly, as
+is usual in studies of chronic diseases.  At the previous instant
+before death the state of the patient is unknown.  Thus we specify
+\Rfunarg{death = 4}, to indicate to \Rfunction{msm} that the
+entry times into state 4 are observed in this manner.
+If the model had
+five states, and states 4 and 5 were two competing causes of death with
+times recorded exactly in this way, then we would specify \Rfunarg{death =
+  c(4,5)}.
+
+By default, the data are assumed to represent snapshots of the process
+at arbitrary times.  However, observations can also represent exact
+times of transition, ``exact death times'', or a mixture of these. See the
+\Rfunarg{obstype} argument to \Rfunction{msm}.  Note you do not always have to specify \Rfunarg{death},
+even if there are states which correspond to death.  This is
+only used for states whose entry time is observed in this specific way.
+
+While the \Rfunction{msm} function runs, it searches for the maximum
+of the likelihood of the unknown parameters.  Internally, it uses the
+R function \Rfunction{optim} to minimise the minus log-likelihood.
+When the data set, the model, or both, are large, then this may take a
+long time.  It can then be useful to see the progress of the
+optimisation algorithm. To do this, we can specify a \Rfunarg{control}
+argument to \Rfunction{msm}, which is passed internally to the
+\Rfunction{optim} function.  For example \texttt{control = list(trace=1,
+  REPORT=1)}. See the help page for \Rfunction{optim},
+
+<<eval=FALSE>>=
+help(optim)
+@
+for more options to control the optimisation.  When completed, the
+\Rfunction{msm} function returns a value.  This value is a list of the
+important results of the model fitting, including the parameter
+estimates and their covariances.  To keep these results for
+post-processing, we store them in an R object, here called
+\Robject{cav.msm}.  When running several similar \Rfunction{msm} models,
+it is recommended to store the respective results in
+informatively-named objects.
+
+
+\subsection{Showing results}
+
+To show the maximum likelihood estimates and 95\% confidence
+intervals, type the name of the fitted model object at the R command
+prompt.  \footnote{This is equivalent to typing
+  \texttt{print.msm(cav.msm)}.  The function \Rfunction{print.msm}
+  formats the important information in the model object for printing
+  on the screen.}  The confidence level can be changed using the
+\Rfunarg{cl} argument to \Rfunction{msm}.
+
+<<>>=
+cav.msm
+@
+
+From the estimated intensity matrix, we see patients are three times
+as likely to develop symptoms than die without symptoms (first row).
+After disease onset (state 2), progression to severe symptoms (state
+3) is 50\% more likely than recovery.  Once in the severe state, death
+is more likely than recovery, and a mean of 1 / -0.44 = 2.3 years is
+spent in state 3 before death or recovery.
+
+Section \ref{sec:extractor} describes various functions that can be
+used to obtain summary information from the fitted model.
+
+
+\subsection{Covariates on the transition rates}
+\label{sec:msm:covariates}
+
+We now model the effect of explanatory variables on the rates of
+transition, using a proportional intensities model. Now we have an
+intensity matrix $Q(z)$ which depends on a covariate vector $z$. For
+each entry of $Q(z)$, the transition intensity for patient $i$ at
+observation time $j$ is $q_{rs}(z_{ij}) = q_{rs}^{(0)}
+\exp(\beta_{rs}^T z_{ij})$.  The covariates $z$ are specified through
+the \Rfunarg{covariates} argument to \Rfunction{msm}. If $z_{ij}$ is
+time-dependent, we assume it is constant in between the observation
+times of the Markov process.  \Rfunction{msm} calculates the
+probability for a state transition from times $t_{i,j-1}$ to $t_{ij}$
+using the covariate value at time $t_{i,j-1}$.
+
+We consider a model with just one covariate, female sex.  Out of the
+622 transplant recipients, 535 are male and 87 are female.  By
+default, all linear covariate effects $\beta_{rs}$ are initialised to
+zero. To specify different initial values, use a \Rfunarg{covinits}
+argument, as described in \Rfunction{help(msm)}.  Initial values given
+in the \Rfunarg{qmatrix} represent the intensities with covariate values
+set to their means in the data.  In the following model, all transition
+intensities are modelled in terms of sex.
+
+\paragraph{Model 2: sex as a covariate}
+<<>>=
+cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                     qmatrix = twoway4.q, death = 4, covariates = ~ sex)
+@
+
+The \Robject{msm} object will now include the estimated covariate
+effects and their confidence intervals.
+
+<<>>=
+cavsex.msm
+@
+Comparing the estimated log-linear effects of sex and their standard
+errors, we see that the disease onset rate is smaller for females,
+whereas none of the other effects are significant. The first matrix shown in the output of printing
+\Robject{cavsex.msm} is the estimated transition intensity matrix
+$q_{rs}(z) = q_{rs}^{(0)} \exp(\beta_{rs}^T z)$ with the covariate $z$
+set to its mean value in the data.  This represents an average
+intensity matrix for the population of 535 male and 87 female
+patients. To extract separate intensity matrices for male and female
+patients ($z = 0$ and $1$ respectively), use the function
+\Rfunction{qmatrix.msm}, as shown below.  This and similar summary
+functions will be described in more detail in
+section \ref{sec:extractor}.
+
+<<>>=
+qmatrix.msm(cavsex.msm, covariates=list(sex=0)) # Male
+qmatrix.msm(cavsex.msm, covariates=list(sex=1)) # Female
+@
+
+Different transition rates may be easily modelled on different
+covariates by specifying a named list of formulae as the
+\Rfunarg{covariates} argument.  Each element of the list has a name
+identifying the transition.  In the model below, the transition rate
+from state 1 to state 2 and the rate from state 3 to state 4 are each
+modelled on sex as a covariate, but no other intensities have
+covariates on them.
+
+\paragraph{Model 2a: transition-specific covariates}
+<<eval=FALSE>>=
+cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                     qmatrix = twoway4.q, death = 4,
+                     covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
+@
+
+We may also want to constrain the effect of a covariate to be equal for
+certain transition rates, to reduce the number of parameters in the
+model, or to investigate hypotheses on the covariate effects.  A
+\Rfunarg{constraint} argument can be used to indicate which of the
+transition rates have common covariate effects.
+
+\paragraph{Model 3: constrained covariate effects}
+
+<<eval=FALSE>>=
+cav3.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                   qmatrix = twoway4.q, death = 4,
+                   covariates = ~ sex, constraint = list(sex=c(1,2,3,1,2,3,2)) )
+@
+
+This constrains the effect of sex to be equal for the progression
+rates $q_{12}, q_{23}$, equal for the death rates $q_{14}, q_{24},
+q_{34}$, and equal for the recovery rates $q_{21}, q_{32}$. The
+intensity parameters are assumed to be ordered by reading across the
+rows of the transition matrix, starting at the first row: ($q_{12},
+q_{14}, q_{21}, q_{23}, q_{24}, q_{32}, q_{34}$), giving constraint
+indicators \Rfunarg{(1,2,3,1,2,3,2)}.  Any vector of increasing
+numbers can be used for the indicators.  Negative entries can be used
+to indicate that some effects are equal to minus others:
+\Rfunarg{(1,2,3,-1,2,3,2)} sets the fourth effect to be minus the
+first.
+
+In a similar manner, we can constrain some of the baseline transition
+intensities to be equal to one another, using the
+\Rfunarg{qconstraint} argument.  For example, to constrain the rates
+$q_{12}$ and $q_{23}$ to be equal, and $q_{24}$ and $q_{34}$ to be
+equal, specify \Rfunarg{qconstraint = c(1,2,3,1,4,5,4)}.
+
+
+
+\subsection{Fixing parameters at their initial values}
+
+For exploratory purposes we may want to fit a model assuming that some
+parameters are fixed, and estimate the remaining parameters.  This may
+be necessary in cases where there is not enough information in the
+data to be able to estimate a proposed model, and we have strong prior
+information about a certain transition rate. To do this, use the
+\Rfunarg{fixedpars} argument to \Rfunction{msm}.  For model 1, the
+following statement fixes the parameters numbered 6, 7, that is,
+$q_{32}$, $q_{34}$, to their initial values (0.25 and 0.25,
+respectively).
+
+\paragraph{Model 4: fixed parameters}
+<<eval=FALSE>>=
+cav4.msm <- msm( state ~ years, subject=PTNUM, data = cav,
+                qmatrix = twoway4.q, death = 4,
+                control = list(trace=2, REPORT=1),
+                fixedpars = c(6, 7) )
+@
+
+A \Rfunarg{fixedpars} statement can also be useful for fixing covariate
+effect parameters to zero, that is to assume no effect of a covariate
+on a certain transition rate.
+
+\subsection{Extractor functions}
+\label{sec:extractor}
+
+We may want to extract some of the information from the \Rfunction{msm}
+model fit for post-processing, for example for plotting graphs or
+generating summary tables.  A set of functions is provided for
+extracting interesting features of the fitted model.
+
+\begin{description}
+
+\item[Intensity matrices] The function \Rfunction{qmatrix.msm}
+  extracts the estimated transition intensity matrix and its confidence intervals
+  for a given set of covariate values, as shown in
+  section \ref{sec:msm:covariates}.  Confidence intervals are
+  calculated from the covariance matrix of the estimates by assuming
+  the distribution is symmetric on the log scale.  Standard errors for
+  the intensities are also available from the object returned by
+  \Rfunction{qmatrix.msm}.  These are calculated by the delta method.
+  The \Rpackage{msm} package provides a general-purpose function
+  \Rfunction{deltamethod} for estimating the variance of a function of
+  a random variable $X$ given the expectation and variance of $X$. See
+  \texttt{help(deltamethod)} for further details.  Bootstrap
+  confidence intervals are also available for \Rfunction{qmatrix.msm}
+  and for most output functions; these are often more accurate, at the
+  cost of computational time.  For more about bootstrapping in
+  \Rpackage{msm}, see Section \ref{sec:boot}.
+
+\item[Transition probability matrices] The function
+  \Rfunction{pmatrix.msm} extracts the estimated transition probability
+  matrix $P(t)$ within a given time. For example, for model 1, the 10
+  year transition probabilities are given by:
+
+<<>>=
+pmatrix.msm(cav.msm, t=10)
+@
+
+  Thus, a typical person in state 1, disease-free, has a probability
+  of 0.5 of being dead ten years from now, a probability of 0.3 being
+  still disease-free, and probabilities of 0.1 of being alive with
+  mild/moderate or severe disease, respectively.
+
+  This assumes $Q$ is constant within the desired time interval.  For
+  non-homogeneous processes, where $Q$ varies with time-dependent
+  covariates but can be approximated as piecewise constant, there is
+  an equivalent function \Rfunction{pmatrix.piecewise.msm}.  Consult its
+  help page for further details.
+
+  If \Rfunarg{ci=''norm''} is specified, then a confidence interval is
+  calculated based on drawing a random sample (default size 1000) from
+  the assumed multivariate normal distribution of the maximum
+  likelihood estimates and covariance matrix, and transforming.  If
+  \Rfunarg{ci=''boot''} is specified, then a bootstrap confidence
+  interval for the transition probability matrix is calculated (see Section \ref{sec:boot}) .
+  However, both of these are computationally intensive, particularly
+  the bootstrap method, so no confidence interval is calculated by default.
+
+\item[Mean sojourn times] The function \Rfunction{sojourn.msm}
+  extracts the estimated mean sojourn times in each transient state
+  $r$, for a given set of covariate values. This is calculated as $-1
+  / \hat q_{rr}$, where $\hat q_{rr}$ is the $r$th diagonal entry of
+  the estimated transition intensity matrix.
+
+<<>>=
+sojourn.msm(cav.msm)
+@
+
+\item[Probability that each state is next] The function
+  \Rfunction{pnext.msm} extracts the matrix of probabilities $-q_{rs}
+  / q_{rr}$ that the next state after state $r$ is state $s$, for each
+  $r$ and $s$.  Together with the mean sojourn times, this gives a more
+  intuitive parameterisation of a continuous-time Markov model than
+  the raw transition intensities $q_{rs}$.  Note these are different from
+  the transition probabilities in a given time $t$ returned by
+  \Rfunction{pmatrix.msm}.
+
+<<>>=
+pnext.msm(cav.msm)
+@
+
+\item[Total length of stay] Mean sojourn times describe the
+  average period in a single stay in a state. For processes with
+  successive periods of recovery and relapse, we may want to
+  forecast the total time spent healthy or diseased, before
+        death.  The function \Rfunction{totlos.msm} estimates the
+        forecasted total length of time spent in each transient state
+        $s$ between two future time points $t_1$ and $t_2$, for a
+        given set of covariate values. This defaults to the expected
+        amount of time spent in each state between the start of the
+        process (time 0, the present time) and death or a specified
+        future time. This is obtained as
+\[
+L_s = \int_{t_1}^{t_2} P(t)_{r,s} dt
+\]
+where $r$ is the state at the start of the process, which defaults to
+1. This is calculated using numerical integration.  For model 1, each
+patient is forecasted to spend 8.8 years disease free, 2.2 years with
+mild or moderate disease and 1.8 years with severe disease.
+
+Bootstrap and asymptotic confidence intervals are available, as for
+\Rfunction{pmatrix.msm}, but are not calculated by default.
+
+<<>>=
+totlos.msm(cav.msm)
+@
+
+\item[Expected first passage times] The function \Rfunction{efpt.msm} estimates
+  the expected time until the process first enters a given state or set of states,
+  also called the ``hitting time''.  See its help page for further details.
+
+\item[Ratio of transition intensities] The function
+  \Rfunction{qratio.msm} estimates a ratio of two entries of the
+  transition intensity matrix at a given set of covariate values,
+  together with a confidence interval estimated assuming normality on
+  the log scale and using the delta method.  For example, we may want
+  to estimate the ratio of the progression rate $q_{12}$ into the
+  first state of disease to the corresponding recovery rate $q_{21}$.
+  For example in model 1, recovery is 1.8 times as likely as
+  progression.
+
+<<>>=
+qratio.msm(cav.msm, ind1=c(2,1), ind2=c(1,2))
+@
+
+\item[Hazard ratios for transition] The function \Rfunction{hazard.msm}
+  gives the estimated hazard ratios corresponding to each covariate
+  effect on the transition intensities. 95\% confidence limits are
+  computed by assuming normality of the log-effect. For example, for
+  model 2 with female sex as a covariate, the following hazard ratios
+  show more clearly that the only transition on which the effect of
+  sex is significant at the 5\% level is the 1-2 transition.
+
+<<>>=
+hazard.msm(cavsex.msm)
+@
+
+\end{description}
+
+\paragraph{Setting covariate values}
+All of these extractor functions take an argument called
+\Rfunarg{covariates}.  If this argument is omitted, for example,
+
+<<eval=FALSE>>=
+qmatrix.msm(cav.msm)
+@
+then the intensity matrix is evaluated as $Q(\bar x)$ with all
+covariates set to their mean values $\bar x$ in the data.
+Alternatively, set \Rfunarg{covariates} to 0 to return the result
+$Q(0)$ with covariates set to zero. This will usually be
+preferable for categorical covariates, where we wish to see the
+result for the baseline category.
+
+<<eval=FALSE>>=
+qmatrix.msm(cavsex.msm, covariates = 0)
+@
+Alternatively, the desired covariate values can be specified
+explicitly as a list,
+
+<<eval=FALSE>>=
+qmatrix.msm(cavsex.msm, covariates = list(sex = 1))
+@
+
+Values of categorical covariates must be quoted. For example, consider
+a covariate \texttt{smoke}, representing tobacco smoking status, with
+three levels, \texttt{NON, CURRENT, EX}, representing a non-smoker,
+current smoker or ex-smoker.
+
+\begin{Scode}
+qmatrix.msm(example.msm, covariates = list(age = 60, smoke=''CURRENT''))
+\end{Scode}
+
+
+\subsection{Survival plots}
+
+In studies of chronic disease, an important use of multi-state models
+is in predicting the probability of survival for patients in
+increasingly severe states of disease, for some time $t$ in the
+future.  This can be obtained directly from the transition probability
+matrix $P(t)$.
+
+The \Rfunction{plot} method for \Robject{msm} objects produces a plot
+of the expected probability of survival against time, from each
+transient state. Survival is defined as not entering the final
+absorbing state.
+
+<<fig=TRUE>>=
+plot(cav.msm, legend.pos=c(8, 1))
+@
+
+This shows that the 10-year survival probability with severe CAV is
+approximately 0.1, as opposed to 0.3 with mild CAV and 0.5 without
+CAV.  With severe CAV the survival probability diminishes very quickly
+to around 0.3 in the first five years after transplant.  The
+\Rfunarg{legend.pos} argument adjusts the position of the legend in
+case of clashes with the plot lines.  A \Rfunarg{times} argument can
+be supplied to indicate the time interval to forecast survival for.
+
+A more sophisticated analysis of these data might explore competing
+causes of death from causes related or unrelated to the disease under
+study.
+
+\subsection{Bootstrapping}
+\label{sec:boot}
+Most of \Rpackage{msm}'s output functions present confidence intervals
+based on asymptotic standard errors calculated from the Hessian, or
+transformations of these using the delta method.  The asymptotic
+standard errors are expected to be underestimates of the true standard
+errors (Cramer-Rao lower bound).  For some output functions, such as
+\Rfunction{pmatrix.msm}, and functions based on
+\Rfunction{pmatrix.msm} such as \Rfunction{totlos.msm} and
+\Rfunction{prevalence.msm}, the delta method cannot be used at all to
+obtain standard errors.  In these cases, confidence intervals can be
+calculated by drawing a random sample from the assumed multivariate
+normal distribution of the maximum likelihood estimates and covariance
+matrix, and transforming.  However, this is still based on potentially
+inaccurate asymptotic theory.  The \Rpackage{msm} package provides the
+function \Rfunction{boot.msm} to enable bootstrap refitting of
+\Rfunction{msm} models, an alternative way to estimate uncertainty.
+
+For non-hidden Markov models, a bootstrap dataset is drawn by
+resampling pairs of consecutive states from the full data, i.e.
+\emph{transitions}.  These are assumed to be independent when
+calculating the likelihood (Section \ref{sec:multi:likelihood}).  For
+hidden Markov models and models with censoring, a bootstrap dataset is
+drawn by resampling complete series from independent subjects.  The
+bootstrap datasets have the same number of transitions, or subjects,
+respectively, as the original data.
+
+For most output extractor functions provided with \Rpackage{msm}, the
+option \Rfunarg{ci=''boot''} is available, as a wrapper around
+\Rfunction{boot.msm}, to enable bootstrap confidence intervals to be calculated.
+But any user-defined output statistic can be bootstrapped, as follows.
+The function \Rfunction{boot.msm} is called with the fitted
+\Rfunction{msm} model as first argument, and an R function specifying
+the statistic to be bootstrapped as the second argument \texttt{stat}.
+The return value from \Rfunction{boot.msm} is a list of \texttt{B}
+replicates (by default, \texttt{B=1000}) of the desired statistic.  For
+example, to bootstrap the transition intensity matrix of the heart
+transplantation model \Robject{cav.msm}:
+\begin{Scode}
+  q.list <- boot.msm(cav.msm, stat=function(x){qmatrix.msm(x)$estimates})
+\end{Scode}
+Note that for \Rfunction{boot.msm} to be able to refit the original
+model that produced \Robject{cav.msm}, all objects used in the
+original model fit (for example, in this case, \Robject{twoway4.q})
+must be in the working environment.  Otherwise, \Rfunction{boot.msm}
+will give an ``object not found'' error.
+
+The user can then summarise these replicates by calculating empirical
+standard deviations or quantile-based intervals.  In this example,
+\Robject{q.list} is a list of 1000 4$\times$4 matrices.  The following
+code calculates the bootstrap standard error as the empirical standard
+deviation of the 1000 replicates, and a similar 95\% bootstrap
+confidence interval.
+\begin{Scode}
+  q.array <- array(unlist(q.list), dim=c(4,4,1000))
+  apply(q.array, c(1,2), sd)
+  apply(q.array, c(1,2), function(x)quantile(x, c(0.025, 0.975)))
+\end{Scode}
+
+Note that when bootstrapping, the refits of the model to the resampled
+datasets may occasionally fail to converge (as discussed in
+Section \ref{sec:failure}) even if the original model fit did
+converge.  In these cases, a warning is given, but
+\Rfunction{boot.msm} simply discards the failed dataset and moves on
+to the next bootstrap iteration. Unless convergence failure occurs for
+a large proportion of iterations, this should not affect the accuracy
+of the final bootstrap confidence intervals.
+
+
+\subsection{Convergence failure}
+\label{sec:failure}
+
+Inevitably if over-complex models are applied with insufficient data
+then the parameters of the model will not be identifiable.  This will
+result in the optimisation algorithm failing to find the maximum of
+the log-likelihood, or even failing to evaluate the likelihood. For
+example, it will commonly be inadvisable to include several covariates
+in a model simultaneously.
+
+In some circumstances, the optimisation may report convergence, but
+fail to calculate any standard errors.  In these cases, the Hessian of
+the log-likelihood at the reported solution is not positive definite.
+Thus the reported solution may be a saddle point rather than the
+maximum likelihood, or it may be close to the maximum.
+
+\begin{description}
+\item[Initial values] Make sure that a sensible set of initial values
+  have been chosen. The optimisation may only converge within a
+  limited range of `informative' initial values.  It is also sensible
+  to run the model for several different initial values to ensure that
+  the estimation has converged to a global rather than a local optimum.
+
+\item[Scaling] It is often necessary to apply a scaling factor to
+  normalise the likelihood (\Rfunarg{fnscale}), or certain individual
+  parameters \Rfunarg{(parscale)}.  This may prevent overflow or
+  underflow problems within the optimisation.  For example, if the value
+  of the -2 $\times$ log-likelihood is around 5000, then the following
+  option leads to an minimisation of the -2 $\times$ log-likelihood on
+  an approximate unit scale: \Rfunarg{control = list(fnscale = 5000)}
+
+  It is also advisable to analyse all variables, including covariates
+  and the time unit, on a roughly normalised scale. For example,
+  working in terms of a time unit of months or years instead of days,
+  when the data range over thousands of days.
+
+\item[Convergence criteria] ``False convergence'', in which
+  \Rfunction{optim()} reports convergence of the optimisation but the
+  Hessian is not positive definite, can sometimes be solved by
+  tightening the criteria (\Rfunarg{reltol}, defaults to
+  \texttt{1e-08}) for reporting convergence. For example,
+  \Rfunarg{control = list(reltol = 1e-16)}.
+
+  Alternatively consider using smaller step sizes for the numerical
+  approximation to the gradient, used in calculating the Hessian.
+  This is given by the control parameter \Rfunarg{ndeps}. For example,
+  for a model with 5 parameters, \Rfunarg{control = list(ndeps =
+    rep(1e-6, 5))}
+
+\item[Choice of algorithm] By default, \Rfunction{msm} uses a
+  Nelder-Mead algorithm which does not use analytic derivatives of the
+  objective function.   For potentially greater speed and accuracy,
+  consider using a quasi-Newton algorithm such as
+  the ``BFGS'' method of \Rfunction{optim}, which can make use of
+  analytic derivatives, for example, \Rfunarg{method = ``BFGS'', use.deriv = TRUE}.
+  Or use the \Rfunction{nlm} R function via \Rfunarg{msm(..., opt.method = "nlm" , ...)}
+  Note also the Fisher scoring method available for non-hidden Markov
+  models for panel data, via  \Rfunarg{msm(..., opt.method = "fisher", ...)},
+  is expected to be faster than the generic methods, but less robust to
+  bad initial values.
+
+\item[\Rfunction{optim} "function cannot be evaluated at initial parameters"]
+  To diagnose this problem, run \Rfunction{msm} again with
+  \Rfunarg{fixedpars=TRUE} set, to calculate the -2 log-likelihood at
+  the initial values.  This will probably be \Robject{Inf}. To show
+  the contributions of individual subjects to the overall log
+  likelihood, call \Rfunction{logLik.msm(x, by.subject=TRUE)}, where
+  \Robject{x} is the fitted model object.  If only a few subjects give
+  an infinite log-likelihood, then you can check whether their state
+  histories are particularly unusual and conflict with the model.  For
+  example, they might appear to make unusually large jumps between
+  states in short periods of time.  For models with misclassification,
+  note that the default true initial state distribution
+  \Rfunarg{initprobs} puts all individuals in true state 1 at their
+  first observation.  If someone starts in a much higher state, this
+  may result in an infinite log-likelihood, and changing
+  \Rfunarg{initprobs} would be sensible.
+
+\item[Model simplification]
+
+  If none of these numerical adjustments lead to convergence, then the
+  model is probably over-complicated.  There may not be enough
+  information in the data on a certain transition rate.  It is always
+  recommended to count all the pairs of transitions between states in
+  successive observation times, making a frequency table of previous
+  state against current state (function \Rfunction{statetable.msm}).
+  Although the data are a series of snapshots of a continuous-time
+  process, and the actual transitions take place in between the
+  observation times, this type of table may still be helpful.  If
+  there are not many observed `transitions' from state 2 to state 4,
+  for example, then the data may be insufficient to estimate $q_{24}$.
+
+  For a staged disease model (Figure \ref{fig:disease}), the number of
+  disease states should be low enough that all transition rates can be
+  estimated.  Consecutive states of disease severity should be merged
+  if necessary.  If it is realistic, consider applying constraints on
+  the intensities or the covariate effects so that the parameters are
+  equal for certain transitions, or zero for certain transitions.
+
+  Be careful to use a observation scheme and transition matrix
+  appropriate to your data (see
+  Section \ref{sec:arbitr-observ-times}). By default, \Rfunction{msm}
+  assumes that the data represent snapshots of the process, and the
+  true state is unknown between observation times.  In such
+  circumstances, it is rarely feasible to estimate an intensity matrix
+  with \emph{instantaneous} transitions allowed between every pair of
+  states.  This would be easier if the complete course of the process
+  is known \Rfunarg{(exacttimes = TRUE)} in the call to
+  \Rfunction{msm}.  Understand the difference between
+  \emph{instantaneous} and \emph{interval} transitions - although
+  individuals may be in state 1 at time $t_r$, and state 3 at time
+  $t_{r+1}$, that doesn't mean that instantaneous transitions from 1
+  to 3 should be permitted.
+
+\end{description}
+
+
+\subsection{Model assessment}
+\label{sec:model-assessment}
+
+\paragraph{Observed and expected prevalence}
+
+To compare the relative fit of two nested models, it is easy to
+compare their likelihoods.  However it is not always easy to determine
+how well a fitted multi-state model describes an irregularly-observed
+process.  Ideally we would like to compare observed data with fitted
+or expected data under the model.  If there were times at which all
+individuals were observed then the fit of the expected numbers in each
+state or {\em prevalences} can be assessed directly at those times.
+Otherwise, some approximations are necessary.  We could assume that an
+individual's state at an arbitrary time $t$ was the same as the state
+at their previous observation time.  This might be fairly accurate if
+observation times are close together.  This approach is taken by the
+function \Rfunction{prevalence.msm}, which constructs a table of observed
+and expected numbers and percentages of individuals in each state at a
+set of times.
+
+A set of expected counts can be produced if the process begins at a
+common time for all individuals.  Suppose at this time, each
+individual is in state 0.  Then given $n(t)$ individuals are under
+observation at time $t$, the expected number of individuals in state
+$r$ at time $t$ is $n(t) P(t)_{0,r}$.   If the covariates on which
+$P(t)$ depends vary between individuals, then this can be
+averaged over the covariates observed in the data.
+
+For example, we calculate the observed and expected numbers and
+percentages at two-yearly intervals up to 20 years after transplant,
+for the heart transplant model \Rfunction{cav.msm}.  The number of
+individuals still alive and under observation decreases from 622 to
+251 at year 20.  The observed and expected percentages are plotted
+against time.
+
+<<>>=
+options(digits=3)
+prevalence.msm(cav.msm, times=seq(0,20,2))
+@
+<<fig=TRUE>>=
+plot.prevalence.msm(cav.msm, mintime=0, maxtime=20)
+@
+
+Comparing the observed and expected percentages in each state,
+we see that the predicted number of individuals who die (State 4) is
+under-estimated by the model from about year 8 onwards.  Similarly the
+number of individuals sill alive and free of CAV (State 1) is
+over-estimated by the model from about year 8 onwards.
+
+Such discrepancies could have many causes.  One possibility is that
+the transition rates vary with the time since the beginning of the
+process, the age of the patient, or some other omitted covariate, so
+that the Markov model is {\em non-homogeneous}.  This could be
+accounted for by modelling the intensity as a function of age, for
+example, such as a piecewise-constant function.  The \Rfunarg{pci}
+argument to \Rfunction{msm} can be used to automatically construct
+models with transition intensities which are piecewise-constant in
+time.
+
+In this example, the hazard of death may increase with age, so that
+the model underestimates the number of deaths when forecasting far
+into the future.  Another cause of poor model fit may sometimes be the
+failure of the Markov assumption.  That is, the transition intensities
+may depend on the time spent in the current state (a semi-Markov
+process) or other characteristics of the process history.  Accounting
+for the process history is difficult as the process is only observed
+through a series of snapshots.  For a multi-state model with one-way
+progression through states, and frequent observations, we may be able
+to estimate the time spent in each state by each individual.
+
+However, if it is known that individuals who died would not have been
+followed up after a certain time, had they survived to that time, then
+they should not be included in the observed prevalence of the death
+state after that time.  This can be accounted for by passing a vector
+of maximum potential follow-up times, one for each individual in the
+same order as the original data, in the \Rfunarg{censtime} argument to
+\Rfunction{prevalence.msm}.  Ignoring the potential follow-up times is
+likely to have resulted in overestimates of the number of deaths
+at later times in the CAV example, though these times are not
+available in the data supplied with \Rpackage{msm}.
+
+
+\paragraph{Pearson-type goodness-of-fit test}
+\label{sec:pearson}
+
+Suppose that the true transition times are unknown, and data consist
+of observations of the process at arbitrary times which differ between
+individuals (panel data).  Assessing goodness of fit by prevalence
+counts then involves estimating the observed prevalence at a series of
+points by some form of interpolation. This is only advisable if
+observation times are close together.  An alternative method of
+assessing goodness-of-fit is to construct tables of observed and
+expected numbers of transitions, as described by Aguirre-Hernandez and
+Farewell \cite{ahf}.  This leads to a formal test of goodness-of-fit,
+analogous to the classical Pearson $\chi^2$ test for contingency
+tables. The tables are constructed as follows.  Each pair of
+successive observations in the data (\emph{transition}) is classified
+by
+\begin{itemize}
+\item the starting state $r$ and finishing state $s$,
+\item time between the start of the process and the first of the pair
+  of observations (indexed by $h$),
+\item time interval between the observations (indexed by $l_h$, within
+  categories $h$),
+\item (if there are fitted covariates) the impact of covariates, as
+  summarised by $q_{rr}$ (indexed by $c$),
+\item any other grouping of interest for diagnosing lack of fit
+  (indexed by $g$).
+\end{itemize}
+Groupings of continuous quantities are normally defined by quantiles,
+so that there are a similar number of observed transitions in each
+(one-dimensional) category.  The observed and expected numbers of
+transitions in each group are then defined by
+\[
+o_{hl_h rscg} = \sum I(S(t_{i,j+1}) = s, S(t_{ij}) = r)
+\]
+\[
+e_{hl_h rscg} = \sum P(S(t_{i,j+1}) = s | S(t_{ij}) = r)
+\]
+where $I(A)$ is the indicator function for an event $A$ and the
+summation is over the set of transitions in the category defined by
+$h,l_h,c,g$, over all individuals $i$. The Pearson-type test statistic
+is then
+\[
+T = \sum_{hl_h rscg} \frac{(o_{hl_h rscg} - e_{hl_h rscg})^2}{e_{hl_h rscg}}
+\]
+The classical Pearson test statistic is distributed as $\chi^2_{n-p}$,
+where $n$ is the number of independent cells in the table and $p$ is
+the number of estimated parameters $p$. But the null distribution of
+$T$ is not exactly $\chi^2$, since the time intervals are
+non-identical, therefore the observed transitions are realizations
+from a set of independent but non-identical multinomial distributions.
+Titman \cite{titman:asympnull} showed that the null distribution
+of $T$ is asymptotically approximated by a weighted sum of $\chi^2_1$
+random variables.   Aguirre-Hernandez and Farewell \cite{ahf} also showed that $\chi^2_{n-p}$
+is a good approximation if there are no fitted covariates. For models
+with covariates, the null mean of $T$ is higher than $n - p$, but
+lower than $n$.  Therefore, upper and lower bounds for the true
+$p$-value of the statistic can be obtained from the $\chi^2_{n-p}$ and
+$\chi^2_n$ distributions.  Aguirre-Hernandez and Farewell \cite{ahf}
+also described a bootstrap procedure for obtaining an accurate $p$-value.
+
+Titman and Sharples \cite{titman:sharples} described modifications to
+the test to correct for the biases introduced where in addition to the
+panel-data observation scheme:
+\begin{itemize}
+\item Times of death are known exactly.  In this case, transitions
+  ending in death are classified according to the next scheduled
+  observation time after the death, which is estimated by multiple
+  imputation from a Kaplan-Meier estimate of the distribution of time
+  intervals between observations.
+
+\item An individual's final observation is censored, so that they are
+  only known to be alive at that point.
+
+\item States are misclassified.
+\end{itemize}
+
+The \Rpackage{msm} package provides the function
+\Rfunction{pearson.msm} to perform the Pearson-type test.  By default,
+three groups are used for each of $h$, $l_h$ and $c$.  Often the
+number of groups will need to be reduced in cases where the resulting
+contingency tables are sparse (thus there are several low expected
+counts and the variance of $T$ is inflated).
+
+The test is now performed on the model \Robject{cav.msm} for the heart
+transplant dataset (a version of which was also analysed by
+Titman and Sharples \cite{titman:sharples}). The default three interval groups are used,
+and two groups of the time since the start of the process. The
+\Rfunarg{transitions} argument groups the transitions from state 3 to
+each of states 1, 2 and 3 (the 9th, 10th and 11th transitions)
+together in the table, since these transitions are infrequent.
+
+<<>>=
+options(digits=2)
+pearson.msm(cav.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+@
+
+The first two tables in the output show the contingency tables of
+observed and expected numbers of transitions.  Note that the observed
+number of transitions in certain categories is not a whole number,
+since these are averaged over multiple imputations of the next
+scheduled observation time following deaths.  The column \texttt{Time}
+is the group defined by time since the start of the process, and the
+column \texttt{Interval} is the group defined by intervals between
+observations.  The columns indicate the allowed transitions, or pairs
+of states which can be observed in successive observations.
+
+The third table presents the ``deviance'', the value of
+$\frac{(o_{hl_h rscg} - e_{hl_h rscg})^2}{e_{hl_h rscg}}$ for each
+cell, multipled by the sign of $o_{hl_h rscg} - e_{hl_h rscg}$ to
+indicate whether there were more or fewer transitions than expected in
+each cell.  These can indicate areas of bad fit.  For example,
+systematic changes in deviance by time or time interval between
+observations can indicate that a model with time-varying transition
+intensities is more suitable.  Changes in deviance by covariate impact
+may indicate heterogeneity between individuals which is unexplained
+by the fitted covariates.  Changes in deviance with the length of the
+interval between observations may also indicate failure of the Markov
+assumption, and that a semi-Markov model (in which intensities depend
+on the time spent in the current state) may fit better.
+
+In this example, the test statistic is 100.  \Robject{p.upper} is an
+upper bound for the $p$-value of the statistic based on an asymptotic
+$\chi^2_{42}$ distribution, therefore the model does not fit well.  It
+is not clear from the table of deviances which aspects of the fit are
+most influental to the test statistic.  However, the two-way Markov
+model itself is not biologically plausible, as discussed in
+Section \ref{sec:fitting:hmm:misc}.
+
+For non-hidden Markov models for panel data, \Rfunction{pearson.msm}
+also presents the accurate analytic p-value of
+Titman \cite{titman:asympnull}.  For all models,
+\Rfunction{pearson.msm} provides an option for parametric
+bootstrapping to obtain an accurate p-value.
+
 \end{document}
