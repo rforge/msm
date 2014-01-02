@@ -2375,7 +2375,7 @@ the unit of the time variable and whether covariates are centered,
 probably because the likelihood surface is irregular near to the
 true maximum.
 
-\begin{Scode}
+<<>>=
 hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
                            lower=80, upper=Inf, meanerr=0),
                 hmmMETNorm(mean=54, sd=18, sderr=8,
@@ -2392,7 +2392,7 @@ fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
 fev2.msm
 
 sojourn.msm(fev2.msm)
-\end{Scode}
+@ 
 
 Under this model the standard deviation of FEV$_1$ measurements caused
 by measurement error (more realistically, natural short-term
@@ -2408,7 +2408,7 @@ a vertical dotted line.  This is the point at which the individual's
 lung function started to remain consistently below 80\% baseline
 FEV$_1$.
 
-\begin{Scode}
+<<>>=
 keep <- fev$ptnum==1 & fev$fev<999
 plot(fev$days[keep], fev$fev[keep], type="l",
 ylab=expression(paste("% baseline ", FEV[1])), xlab="Days after transplant")
@@ -2418,6 +2418,43 @@ vit <- viterbi.msm(fev2.msm)[keep,]
 abline(v = mean(max1,min2), lty=2)
 text(max1 - 500, 50, "STATE 1")
 text(min2 + 500, 50, "STATE 2")
+@ 
+
+\paragraph{An alternative way of specifying a misclassification model}
+
+This general framework for specifying hidden Markov models can also be
+used to specify multi-state models with misclassification.  A
+misclassification model is a hidden Markov model with a categorical
+outcome distribution.  So instead of an \Rfunarg{ematrix} argument to
+\Rfunction{msm}, we can use a \Rfunarg{hmodel} argument with
+\Rfunction{hmmCat} constructor functions.
+
+\Rfunction{hmmCat} takes at least one argument \Rfunarg{prob}, a
+vector of probabilities of observing outcomes of $1, 2, \ldots, n$
+respectively, where $n$ is the length of \Rfunarg{prob}.  All outcome
+probabilities with an initial value of zero are assumed to be fixed at
+zero.  \Rfunarg{prob} is scaled if necessary to sum to one.
+
+The model in section \ref{sec:fitting:hmm:misc} specifies that an
+individual occupying underlying state 1 can be observed as states 2
+(and 1), underlying state 2 can be observed as states 1, 2 or 3, and
+state 3 can be observed as states 2 or 3, and underlying state 4
+(death) cannot be misclassified. Initial values of 0.1 are given for
+the 1-2, 2-1, 2-3 and 3-2 misclassification probabilities.
+
+This is equivalent to the model below, specified using a
+\Rfunarg{hmodel} argument to \Rfunction{msm}.  The maximum likelihood
+estimates should be the same as before (Model 5).
+
+\begin{Scode}
+oneway4.q <- rbind(c(0, 0.148, 0, 0.0171),
+                   c(0, 0, 0.202, 0.081),
+                   c(0, 0, 0, 0.126),
+                   c(0, 0, 0, 0))
+cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
+                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), hmmCat(c(0.1, 0.8, 0.1, 0)), hmmCat(c(0, 0.1, 0.9, 0)), hmmIdent(4)),
+                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, method="BFGS")
+cavmisc.msm
 \end{Scode}
 
 \end{document}
