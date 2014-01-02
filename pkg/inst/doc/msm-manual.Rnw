@@ -2338,4 +2338,123 @@ fev1.msm
 sojourn.msm(fev1.msm)
 @
 
+
+Printing the \Rclass{msm} object \Rfunarg{fev1.msm} shows estimates
+and confidence intervals for the transition intensity matrix and the
+hidden Markov model parameters.  The estimated within-state means of
+FEV$_1$ are around 98\% and 52\% baseline respectively.  From the
+estimated transition intensities, individuals spend around 1421 days
+(3.9 years) before getting BOS, after which they live for an average
+of 1248 days (3.4 years).  FEV$_1$ is lower by an average of 8\%
+baseline within 14 days of acute events.
+
+Model 2, where the outcome distribution is a more complex two-level
+model, is specified as follows.  We use the distribution defined by
+equations \ref{eq:fev:level1}--\ref{eq:fev:level2}. The
+\Rfunction{hmmMETNorm} constructor defines the truncated normal
+outcome with an additional normal measurement error.  The explicit
+probability density for this distribution is given in
+Table \ref{tab:hmm:dists}.
+
+Our initial values are 90 and 54 for the means of the
+within-state distribution of \emph{underlying} FEV$_1$, and 16 and 18
+for the standard errors.  This time, underlying FEV$_1$ is truncated
+normal. The truncation limits \Rfunarg{lower} and \Rfunarg{upper} are
+not estimated.  We take an initial measurement error standard
+deviation of \Rfunarg{sderr=8}. The extra shift \Rfunarg{meanerr} in
+the measurement error model is fixed to zero and not estimated.
+
+The \Rfunarg{hconstraint} specifies that the measurement error
+variance $\sigma^2_\epsilon$ is equal between responses in states 1
+and 2, as is the effect of short-term acute events on the FEV$_1$
+response.
+
+The convergence of maximum likelihood estimation in this example is
+particularly sensitive to the optimisation method and options, initial values,
+the unit of the time variable and whether covariates are centered,
+probably because the likelihood surface is irregular near to the
+true maximum.
+
+\begin{Scode}
+hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
+                           lower=80, upper=Inf, meanerr=0),
+                hmmMETNorm(mean=54, sd=18, sderr=8,
+                           lower=0, upper=80, meanerr=0),
+                hmmIdent(999))
+
+fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
+                death=3, hmodel=hmodel2,
+                hcovariates=list(~acute, ~acute, NULL),
+                hcovinits = list(-8, -8, NULL),
+                hconstraint = list(sderr = c(1,1), acute = c(1,1)),
+                control=list(maxit=10000), center=TRUE)
+
+fev2.msm
+
+sojourn.msm(fev2.msm)
+\end{Scode}
+
+Under this model the standard deviation of FEV$_1$ measurements caused
+by measurement error (more realistically, natural short-term
+fluctuation) is around 9\% baseline.  The estimated effect of acute
+events on FEV$_1$ and sojourn times in the BOS-free state and in BOS
+before death are similar to Model 1.
+
+The following code will create a plot that illustrates a trajectory of declining FEV$_1$ from
+the first lung transplant recipient in this dataset.  The Viterbi algorithm is used to locate the
+most likely point at which this individual moved from BOS state 1 to
+BOS state 2, according to the fitted Model 2.  This is illustrated by
+a vertical dotted line.  This is the point at which the individual's
+lung function started to remain consistently below 80\% baseline
+FEV$_1$.
+
+\begin{Scode}
+keep <- fev$ptnum==1 & fev$fev<999
+plot(fev$days[keep], fev$fev[keep], type="l",
+ylab=expression(paste("% baseline ", FEV[1])), xlab="Days after transplant")
+vit <- viterbi.msm(fev2.msm)[keep,]
+(max1 <- max(vit$time[vit$fitted==1]))
+(min2 <- min(vit$time[vit$fitted==2]))
+abline(v = mean(max1,min2), lty=2)
+text(max1 - 500, 50, "STATE 1")
+text(min2 + 500, 50, "STATE 2")
+\end{Scode}
+
+\paragraph{An alternative way of specifying a misclassification model}
+
+This general framework for specifying hidden Markov models can also be
+used to specify multi-state models with misclassification.  A
+misclassification model is a hidden Markov model with a categorical
+outcome distribution.  So instead of an \Rfunarg{ematrix} argument to
+\Rfunction{msm}, we can use a \Rfunarg{hmodel} argument with
+\Rfunction{hmmCat} constructor functions.
+
+\Rfunction{hmmCat} takes at least one argument \Rfunarg{prob}, a
+vector of probabilities of observing outcomes of $1, 2, \ldots, n$
+respectively, where $n$ is the length of \Rfunarg{prob}.  All outcome
+probabilities with an initial value of zero are assumed to be fixed at
+zero.  \Rfunarg{prob} is scaled if necessary to sum to one.
+
+The model in section \ref{sec:fitting:hmm:misc} specifies that an
+individual occupying underlying state 1 can be observed as states 2
+(and 1), underlying state 2 can be observed as states 1, 2 or 3, and
+state 3 can be observed as states 2 or 3, and underlying state 4
+(death) cannot be misclassified. Initial values of 0.1 are given for
+the 1-2, 2-1, 2-3 and 3-2 misclassification probabilities.
+
+This is equivalent to the model below, specified using a
+\Rfunarg{hmodel} argument to \Rfunction{msm}.  The maximum likelihood
+estimates should be the same as before (Model 5).
+
+<<>>=
+oneway4.q <- rbind(c(0, 0.148, 0, 0.0171),
+                   c(0, 0, 0.202, 0.081),
+                   c(0, 0, 0, 0.126),
+                   c(0, 0, 0, 0))
+cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
+                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), hmmCat(c(0.1, 0.8, 0.1, 0)), hmmCat(c(0, 0.1, 0.9, 0)), hmmIdent(4)),
+                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, method="BFGS")
+cavmisc.msm
+@
+
 \end{document}
