@@ -2375,7 +2375,7 @@ the unit of the time variable and whether covariates are centered,
 probably because the likelihood surface is irregular near to the
 true maximum.
 
-<<>>=
+\begin{Scode}
 hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
                            lower=80, upper=Inf, meanerr=0),
                 hmmMETNorm(mean=54, sd=18, sderr=8,
@@ -2388,11 +2388,7 @@ fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
                 hcovinits = list(-8, -8, NULL),
                 hconstraint = list(sderr = c(1,1), acute = c(1,1)),
                 control=list(maxit=10000), center=TRUE)
-
-fev2.msm
-
-sojourn.msm(fev2.msm)
-@ 
+\end{Scode}
 
 Under this model the standard deviation of FEV$_1$ measurements caused
 by measurement error (more realistically, natural short-term
@@ -2408,7 +2404,7 @@ a vertical dotted line.  This is the point at which the individual's
 lung function started to remain consistently below 80\% baseline
 FEV$_1$.
 
-<<>>=
+\begin{Scode}
 keep <- fev$ptnum==1 & fev$fev<999
 plot(fev$days[keep], fev$fev[keep], type="l",
 ylab=expression(paste("% baseline ", FEV[1])), xlab="Days after transplant")
@@ -2418,7 +2414,11 @@ vit <- viterbi.msm(fev2.msm)[keep,]
 abline(v = mean(max1,min2), lty=2)
 text(max1 - 500, 50, "STATE 1")
 text(min2 + 500, 50, "STATE 2")
-@ 
+\end{Scode} 
+
+\includegraphics{figures/fev_viterbi}
+
+
 
 \paragraph{An alternative way of specifying a misclassification model}
 
@@ -2456,5 +2456,170 @@ cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                      qmatrix = oneway4.q, obstrue=firstobs, death = 4, method="BFGS")
 cavmisc.msm
 \end{Scode}
+
+\subsubsection{Defining a new hidden Markov model distribution}
+
+Suppose the hidden Markov model outcome distributions supplied with
+\Rpackage{msm} (Table \ref{tab:hmm:dists}) are insufficient.  We want
+to define our own univariate distribution, called
+\Rfunction{hmmNewDist}, taking two parameters \Robject{location} and
+\Robject{scale}.  Download the source package, for example
+\texttt{msm-0.7.2.tar.gz} for version 0.7.2, from CRAN and edit the
+files in there, as follows.
+
+\begin{enumerate}
+\item Add an element to \Robject{.msm.HMODELPARS} in the file
+  \texttt{R/constants.R}, naming the parameters of the distribution.
+  For example
+\begin{Scode}
+  newdist = c('location', 'scale')
+\end{Scode}
+
+\item Add a corresponding element to the C variable \texttt{HMODELS}
+  in the file \texttt{src/lik.c}.  This MUST be in the same position
+  as in the \Robject{.msm.HMODELPARS} list.  For example,
+\begin{Scode}
+hmmfn HMODELS[] = {
+  ...,
+  hmmNewDist
+};.
+\end{Scode}
+
+\item The new distribution is allowed to have one parameter which can
+  be modelled in terms of covariates.  Add the name of this parameter
+  to the named vector \Robject{.msm.LOCPARS} in
+  \texttt{R/constants.R}.  For example \texttt{newdist = 'location'}.
+  Specify \texttt{newdist = NA} if there is no such parameter.
+
+\item Supposed we have specified a parameter with a non-standard name,
+  that is, one which doesn't already appear in
+  \Robject{.msm.HMODELPARS}. Standard names include, for example,
+  \texttt{'mean'}, \texttt{'sd'}, \texttt{'shape'} or
+  \texttt{'scale'}.  Then we should add the allowed range of the
+  parameter to \Robject{.msm.PARRANGES}. In this example, we add
+  \texttt{meanpars = c(-Inf, Inf)} to \Robject{.msm.PARRANGES}.  This
+  ensures that the optimisation to estimate the parameter takes place
+  on a suitable scale, for example, a log scale for a parameter
+  constrained to be positive.  If the parameter should be fixed during
+  maximum likelihood estimation (for example, the denominator of a
+  binomial distribution) then add its name to \Robject{.msm.AUXPARS}.
+
+\item Add an R constructor function for the distribution to
+  \texttt{R/hmm-dists.R}.  For a simple univariate distribution, this is of the
+  form
+\begin{Scode}
+  hmmNewDist <- function(location, scale)
+  {
+    hmmDIST(label = "newdist",
+    link = "identity",
+    r = function(n) rnewdist(n, location, scale),
+    match.call())
+  }
+\end{Scode}
+
+  \begin{itemize}
+  \item The \texttt{'label'} must be the same as the name you
+    supplied for the new element of \Robject{.msm.HMODELPARS}
+
+  \item \texttt{link} is the link function for modelling the location
+    parameter of the distribution as a linear function of covariates. This
+    should be the quoted name of an R function.  A log link is
+    \texttt{'log'} and a logit link is \texttt{'qlogis'}.  If
+    using a new link function other than \texttt{'identity'},
+    \texttt{'log'}, or \texttt{'qlogis'}, you should add its name
+    to the vector \Robject{.msm.LINKFNS} in \texttt{R/constants.R},
+    and add the name of the corresponding inverse link to
+    \Robject{.msm.INVLINK}.  You should also add the names of these
+    functions to the C array \texttt{LINKFNS} in \texttt{src/lik.c},
+    and write the functions if they do not already exist.
+
+  \item \texttt{r} is an R function, of the above format, returning a
+    vector of \texttt{n} random values from the distribution.
+    You should write this if it doesn't already exist.
+  \end{itemize}
+
+\item Add the name of the new constructor function to the NAMESPACE in
+  the top-level directory of the source package.
+
+\item Write a C function to compute the probability density of the
+  distribution, and put this in \texttt{src/hmm.c}, with a declaration
+  in \texttt{src/hmm.h}. This must be of the form
+\begin{Scode}
+  double hmmNewDist(double x, double *pars)
+\end{Scode}
+
+  where \texttt{*pars} is a vector of the parameters of the
+  distribution, and the density is evaluated at \texttt{x}.
+
+\item Update the documentation (\texttt{man/hmm-dists.Rd}) and the
+  distribution table in\\ \texttt{inst/doc/msm-manual.Rnw}) if you like.
+
+\item Recompile the package (see the ``Writing R Extensions'' manual)
+
+\end{enumerate}
+
+Your new distribution will be available to use in the \Rfunarg{hmodel}
+argument to \Rfunction{msm}, as, for example
+\begin{Scode}
+hmodel = list(..., hmmNewDist(location = 0, scale = 1), ...)
+\end{Scode}
+If your distribution may be of interest to others, ask me
+(\texttt{chris.jackson@mrc-bsu.cam.ac.uk}) to include it in a future
+release.
+
+
+\clearpage
+
+\section{\Rpackage{msm} reference guide}
+
+The R help page for \Rfunction{msm} gives details of all the allowed
+arguments and options to the \Rfunction{msm} function.  To view this
+online in R, type:
+
+<<eval=FALSE>>=
+help(msm)
+@
+
+Similarly all the other functions in the package have help pages,
+which should always be consulted in case of doubt about how to
+call them.  The web-browser based help interface may often be
+convenient - type
+
+<<eval=FALSE>>=
+help.start()
+@
+and navigate to \textsf{Packages} $\ldots$ \textsf{msm}, which brings
+up a list of all the functions in the package with links to their
+documentation, and a link to this manual in PDF format.
+
+
+\appendix
+
+\section{Changes in the msm package}
+
+For a detailed list of the changes in recent versions of
+\Rpackage{msm}, see the \texttt{NEWS} file in the top-level directory
+of the installed package.  The \texttt{Changelog} file in the
+top-level directory of the source package contains more technical
+detail about these changes.
+
+Development versions of \Rpackage{msm} are to be found on R-Forge,
+\url{http://msm.r-forge.r-project.org/}.  These are often more recent
+than the version released on CRAN, so if you think you have found a
+bug, then please check first to see whether it has been fixed on the
+R-Forge version.
+
+\section{Get in touch}
+
+If you use \Rpackage{msm} in your work, whatever your field of
+application, please let me know, for my own interest!  Suggestions for
+improvement are welcome.
+
+
+\clearpage
+
+\bibliography{msm}
+
+
 
 \end{document}
