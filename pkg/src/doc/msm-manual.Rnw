@@ -17,9 +17,12 @@
 \newcommand{\Rfunarg}[1]{{\texttt{#1}}}
 \newcommand{\Rclass}[1]{{\textit{#1}}}
 
+
+%% version <- 1.3
+
 <<echo=FALSE>>=
 version <- gsub("Version: +", "",
-                packageDescription("msm", lib.loc="../../..")$Version)
+               packageDescription("msm", lib.loc="../../..")$Version)
 @
 
 \title{Multi-state modelling with R: the {\tt msm} package \vskip 0.2in
@@ -32,7 +35,7 @@ cat(version)
 cat(format(Sys.time(), "%d %B, %Y"))
 @
 }}
-\author{Christopher Jackson\\Medical Research Council Biostatistics Unit\\Cambridge, U.K.\\ \texttt{chris.jackson@mrc-bsu.cam.ac.uk}}
+\author{Christopher Jackson\\MRC Biostatistics Unit\\Cambridge, U.K.\\ \texttt{chris.jackson@mrc-bsu.cam.ac.uk}}
 \date{}
 %% label with date when Rnw is compiled, not when tex is compiled. should be release date of package
 
@@ -75,9 +78,6 @@ cat(format(Sys.time(), "%d %B, %Y"))
   \url{http://www.jstatsoft.org/v38/i08/}
 
 \end{abstract}
-
-\tableofcontents
-\clearpage
 
 \section{Multi-state models}
 \label{sec:multistate}
@@ -343,7 +343,7 @@ q_{12}te^{(-(q_{12} + q_{13})t} &  (q_{12} + q_{13} = q_{23})
   p_{13}(t) & = &
 \left\{
 \begin{array}{ll}
-\frac{1 + (-q_{13} + q_{23})e^{-(q_{12}+q_{13})t}} {q_{12} + q_{13} - q_{23}} - \frac { q_{12}e^{-q_{23}t}} {q_{12} + q_{13} - q_{23} } & (q_{12} + q_{13} \neq q_{23})\\
+1 + \frac{(-q_{13} + q_{23})e^{-(q_{12}+q_{13})t}} {q_{12} + q_{13} - q_{23}} - \frac { q_{12}e^{-q_{23}t}} {q_{12} + q_{13} - q_{23} } & (q_{12} + q_{13} \neq q_{23})\\
  (-1 + e^{(q_{12} + q_{13})t} - q_{12}t)e^{-(q_{12} + q_{13})t} & (q_{12} + q_{13} = q_{23})
 \end{array}
 \right.
@@ -909,19 +909,14 @@ as in any statistical model, it is recommended to ensure these do not
 result in biases.
 
 An example data set, taken from monitoring a set of heart transplant
-recipients, is provided with \Rpackage{msm}.  Sharples
+recipients, is provided with \Rpackage{msm}.  (Note: since \Rpackage{msm}
+version 1.3, the command \Rfunction{data(cav)} is no longer needed to
+load the data --- it is now ``lazy-loaded'' when required). Sharples
 \etal \cite{my:cav} studied the progression of coronary allograft
 vasculopathy (CAV), a post-transplant deterioration of the arterial
 walls, using these data.  Risk factors and the accuracy of the
 screening test were investigated using multi-state Markov and hidden
 Markov models.
-
-This data set can be made available to the current R session by
-issuing the command
-
-<<>>=
-data(cav)
-@
 
 The first three patient histories are shown below. There are 622
 patients in all.  \Robject{PTNUM} is the subject identifier.
@@ -1033,12 +1028,18 @@ $n_{rs}$ transitions from state $r$ to state $s$, and a total of $n_r$
 transitions from state $r$, then $q_{rs} / q_{rr}$ can be estimated by
 $n_{rs} / n_r$. Then, given a total of $T_r$ years spent in state $r$,
 the mean sojourn time $1 / q_{rr}$ can be estimated as $T_r / n_r$.
-Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. The \Rpackage{msm}
-package provides a function \Rfunction{crudeinits.msm} for calculating
-initial values in this way (for non-hidden Markov models).
+Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. 
+
+Such default initial values can be used by supplying
+\Rfunarg{gen.inits=TRUE} in the call to \Rfunction{msm} below, along
+with a \Rfunarg{qmatrix} whose non-zero entries represent the allowed
+transitions of the model.  Alternatively the function \Rfunction{crudeinits.msm} 
+could be used to get the  amatrix of initial values as follows.  
+These methods are only available for non-hidden Markov models.
 
 <<>>=
-twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
+twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, 
+                                   qmatrix=twoway4.q)
 @
 
 However, if there are are many changes of state in between the
@@ -1051,8 +1052,6 @@ q_{14} = 0.25$, $q_{21} = q_{23} = q_{24} = 0.166$, $q_{32} = q_{34} =
 0.25$, and the initial value matrix \Robject{twoway4.q} shown above,
 which we now use to fit the model.
 
-%% TODO explain about gen.inits=TRUE here
-
 \subsection{Running \Rfunction{msm}}
 \label{sec:running}
 
@@ -1062,6 +1061,7 @@ arguments.  For our running example, we have defined a data set
 transitions, and initial values. We are ready to run \Rfunction{msm}.
 
 \paragraph{Model 1: simple bidirectional model}
+
 
 <<>>=
 cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
@@ -1198,8 +1198,8 @@ covariates on them.
 \paragraph{Model 2a: transition-specific covariates}
 <<eval=FALSE>>=
 cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                     qmatrix = twoway4.q, death = 4,
-                     covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
+                  qmatrix = twoway4.q, death = 4,
+                  covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
 @
 
 We may also want to constrain the effect of a covariate to be equal for
@@ -1212,8 +1212,9 @@ transition rates have common covariate effects.
 
 <<eval=FALSE>>=
 cav3.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                   qmatrix = twoway4.q, death = 4,
-                   covariates = ~ sex, constraint = list(sex=c(1,2,3,1,2,3,2)) )
+                qmatrix = twoway4.q, death = 4,
+                covariates = ~ sex, 
+                constraint = list(sex=c(1,2,3,1,2,3,2)) )
 @
 
 This constrains the effect of sex to be equal for the progression
@@ -1821,7 +1822,8 @@ together in the table, since these transitions are infrequent.
 
 <<>>=
 options(digits=2)
-pearson.msm(cav.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+pearson.msm(cav.msm, timegroups=2, 
+            transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
 @
 
 The first two tables in the output show the contingency tables of
@@ -1988,8 +1990,9 @@ this can be changed with the \Rfunarg{misccovinits} argument).
 
 <<>>=
 cavmiscsex.msm <- msm(state ~ years, subject = PTNUM, data = cav,
-                          qmatrix = oneway4.q, ematrix = ematrix, death = 4,
-                          misccovariates = ~sex, obstrue=firstobs, method="BFGS")
+                      qmatrix = oneway4.q, ematrix = ematrix, 
+                      death = 4, misccovariates = ~sex, 
+                      obstrue=firstobs, method="BFGS")
 @
 <<>>=
 cavmiscsex.msm
@@ -2020,12 +2023,12 @@ The confidence intervals for the estimates for women are higher, since
 there are only 87 women in this set of 622 patients.
 
 \item[Odds ratios for misclassification] The function
-  \Rfunction{odds.msm} gives the estimated odds ratios corresponding to
+  \Rfunction{odds.msm} would give the estimated odds ratios corresponding to
   each covariate effect on the misclassification probabilities.
 
-<<>>=
+\begin{Scode}
 odds.msm(cavmiscsex.msm)
-@
+\end{Scode}
 
 
 \item[Observed and expected prevalences]
@@ -2062,7 +2065,8 @@ odds.msm(cavmiscsex.msm)
   \cite{titman:phd} found that a model with piecewise-constant
   transition intensities gave a greatly improved fit to these data.
 <<>>=
-pearson.msm(cavmisc.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+pearson.msm(cavmisc.msm, timegroups=2, 
+            transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
 @
 
 
@@ -2306,11 +2310,6 @@ Now we give an example of fitting a hidden Markov model to a real
 dataset.  The data on FEV$_1$ measurements from lung transplant
 recipients, described in \ref{sec:hmm:example:fev}, are provided with
 the \Rpackage{msm} package in a dataset called \Robject{fev}.
-
-<<>>=
-data(fev)
-@
-
 We fit models Models 1 and 2, each with three states and common $Q$
 matrix.
 <<>>=
@@ -2346,6 +2345,7 @@ fev1.msm
 
 sojourn.msm(fev1.msm)
 @
+
 
 Printing the \Rclass{msm} object \Rfunarg{fev1.msm} shows estimates
 and confidence intervals for the transition intensity matrix and the
@@ -2383,7 +2383,7 @@ the unit of the time variable and whether covariates are centered,
 probably because the likelihood surface is irregular near to the
 true maximum.
 
-<<>>=
+\begin{Scode}
 hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
                            lower=80, upper=Inf, meanerr=0),
                 hmmMETNorm(mean=54, sd=18, sderr=8,
@@ -2396,11 +2396,7 @@ fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
                 hcovinits = list(-8, -8, NULL),
                 hconstraint = list(sderr = c(1,1), acute = c(1,1)),
                 control=list(maxit=10000), center=TRUE)
-
-fev2.msm
-
-sojourn.msm(fev2.msm)
-@
+\end{Scode}
 
 Under this model the standard deviation of FEV$_1$ measurements caused
 by measurement error (more realistically, natural short-term
@@ -2408,16 +2404,15 @@ fluctuation) is around 9\% baseline.  The estimated effect of acute
 events on FEV$_1$ and sojourn times in the BOS-free state and in BOS
 before death are similar to Model 1.
 
-The following plot illustrates a trajectory of declining FEV$_1$ from
-the first lung transplant recipient in this dataset.  This is produced
-by the following R code.  The Viterbi algorithm is used to locate the
+The following code will create a plot that illustrates a trajectory of declining FEV$_1$ from
+the first lung transplant recipient in this dataset.  The Viterbi algorithm is used to locate the
 most likely point at which this individual moved from BOS state 1 to
 BOS state 2, according to the fitted Model 2.  This is illustrated by
-the vertical dotted line.  This is the point at which the individual's
+a vertical dotted line.  This is the point at which the individual's
 lung function started to remain consistently below 80\% baseline
 FEV$_1$.
 
-<<fig=TRUE>>=
+\begin{Scode}
 keep <- fev$ptnum==1 & fev$fev<999
 plot(fev$days[keep], fev$fev[keep], type="l",
 ylab=expression(paste("% baseline ", FEV[1])), xlab="Days after transplant")
@@ -2427,7 +2422,9 @@ vit <- viterbi.msm(fev2.msm)[keep,]
 abline(v = mean(max1,min2), lty=2)
 text(max1 - 500, 50, "STATE 1")
 text(min2 + 500, 50, "STATE 2")
-@
+\end{Scode}
+
+\includegraphics{figures/fev_viterbi}
 
 
 
@@ -2457,17 +2454,20 @@ This is equivalent to the model below, specified using a
 \Rfunarg{hmodel} argument to \Rfunction{msm}.  The maximum likelihood
 estimates should be the same as before (Model 5).
 
-<<>>=
+\begin{Scode}
 oneway4.q <- rbind(c(0, 0.148, 0, 0.0171),
                    c(0, 0, 0.202, 0.081),
                    c(0, 0, 0, 0.126),
                    c(0, 0, 0, 0))
 cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
-                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), hmmCat(c(0.1, 0.8, 0.1, 0)), hmmCat(c(0, 0.1, 0.9, 0)), hmmIdent(4)),
-                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, method="BFGS")
+                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), 
+                                    hmmCat(c(0.1, 0.8, 0.1, 0)), 
+                                    hmmCat(c(0, 0.1, 0.9, 0)), 
+                                    hmmIdent(4)),
+                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, 
+                     method="BFGS")
 cavmisc.msm
-@
-
+\end{Scode}
 
 \subsubsection{Defining a new hidden Markov model distribution}
 
@@ -2575,7 +2575,7 @@ argument to \Rfunction{msm}, as, for example
 \begin{Scode}
 hmodel = list(..., hmmNewDist(location = 0, scale = 1), ...)
 \end{Scode}
-If your distribution may be of interest to others, ask me nicely
+If your distribution may be of interest to others, ask me
 (\texttt{chris.jackson@mrc-bsu.cam.ac.uk}) to include it in a future
 release.
 

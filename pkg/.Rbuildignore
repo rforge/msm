@@ -4,6 +4,7 @@ inst/doc/msm-manual-.+\.pdf
 inst/doc/msm-manual\.dvi
 inst/doc/msm-manual\.tex
 inst/doc/msm-manual\.Rnw
+inst/doc/auto
 inst/doc/msm\.bib
 inst/doc/Sweave-local\.sty
 inst/doc/figures

@@ -335,7 +335,7 @@ The corresponding time $t$ transition probabilities are
   p_{12}(t) & = &
 \left\{
 \begin{array}{ll}
-\frac{ q_{12}(-1 + e^{(q_{12}+q_{13}-q_{23})t})e^{-(q_{12}+q_{13})t} } { (q_{12} + q_{13} - q_{23}) } & (q_{12} + q_{13} \neq q_{23})\\
+\frac{ q_{12} }{q_{12} + q_{13} - q_{23} } (e^{-q_{23} t} - e^{-(q_{12} + q_{13})t})  & (q_{12} + q_{13} \neq q_{23})\\
 q_{12}te^{(-(q_{12} + q_{13})t} &  (q_{12} + q_{13} = q_{23})
 \end{array}
 \right.
@@ -343,7 +343,7 @@ q_{12}te^{(-(q_{12} + q_{13})t} &  (q_{12} + q_{13} = q_{23})
   p_{13}(t) & = &
 \left\{
 \begin{array}{ll}
-\frac{1 + (-q_{13} + q_{23})e^{-(q_{12}+q_{13})t}} {q_{12} + q_{13} - q_{23}} - \frac { q_{12}e^{-q_{23}t}} {q_{12} + q_{13} - q_{23} } & (q_{12} + q_{13} \neq q_{23})\\
+1 - e^{-(q_{12} + q_{13})t} - \frac{ q_{12} }{q_{12} + q_{13} - q_{23} } (e^{-q_{23} t} - e^{-(q_{12} + q_{13})t}) & (q_{12} + q_{13} \neq q_{23})\\
  (-1 + e^{(q_{12} + q_{13})t} - q_{12}t)e^{-(q_{12} + q_{13})t} & (q_{12} + q_{13} = q_{23})
 \end{array}
 \right.
@@ -1028,12 +1028,18 @@ $n_{rs}$ transitions from state $r$ to state $s$, and a total of $n_r$
 transitions from state $r$, then $q_{rs} / q_{rr}$ can be estimated by
 $n_{rs} / n_r$. Then, given a total of $T_r$ years spent in state $r$,
 the mean sojourn time $1 / q_{rr}$ can be estimated as $T_r / n_r$.
-Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. The \Rpackage{msm}
-package provides a function \Rfunction{crudeinits.msm} for calculating
-initial values in this way (for non-hidden Markov models).
+Thus, $n_{rs} / T_r$ is a crude estimate of $q_{rs}$. 
+
+Such default initial values can be used by supplying
+\Rfunarg{gen.inits=TRUE} in the call to \Rfunction{msm} below, along
+with a \Rfunarg{qmatrix} whose non-zero entries represent the allowed
+transitions of the model.  Alternatively the function \Rfunction{crudeinits.msm} 
+could be used to get this matrix of initial values explicitly as follows.  
+These methods are only available for non-hidden Markov models.
 
 <<>>=
-twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
+twoway4.crude.q  <- crudeinits.msm(state ~ years, PTNUM, data=cav, 
+                                   qmatrix=twoway4.q)
 @
 
 However, if there are are many changes of state in between the
@@ -1045,8 +1051,6 @@ death.  This gives $q_{rr} = - 0.5$ for $r = 1, 2, 3$, and $q_{12} =
 q_{14} = 0.25$, $q_{21} = q_{23} = q_{24} = 0.166$, $q_{32} = q_{34} =
 0.25$, and the initial value matrix \Robject{twoway4.q} shown above,
 which we now use to fit the model.
-
-%% TODO explain about gen.inits=TRUE here
 
 \subsection{Running \Rfunction{msm}}
 \label{sec:running}
@@ -1194,8 +1198,8 @@ covariates on them.
 \paragraph{Model 2a: transition-specific covariates}
 <<eval=FALSE>>=
 cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                     qmatrix = twoway4.q, death = 4,
-                     covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
+                  qmatrix = twoway4.q, death = 4,
+                  covariates = list("1-2" = ~ sex, "3-4" = ~sex) )
 @
 
 We may also want to constrain the effect of a covariate to be equal for
@@ -1208,8 +1212,9 @@ transition rates have common covariate effects.
 
 <<eval=FALSE>>=
 cav3.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                   qmatrix = twoway4.q, death = 4,
-                   covariates = ~ sex, constraint = list(sex=c(1,2,3,1,2,3,2)) )
+                qmatrix = twoway4.q, death = 4,
+                covariates = ~ sex, 
+                constraint = list(sex=c(1,2,3,1,2,3,2)) )
 @
 
 This constrains the effect of sex to be equal for the progression
@@ -1252,7 +1257,7 @@ cav4.msm <- msm( state ~ years, subject=PTNUM, data = cav,
                 fixedpars = c(6, 7) )
 @
 
-A \Rfunarg{fixedpars} statement can also be useful for fixing covariate
+A \Rfunarg{fixedpars} statement can also be used for fixing covariate
 effect parameters to zero, that is to assume no effect of a covariate
 on a certain transition rate.
 
@@ -1817,7 +1822,8 @@ together in the table, since these transitions are infrequent.
 
 <<>>=
 options(digits=2)
-pearson.msm(cav.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+pearson.msm(cav.msm, timegroups=2, 
+            transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
 @
 
 The first two tables in the output show the contingency tables of
@@ -1984,8 +1990,9 @@ this can be changed with the \Rfunarg{misccovinits} argument).
 
 <<>>=
 cavmiscsex.msm <- msm(state ~ years, subject = PTNUM, data = cav,
-                          qmatrix = oneway4.q, ematrix = ematrix, death = 4,
-                          misccovariates = ~sex, obstrue=firstobs, method="BFGS")
+                      qmatrix = oneway4.q, ematrix = ematrix, 
+                      death = 4, misccovariates = ~sex, 
+                      obstrue=firstobs, method="BFGS")
 @
 <<>>=
 cavmiscsex.msm
@@ -2058,7 +2065,8 @@ odds.msm(cavmiscsex.msm)
   \cite{titman:phd} found that a model with piecewise-constant
   transition intensities gave a greatly improved fit to these data.
 <<>>=
-pearson.msm(cavmisc.msm, timegroups=2, transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
+pearson.msm(cavmisc.msm, timegroups=2, 
+            transitions=c(1,2,3,4,5,6,7,8,9,9,9,10))
 @
 
 
@@ -2414,7 +2422,7 @@ vit <- viterbi.msm(fev2.msm)[keep,]
 abline(v = mean(max1,min2), lty=2)
 text(max1 - 500, 50, "STATE 1")
 text(min2 + 500, 50, "STATE 2")
-\end{Scode} 
+\end{Scode}
 
 \includegraphics{figures/fev_viterbi}
 
@@ -2452,8 +2460,12 @@ oneway4.q <- rbind(c(0, 0.148, 0, 0.0171),
                    c(0, 0, 0, 0.126),
                    c(0, 0, 0, 0))
 cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
-                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), hmmCat(c(0.1, 0.8, 0.1, 0)), hmmCat(c(0, 0.1, 0.9, 0)), hmmIdent(4)),
-                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, method="BFGS")
+                     hmodel = list (hmmCat(c(0.9, 0.1, 0, 0)), 
+                                    hmmCat(c(0.1, 0.8, 0.1, 0)), 
+                                    hmmCat(c(0, 0.1, 0.9, 0)), 
+                                    hmmIdent(4)),
+                     qmatrix = oneway4.q, obstrue=firstobs, death = 4, 
+                     method="BFGS")
 cavmisc.msm
 \end{Scode}
 

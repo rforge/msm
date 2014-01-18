@@ -1,3 +1,12 @@
+2014-01-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* DESCRIPTION: Version 1.3 released to CRAN.
+
+2014-01-09 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* inst/doc/msm-manual.Rnw: Fixed error in analytic p13(t) in
+	section 1.4.
+
 2013-12-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: Experimental new print method available as
@@ -17,8 +26,6 @@
 	averaging over a set of starting states.
 
 	* DESCRIPTION: Datasets now lazy loaded so data() not required.
-
-	* DESCRIPTION: Version 1.3 released to CRAN.
 
 2013-10-07 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

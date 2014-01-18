@@ -5,7 +5,6 @@ print.msm <- function(x, ...)
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
 
     if (!attr(x,"fixed")) {
-        cat("[Note: a cleaner summary is available from \"printnew.msm\", which will be the default in future versions.]\n")
         cat ("Maximum likelihood estimates: \n")
         covmessage <-
             if (x$qcmodel$ncovs == 0) ""
@@ -46,6 +45,7 @@ print.msm <- function(x, ...)
         }
     }
     cat ("-2 * log-likelihood: ", x$minus2loglik, "\n")
+    cat("[Note: a cleaner summary is available from \"printnew.msm\",\n which will be the default in future versions.]\n")
 
 }
 

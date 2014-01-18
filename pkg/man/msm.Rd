@@ -622,7 +622,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     potentially more realistic models to be fitted with other
     packages.  For example parametric models with sojourn distributions
     more flexible than the exponential can be fitted with the \pkg{survival} package,
-    or semi-parametric models can be fitted with \pkg{mstate}.
+    or semi-parametric models can be implemented with \pkg{survival} in
+    conjunction with \pkg{mstate}.
   }
 
   \item{cl}{Width of symmetric confidence intervals for maximum
