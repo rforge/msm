@@ -1,3 +1,38 @@
+2014-04-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* DESCRIPTION: Version 1.3.1 released to r-forge.
+
+2014-04-03 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.add.qcovs,msm.add.dqcovs): Fix of drop=FALSE bug for
+	data with only one transition.
+
+2014-04-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: Fix of obscure bug that broke some subject-specific
+	likelihoods, caused by omitting obstype.obs from data object.
+
+2014-04-01 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: Time-dependent covariates supported in totlos.msm.
+
+	* R/outputs.R(envisits.msm, totlos.msm): New facility for expected
+	number of visits.
+
+2014-02-26 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/mstate.R,man/msm2Surv.Rd: New function for exporting data in
+	counting process format for use with survival and mstate.
+
+2014-02-25 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: Handle convergence failure codes from optim().
+
+2014-02-20 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(mattotrans): printnew.msm fixed for 2-state
+	models. Thanks to Martyn Plummer.
+
 2014-01-15 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.3 released to CRAN.

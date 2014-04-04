@@ -54,11 +54,11 @@ print.msm <- function(x, ...)
 printnew.msm <- function(x, covariates=NULL, digits=4, ...)
 {
     cat("\nCall:\n", deparse(x$call), "\n\n", sep = "")
-    if (!x$foundse) {
+    if (!x$foundse & !attr(x, "fixed")) {
         cat("Optimisation probably not converged to the maximum likelihood.\noptim() reported convergence but estimated Hessian not positive-definite.\n")
 #        cat("See $opt component of fitted model object for current parameter values,\nwith positive parameters log-transformed.\n")
     }
-    else { 
+    else {
         if (is.null(x$cl)) {
             cl <- 0.95
             warning("Found msm object saved before version 1.3. Assuming this was run with the default cl=0.95")
@@ -135,7 +135,7 @@ mattotrans <- function(x, matrix, lower, upper, keep.diag=FALSE, intmisc="intens
     imat <- if (intmisc=="intens") x$qmodel$imatrix else x$emodel$imatrix
     if (keep.diag) diag(imat) <- as.numeric(rowSums(imat) > 0)
     keep <- which(t(imat)==1, arr.ind=TRUE)
-    keep <- keep[,2:1]  # order by row(from-state), not column(to-state)
+    keep <- keep[,2:1,drop=FALSE]  # order by row(from-state), not column(to-state)
     fromlabs <- rownames(imat)[keep[,1]]
     tolabs <- colnames(imat)[keep[,2]]
     res <- matrix(nrow=sum(imat), ncol=3)
@@ -1174,7 +1174,10 @@ lrtest.msm <- function(...){
 ## Estimate total length of stay in a given state.
 
 totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
+                       piecewise.times=NULL,
+                       piecewise.covariates=NULL,
                        num.integ=FALSE, discount=0,
+                       env=FALSE,
                        ci=c("none","normal","bootstrap"), # calculate a confidence interval
                        cl = 0.95, # width of symmetric confidence interval
                        B = 1000, # number of bootstrap replicates
@@ -1196,36 +1199,80 @@ totlos.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean"
     if (fromt > tot) stop("tot must be greater than fromt")
     if (length(absorbing.msm(x)) == 0)
         if (tot==Inf) stop("Must specify a finite end time for a model with no absorbing state")
-    tr <- seq(length=nst) # transient.msm(x)
-    totlos <- numeric(length(end))
-    if (tot==Inf) {
-        num.integ <- TRUE
-        totlos[end %in% absorbing.msm(x)] <- Inf # set by hand or else integrate() will fail
-        rem <- seq(along=end)[!(end %in% absorbing.msm(x))]
-    }
-    else rem <- seq(along=end)
-    if (num.integ) {
-        for (j in rem){
-            f <- function(time) {
-                y <- numeric(length(time))
-                for (i in seq(along=y))
-                    y[i] <- (start %*% pmatrix.msm(x, time[i], t1=0, covariates=covariates, ci="none")) [end[j]]
-                y
-            }
-            totlos[j] <- integrate(f, fromt, tot, ...)$value
-        }
+
+    ncuts <- length(piecewise.times)
+    npieces <- length(piecewise.covariates)
+    if (!is.null(piecewise.times) && (!is.numeric(piecewise.times) || is.unsorted(piecewise.times)))
+        stop("piecewise.times should be a vector of numbers in increasing order")
+    if (!is.null(piecewise.covariates) && (npieces != ncuts + 1))
+        stop("Number of piecewise.covariate lists must be one greater than the number of cut points")
+    if (is.null(piecewise.covariates)) { 
+        ## define homogeneous model as piecewise with one piece
+        npieces <- 1
+        covs <- list(covariates)
+        ptimes <- c(fromt, tot)
     } else {
-        QQ <- rbind(c(0, start),
-                    cbind(rep(0,nst), qmatrix.msm(x, covariates=covariates, ci="none") - discount*diag(nst)))
-        totlos <- as.vector(c(1, rep(0, nst)) %*% (MatrixExp(tot*QQ) - MatrixExp(fromt*QQ)) %*% rbind(rep(0, nst), diag(nst)))[end]
+        ## ignore all cut points outside [fromt,tot]
+        keep <- which((piecewise.times > fromt) & (piecewise.times < tot))
+        ## cov value between fromt and min(first cut, tot)
+        cov1 <- piecewise.covariates[findInterval(fromt, piecewise.times) + 1]
+        covs <- c(cov1, piecewise.covariates[keep+1])
+        npieces <- length(covs)
+        ptimes <- c(fromt, piecewise.times[keep], tot)
     }
-    names(totlos) <- rownames(x$qmodel$qmatrix)[end]
+    
+    tmat <- envmat <- matrix(nrow=npieces, ncol=nst)
+    if (tot==Inf) {
+        tmat[,absorbing.msm(x)] <- Inf # set by hand or else integrate() will fail
+        envmat[,absorbing.msm(x)] <- 1
+        rem <- setdiff(seq_len(nst), absorbing.msm(x))
+    }
+    else rem <- seq_len(nst)
+    for (i in 1:npieces) {
+        from.t <- ptimes[i]
+        to.t <- ptimes[i+1]
+        Q <- qmatrix.msm(x, covariates=covs[[i]], ci="none")
+        if (num.integ || to.t==Inf){
+            for (j in rem){
+                f <- function(time) {
+                    y <- numeric(length(time))
+                    for (k in seq(along=y))
+                        y[k] <- (start %*% pmatrix.msm(x, time[k], t1=0, covariates=covs[[i]], ci="none")) [j]
+                    y
+                }
+                tmat[i,j] <- integrate(f, from.t, to.t, ...)$value
+            }
+        } else {
+            QQ <- rbind(c(0, start),
+                        cbind(rep(0,nst), Q - discount*diag(nst)))
+            tmat[i,] <- as.vector(c(1, rep(0, nst)) %*%
+                                  (MatrixExp(to.t*QQ) - MatrixExp(from.t*QQ)) %*%
+                                  rbind(rep(0, nst), diag(nst)))
+        }
+        Q0 <- Q; diag(Q0) <- 0
+        envmat[i,rem] <- tmat[i,rem] %*% Q0[rem,rem]
+    }
+    res <- if (env) colSums(envmat) else colSums(tmat)
+    names(res) <- rownames(x$qmodel$qmatrix)
     ci <- match.arg(ci)
     t.ci <- switch(ci,
-                   bootstrap = totlos.ci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B, ...),
-                   normal = totlos.normci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, cl=cl, B=B, ...),
+                   bootstrap = totlos.ci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, discount=discount, env=env, cl=cl, B=B, ...),
+                   normal = totlos.normci.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, discount=discount, env=env, cl=cl, B=B, ...),
                    none = NULL)
-    if (ci=="none") totlos else rbind(totlos, t.ci)
+    if (ci=="none") res[end] else rbind(res, t.ci)[,end]
+}
+
+## Expected number of visits
+
+envisits.msm <- function(x=NULL, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
+                         piecewise.times=NULL,  piecewise.covariates=NULL,
+                         num.integ=FALSE, discount=0,
+                         ci=c("none","normal","bootstrap"), # calculate a confidence interval
+                         cl = 0.95, # width of symmetric confidence interval
+                         B = 1000, # number of bootstrap replicates
+                         ...)
+{
+    totlos.msm(x=x, start=start, end=end, fromt=fromt, tot=tot, covariates=covariates, piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates, num.integ=num.integ, discount=discount, env=TRUE, ci=ci, cl=cl, B=B, ...)
 }
 
 ## Return indices of transient states (can either call for a fitted model or a qmatrix)
@@ -1795,7 +1842,7 @@ scoreresid.msm <- function(x, plot=FALSE){
 # Returns vector with EFPT for each "from" state in the state space.
 # Could also get CDF simply by making tostate absorbing and calculating pmatrix.
 
-efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean", 
+efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
                      ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000, ...)
 {
     ci <- match.arg(ci)

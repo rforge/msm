@@ -644,13 +644,10 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{fixedpars} indexes the set of unique parameters, excluding
     those which are constrained to be equal to previous parameters.
 
-    For covariates on misclassification probabilities, this is a change
-    from version 0.4 in the parameter ordering. Previously these were
-    ordered by misclassification probabilities within covariates.
+    To fix all parameters, specify \code{fixedpars = TRUE}.
 
     This can be useful for profiling likelihoods, and building complex
-    models stage by stage. To fix all parameters, specify
-    \code{fixedpars = TRUE}. }
+    models stage by stage. }
 
   \item{center}{If \code{TRUE} (the default, unless
     \code{fixedpars=TRUE}) then covariates are centered at their means

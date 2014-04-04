@@ -1,16 +1,14 @@
+Memory problems in 1.3 with big data
+
 hazard ratio for different covariate unit? or encourage people to store meaningful unit in data?
+
+check whether diag of log transformation for Fisher info is correct
 
 option to log hazard ratios, or log intens
 
-put in format for mstate
-
 Go over basic usage again in manual with new print format, attention to variable naming and initial values.
 
-Show convergence codes from optim
-
 Common interface to different optimisation methods
-
-Total length of stay with piecewise-constant time-dependent covariates.
 
 Probability of passage (document clearly as different from pmatrix)
 

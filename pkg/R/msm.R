@@ -120,7 +120,6 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
         msmdata <- msm.aggregate.data(msmdata)
         msmdata$subject <- msmdata$state <- msmdata$time <- numeric(0)
         for (i in c("subject", "time", "state", "n")) msmdata[[i]] <- msmdata.obs[[i]]
-        msmdata$obstype.obs <- msmdata.obs$obstype
         msmdata$firstobs <- msmdata.obs$firstobs
     }
     if (is.null(pci)) {
@@ -130,6 +129,7 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
     msmdata$cov <- msmdata.obs$covmat
     msmdata$cov.orig <- msmdata.obs$covmat.orig
     msmdata$covlabels.orig <- msmdata.obs$covlabels.orig
+    msmdata$obstype.obs <- msmdata.obs$obstype
 
 ### MODEL FOR COVARIATES ON INTENSITIES
     qcmodel <-
@@ -221,6 +221,13 @@ msm <- function(formula,   # formula with  observed Markov states   ~  observati
                           msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                           cmodel=cmodel, hmodel=hmodel, paramdata=p))
             opt <- do.call("optim", optim.args)
+            if (opt$convergence==1)
+                warning("Iteration limit in optim() reached without convergence. Reported estimates are not the maximum likelihood. Increase \"maxit\" or change optimisation method - see help(optim) and help(msm).")
+            else if (opt$convergence==10)
+                warning("Not converged: Nelder-Mead simplex is degenerate. Reported estimates are not the maximum likelihood.")
+            else if (opt$convergence %in% 51:52)
+                warning("Not converged: error in L-BFGS-B, see help(optim). Reported estimates are not the maximum likelihood.")
+            if (!is.null(opt$message)) warning("optim() returned a message: ",opt$message)
             p$lik <- opt$value
             p$params[p$optpars] <- opt$par
         }
@@ -807,7 +814,7 @@ msm.check.model <- function(fromstate, tostate, obs, subject, obstype=NULL, qmat
     n <- length(fromstate)
     qmatrix <- qmatrix / mean(qmatrix[qmatrix>0]) # rescale to avoid false warnings with small rates
     Pmat <- MatrixExp(qmatrix)
-    Pmat[Pmat < 1e-16] <- 0
+    Pmat[Pmat < .Machine$double.eps] <- 0
     imputed <- msm.impute.censored(fromstate, tostate, Pmat, cmodel)
     fs <- imputed$fromstate; ts <- imputed$tostate
     unitprob <- apply(cbind(fs, ts), 1, function(x) { Pmat[x[1], x[2]] } )
@@ -1365,7 +1372,7 @@ msm.add.qcovs <- function(qmodel, pars, msmdata, agg=TRUE){
         qmat[row[i],col[i],] <- qvec[,i]
     }
     for (i in 1:qmodel$nstates)
-        qmat[i,i,] <- -colSums(qmat[i,,])
+        qmat[i,i,] <- -apply(qmat[i,,,drop=FALSE], 3, sum)
     qmat
 }
 
@@ -1399,7 +1406,7 @@ msm.form.dq <- function(qmodel, qcmodel, pars, msmdata, agg=TRUE){
     for (i in 1:qmodel$npars)
         dqmat[row[i],col[i],,] <- t(dqvec[,i,])
     for (i in 1:qmodel$nstates)
-        dqmat[i,i,,] <- -colSums(dqmat[i,,,], dims=1)
+        dqmat[i,i,,] <- -apply(dqmat[i,,,,drop=FALSE], c(3,4), sum)
     dqmat
 }
 
@@ -1517,8 +1524,6 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
 
               ## so that Inf values are allowed for parameters denoting truncation points of truncated distributions
               NAOK = TRUE
-#              ,
-#              PACKAGE = "msm"
               )
     ## transform derivatives wrt Q to derivatives wrt log Q
     ## don't return derivs for constrained or fixed parameters

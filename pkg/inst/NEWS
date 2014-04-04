@@ -3,6 +3,28 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.3.1  (2014-04-04)
+--------------
+
+o R-forge only release.
+
+o Time-dependent covariates supported in totlos.msm.
+
+o New function envisits.msm() for expected number of visits to each
+  state over a period, calculated as a corollary of totlos.msm().
+
+o New utility "msm2Surv" to export data from msm format to counting
+  process format for use with the survival and mstate packages.  This
+  assumes the exact transition times of the process are known.
+
+o More informative messages from model fits which have not converged.
+  In particular, a warning is now given when the optimiser iteration
+  limit was reached without convergence, which previously happened
+  silently.
+
+o Miscellaneous minor bug fixes, see Changelog.
+
+
 Version 1.3  (2014-01-15)
 -------------
 

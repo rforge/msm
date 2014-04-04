@@ -12,7 +12,6 @@
 #include "hmm.h"
 #include <Rmath.h>
 #define NODEBUG
-#define NODEBUG2
 #define NOVITDEBUG
 #define NOFISHDEBUG
 #define NODERIVDEBUG
@@ -155,25 +154,11 @@ void update_likhidden(double *curr, int nc, int obsno, msmdata *d, qmodel *qm,
     double *hpars = &(hm->pars[MI(0, obsno, hm->totpars)]);
 
     GetOutcomeProb(pout, curr, nc, hpars, hm, qm, d->obstrue[obsno]);
-#ifdef DEBUG2
-    printf("hpars: ");
-    for (i=0; i<hm->totpars; ++i)
-	printf("%f,",hpars[i]);
-    printf("\n");
-    printf("pout: ");
-    for (i = 0; i < qm->nst; ++i) {
-	printf("%4.3f, ", pout[i]);
-    }
-    printf("\n: ");
-#endif
     /* calculate the transition probability (P) matrix for the time interval dt */
     Pmat(pmat, d->time[obsno] - d->time[obsno-1], qmat, qm->nst,
 	 (d->obstype[obsno] == OBS_EXACT), qm->iso, qm->perm, qm->qperm, qm->expm);
     for(j = 0; j < qm->nst; ++j)
 	{
-#ifdef DEBUG2
-	    printf("pmat: ");
-#endif
 	    newp[j] = 0.0;
 	    for(i = 0; i < qm->nst; ++i)
 		{
@@ -192,15 +177,7 @@ void update_likhidden(double *curr, int nc, int obsno, msmdata *d, qmodel *qm,
 		    }
 		    if (T[MI(i,j,qm->nst)] < 0) T[MI(i,j,qm->nst)] = 0;
 		    newp[j] = newp[j] + cump[i]*T[MI(i,j,qm->nst)];
-#ifdef DEBUG2
-   		    printf("%4.3f, ", pmat[MI(i,j,qm->nst)]);
-#endif
 		}
-#ifdef DEBUG2
-   	    printf("\n");
-	    printf("newp: ");
-	    printf("%lf, ", newp[j]);
-#endif
 	}
     /* re-scale the likelihood at each step to prevent it getting too small and underflowing */
     /*  while cumulatively recording the log scale factor   */
@@ -227,29 +204,12 @@ double likhidden(int pt, /* ordinal subject ID */
     GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
     GetOutcomeProb(pout, curr, nc, hpars, hm, qm, d->obstrue[d->firstobs[pt]]);
     /* Likelihood contribution for initial observation */
-#ifdef DEBUG2
-    printf("hpars: ");
-    for (i=0; i<hm->totpars; ++i)
-	printf("%f,",hpars[i]);
-    printf("\n");
-    for (i = 0; i < qm->nst; ++i) {
-	printf("initp=%lf, ", hm->initp[MI(pt,i,d->npts)]);
-	printf("pout=%lf, ", pout[i]);
-    }
-    printf("cump\n: ");
-#endif
     for (i = 0; i < qm->nst; ++i) {
       cump[i] = pout[i];
       /* Ignore initprobs if observation is known to be the true state
 	 or TODO, can we set it in R to one for obs state, zero for others? */
       if (!d->obstrue[d->firstobs[pt]]) cump[i] = cump[i]*hm->initp[MI(pt,i,d->npts)];
-#ifdef DEBUG2
-      printf("%lf, ", cump[i]);
-#endif
     }
-#ifdef DEBUG2
-      printf("\n");
-#endif
     lweight=0;
     /* Matrix product loop to accumulate the likelihood for subsequent observations */
     for (obsno = d->firstobs[pt]+1; obsno <= d->firstobs[pt+1] - 1; ++obsno)
@@ -258,18 +218,9 @@ double likhidden(int pt, /* ordinal subject ID */
 	    GetCensored((double)d->obs[obsno], cm, &nc, &curr);
 	    update_likhidden(curr, nc, obsno, d, qm, hm, cump, newp, &lweight);
 	}
-#ifdef DEBUG2
-      printf("cump: ");
-#endif
     for (i = 0, lik = 0; i < qm->nst; ++i) {
-#ifdef DEBUG2
-      printf("%lf, ", cump[i]);
-#endif
 	lik = lik + cump[i];
     }
-#ifdef DEBUG2
-    printf("\nlik=%lf,lweight=%lf\n",lik,lweight);
-#endif
       Free(curr); Free(cump);  Free(newp); Free(pout);
     /* Transform the likelihood back to the proper scale */
     return -2*(log(lik) - lweight);
@@ -368,7 +319,7 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
 #ifdef DEBUG
 /*	    printf("obs %d, from %d, to %d, time %lf, obstype %d, ", i, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstype[i]);
 	    printf("nocc %d, con %lf, lik %lf\n", d->nocc[i], log(contrib), lik);*/
-	    printf("%d-%d in %lf, q=%lf,%lf, ll=%lf\n",d->fromstate[i], d->tostate[i], d->timelag[i],qmat[0],qmat[1], d->nocc[i] * log(contrib));
+	    printf("%d-%d in %lf, q=%lf,%lf, lik=%20.20lf, ll=%lf\n",d->fromstate[i], d->tostate[i], d->timelag[i],qmat[0],qmat[1], contrib, d->nocc[i] * log(contrib));
 #endif
 	}
     Free(pmat);
@@ -431,6 +382,22 @@ void msmLikelihood (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *retu
     else {
 	*returned = liksimple (d, qm, cm, hm);
     }
+}
+
+void msmDeriv (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
+{
+    /* Derivatives for misclassification model: TODO, and define exactly which models this is supported for */
+
+    /* Derivatives for simple non-hidden, non-censored Markov model */
+    derivsimple(d, qm, cm, hm, returned);
+}
+
+void msmInfo (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
+{
+    /* Derivatives for misclassification model: TODO Though relation of derivs to info is same. */
+
+    /* Derivatives for simple non-hidden, non-censored Markov model */
+    infosimple(d, qm, cm, hm, returned);
 }
 
 /* First derivatives of the log-likelihood for the non-hidden
@@ -611,10 +578,8 @@ void dpmat_obs(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *deriv)
 		    for (p = 0; p < np; ++p) {
 			for (k=0; k < qm->nst; ++k) {
 			    deriv[MI3(j-1,k,p,d->ntrans,qm->nst)] = dpmat[MI3(from, k, p, qm->nst, qm->nst)];
-//			    printf("%d %lf, ",MI3(j-1,k,p,d->ntrans,qm->nst),dpmat[MI3(from, k, p, qm->nst, qm->nst)]);
 			}
 		    }
-//		    printf("\n");
 		}
 	    }
 	}
@@ -866,12 +831,12 @@ void msmCEntry(
     }
 
     else if (*do_what == DO_DERIV) {
-	derivsimple(&d, &qm, &cm, &hm, returned);
+	msmDeriv(&d, &qm, &cm, &hm, returned);
     }
 
     else if (*do_what == DO_INFO) {
-	derivsimple(&d, &qm, &cm, &hm, returned);
-	infosimple(&d, &qm, &cm, &hm, returned2);
+	msmDeriv(&d, &qm, &cm, &hm, returned);
+	msmInfo(&d, &qm, &cm, &hm, returned2);
     }
 
     else if (*do_what == DO_LIK_SUBJ) {
