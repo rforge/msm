@@ -384,22 +384,6 @@ void msmLikelihood (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *retu
     }
 }
 
-void msmDeriv (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
-{
-    /* Derivatives for misclassification model: TODO, and define exactly which models this is supported for */
-
-    /* Derivatives for simple non-hidden, non-censored Markov model */
-    derivsimple(d, qm, cm, hm, returned);
-}
-
-void msmInfo (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
-{
-    /* Derivatives for misclassification model: TODO Though relation of derivs to info is same. */
-
-    /* Derivatives for simple non-hidden, non-censored Markov model */
-    infosimple(d, qm, cm, hm, returned);
-}
-
 /* First derivatives of the log-likelihood for the non-hidden
    multi-state Markov model. */
 
@@ -584,6 +568,22 @@ void dpmat_obs(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *deriv)
 	    }
 	}
     Free(dpmat);
+}
+
+void msmDeriv (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
+{
+    /* Derivatives for misclassification model: TODO, and define exactly which models this is supported for */
+
+    /* Derivatives for simple non-hidden, non-censored Markov model */
+    derivsimple(d, qm, cm, hm, returned);
+}
+
+void msmInfo (msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *returned)
+{
+    /* Derivatives for misclassification model: TODO Though relation of derivs to info is same. */
+
+    /* Derivatives for simple non-hidden, non-censored Markov model */
+    infosimple(d, qm, cm, hm, returned);
 }
 
 /* Return vector of subject-specific log likelihoods */
