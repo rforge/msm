@@ -2,7 +2,6 @@ source("local.R")
 library(msm)
 #library(msm, lib.loc="~/lib/R")
 #library(msm, lib.loc="~/msm/lib/sun/0.7.5")
-data(cav)
 
 ### TESTS FOR SIMPLE NON-HIDDEN MARKOV MODELS
 
@@ -33,18 +32,12 @@ stopifnot(isTRUE(all.equal(4113.16601901957, cav.msm$minus2loglik, tol=1e-06)))
 
 if (developer.local) {
     system.time(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                               qmatrix = twoway4.q, death = TRUE, fixedpars=FALSE, # opt.method="nlm"
+                               qmatrix = twoway4.q, death = TRUE, fixedpars=FALSE,  
                                method="BFGS",
                                control=list(trace=5, REPORT=1, fnscale=1)
                                )
                 )
     stopifnot(isTRUE(all.equal(3968.7978930519, cav.msm$minus2loglik, tol=1e-06)))
-
-    pnext.msm(cav.msm)
-    pnext.msm(cav.msm, ci="normal")
-    pnext.msm(cav.msm, ci="bootstrap", B=3)
-    if (0)
-        pnext.msm(cav.msm, ci="bootstrap")
 }
 
 ## No death state.
@@ -78,7 +71,7 @@ stopifnot(isTRUE(all.equal(4909.17147259115, cav.msm$minus2loglik, tol=1e-06)))
 if (developer.local) {
     system.time(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
                                  qmatrix = twoway4.q, death = TRUE, fixedpars=FALSE,
-                                 covariates = ~ sex, method="BFGS", control=list(trace=5, REPORT=1))) # 44.13 on new, 260.14 on old
+                                 covariates = ~ sex, method="BFGS", control=list(trace=5, REPORT=1)))
     stopifnot(isTRUE(all.equal(3954.77700438268, cav.msm$minus2loglik, tol=1e-06)))
     qe <- qmatrix.msm(cav.msm)$estimates
     qs <- qmatrix.msm(cav.msm)$SE
@@ -110,7 +103,6 @@ if (developer.local) {
 }
 
 ## Constraints with psoriatic arthritis data
-data(psor)
 psor.q <- rbind(c(0,0.1,0,0),c(0,0,0.1,0),c(0,0,0,0.1),c(0,0,0,0))
 system.time(psor.msm <- msm(state ~ months, subject=ptnum, data=psor,
                 qmatrix = psor.q,
@@ -146,6 +138,7 @@ stopifnot(isTRUE(all.equal(qmatrix.msm(psor.nocen.msm, covariates=0)$L[1,2],
 stopifnot(isTRUE(all.equal(qmatrix.msm(psor.nocen.msm, covariates=0)$L[1,2],
                            qmatrix.msm(psor.nocen.msm, covariates=list(hieffusn=0))$L[1,2])))
 cm <- psor.nocen.msm$qcmodel$covmeans
+
 stopifnot(isTRUE(all.equal(qmatrix.msm(psor.nocen.msm, covariates="mean")$SE[1,2],
                            qmatrix.msm(psor.nocen.msm, covariates=list(hieffusn=cm["hieffusn"], ollwsdrt=cm["ollwsdrt"]))$SE[1,2])))
 
@@ -162,19 +155,6 @@ cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
 stopifnot(isTRUE(all.equal(4833.0064065267, cav.msm$minus2loglik, tol=1e-06)))
 
 ## how big a dataset can
-if (0) {
-  c3.df <- NULL
-  for (i in 1:10) {c22.df <- c2.df; c22.df$PTNUM <- c2.df$PTNUM + 120000*(i-1); c3.df <- rbind(c3.df, c22.df)}
-  length(unique(c2.df$PTNUM))
-  length(unique(c3.df$PTNUM))
-  qx <- rbind( c(0, 0.005, 0, 0, 0), c(0, 0, 0.01, 0.02,0), c(0, 0, 0, 0.04, 0.03), c(0, 0, 0, 0, 0), c(0, 0, 0, 0, 0))
-  c2.msm <- msm(state~years, subject=PTNUM, data=c2.df,
-                qmatrix=qx, death=c(4, 5), method="BFGS",
-                control=list(trace=1, REPORT=1, fnscale=100000))
-  c3.msm <- msm(state~years, subject=PTNUM, data=c3.df,
-                qmatrix=qx, death=c(4, 5), method="BFGS",
-                control=list(trace=1, REPORT=1, fnscale=100000))
-}
 
 ## Multiple death states (Jean-Luc's data)
 if (developer.local) {
@@ -200,6 +180,20 @@ if (developer.local) {
                   qmatrix=qx, method="BFGS", fixedpars = 1:5,
                   control=list(trace=2, REPORT=1, fnscale=100000))
     stopifnot(isTRUE(all.equal(62915.1638036017, c2.msm$minus2loglik, tol=1e-06)))
+
+    if (0) {
+        c3.df <- NULL
+        for (i in 1:10) {c22.df <- c2.df; c22.df$PTNUM <- c2.df$PTNUM + 120000*(i-1); c3.df <- rbind(c3.df, c22.df)}
+        length(unique(c2.df$PTNUM))
+        length(unique(c3.df$PTNUM))
+        qx <- rbind( c(0, 0.005, 0, 0, 0), c(0, 0, 0.01, 0.02,0), c(0, 0, 0, 0.04, 0.03), c(0, 0, 0, 0, 0), c(0, 0, 0, 0, 0))
+        c2.msm <- msm(state~years, subject=PTNUM, data=c2.df,
+                      qmatrix=qx, death=c(4, 5), method="BFGS",
+                      control=list(trace=1, REPORT=1, fnscale=100000))
+        c3.msm <- msm(state~years, subject=PTNUM, data=c3.df,
+                      qmatrix=qx, death=c(4, 5), method="BFGS",
+                      control=list(trace=1, REPORT=1, fnscale=100000))
+    }
 
 ### G Marshall's diabetic retinopathy data
     marsh.df <- read.table("~/work/msm/tests/markov/test.dat", col.names=c("subject","eyes","time","duration","hba1"))
@@ -293,6 +287,7 @@ if (interactive())
       plot.prevalence.msm(psor.msm, censtime=10)
       ## 1 month after last obs time
       plot.prevalence.msm(psor.msm, censtime = psor$months[tapply(1:nrow(psor), psor$ptnum, max)] + 1)
+## TODO used to apply to orig data, now applies to na-omitted data
 
       plotprog.msm(state ~ months, subject=ptnum, data=psor, legend.pos=c(20,0.99), lwd=3, xlab="Months")
       plotprog.msm(state ~ months, subject=ptnum, data=psor, legend.pos=c(20,0.99), lwd=1, mark.time=FALSE, xlab="Months")

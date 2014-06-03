@@ -1,30 +1,13 @@
-pdf manual changes for totlos/envisits
-
-Memory problems in 1.3 with big data
-
-hazard ratio for different covariate unit? or encourage people to store meaningful unit in data?
-
-check whether diag of log transformation for Fisher info is correct
-
-option to log hazard ratios, or log intens
-
-Go over basic usage again in manual with new print format, attention to variable naming and initial values.
-
-Common interface to different optimisation methods
-
 Probability of passage (document clearly as different from pmatrix)
 
 EFPT with time dependent covs?
+support states as labels in efpt (and others?)
 
-Give informative error if initprobs not changed from default, but observed initial states other than 1.
+sojourn.msm with time dependent covs
+
+Give informative error if initprobs not changed from default, but observed initial states that are not allowed by the HMM outcome model for state 1.
 
 No point printing CIs for fixed parameters?
-
-Make sure all components of msm objects are documented properly, e.g. paramdata.
-No need to duplicate stuff like deriv
-
-More developer documentation - comments for definitions of variables
-   in internal data structures like qmodel, emodel etc.
 
 In extractor functions, warn that polynomial contrasts not supported,
 only treatment contrasts. (factorcov2numeric.msm)
@@ -49,15 +32,9 @@ Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
 Or Rcpp.
 
-Multicore bootstrapping using "parallel" package.  Must work cross-platform, including Windows.
-http://stackoverflow.com/questions/18588896/custom-package-using-parallel-or-doparallel-for-multiple-os-as-a-cran-package
-gives alternatives: compare these for speed.
-
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
-
-More intelligent use of model frames and formulae when forming data, e.g. na.action to omit NAs.  expand.model.frame should be useful here
 
 Turnbull method to non-parametrically estimate time to interval-censored event.
 
@@ -66,16 +43,8 @@ To compute this, need probabilities of all paths ending in state L at time ti: i
 
 Bureau survival plots
 
-Particle swarm optimisation?  ppso  http://www.rforge.net/ppso/index.html, or hydroPSO
-
-Other optimisers (Nash) Rvmmin is modern BFGS with bounds. Bounds recommended to avoid silly solutions. (compute unbounded hessian by hand at solution?). Lots of parameters: Rcgmin much better than CG.   bobyqa (package minqa) for fast derivative free.
-
-Multiple realisations from same hidden trace, and/or multivariate HMM outcomes (major change to data structures needed).
+Multiple realisations from same hidden trace, and/or multivariate HMM outcomes
 cf. multiple multi-state processes with shared random effects?
-
-For hidden models, cache Pmatrix once for frequently-occurring each from, to, time combinations
-
-Investigate forward algorithm for fitting HMMs - is this more efficient?
 
 Truncated observations.
 

@@ -9,7 +9,7 @@ msm2Surv <- function(data, # data frame
     if (missing(time)) stop("time variable not given")
     if (missing(state)) stop("state variable not given")
     fpt <- !duplicated(data[,subject]) # indicator for patient's first observation
-    lpt <- rev(!duplicated(rev(data[,subject]))) # ... last observation ...
+    lpt <- !duplicated(data[,subject], fromLast=TRUE) # ... last observation ...
     nev <- nrow(data[!lpt,])
     ## Data frame of observed events
     ev <- data.frame(id=data[!lpt,subject], from=data[!lpt,state],to=data[!fpt,state],

@@ -10,11 +10,13 @@ a given period of evolution of a multi-state model.
 totlos.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
            piecewise.times=NULL, piecewise.covariates=NULL,
            num.integ=FALSE, discount=0, env=FALSE,
-           ci=c("none","normal","bootstrap"), cl=0.95, B=1000, ...)
+           ci=c("none","normal","bootstrap"), cl=0.95, B=1000,
+           cores=NULL, ...)
 envisits.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
             piecewise.times=NULL, piecewise.covariates=NULL,
             num.integ=FALSE, discount=0,
-            ci=c("none","normal","bootstrap"), cl=0.95, B=1000, ...)
+            ci=c("none","normal","bootstrap"), cl=0.95, B=1000,
+            cores=NULL, ...)
 }
 \arguments{
   \item{x}{A fitted multi-state model, as returned by
@@ -99,6 +101,9 @@ envisits.msm(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="mean",
   \item{cl}{Width of the symmetric confidence interval, relative to 1}
 
   \item{B}{Number of bootstrap replicates}
+
+  \item{cores}{Number of cores to use for bootstrapping using parallel
+    processing. See \code{\link{boot.msm}} for more details.}
 
   \item{...}{Further arguments to be passed to the
     \code{\link{integrate}} function to control the numerical

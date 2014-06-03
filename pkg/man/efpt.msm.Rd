@@ -7,7 +7,8 @@
 }
 \usage{
 efpt.msm(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
-           ci=c("none","normal","bootstrap"), cl=0.95, B=1000, \dots)
+           ci=c("none","normal","bootstrap"), cl=0.95, B=1000,
+           cores=NULL, \dots)
 }
 \arguments{
   \item{x}{A fitted multi-state model, as returned by
@@ -16,9 +17,9 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
   \item{qmatrix}{Instead of \code{x}, you can simply supply a transition
   intensity matrix in \code{qmatrix}.}
 
-  \item{tostate}{State, or set of states supplied as a vector, for which to estimate the first passage time into.}
+  \item{tostate}{State (as integer), or set of states supplied as a vector, for which to estimate the first passage time into.}
 
-  \item{start}{Starting state.  By default (\code{start="all"}),
+  \item{start}{Starting state (integer).  By default (\code{start="all"}),
     this will return a vector of expected passage times from each
     state in turn.
 
@@ -54,6 +55,9 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
 
   \item{B}{Number of bootstrap replicates.}
 
+  \item{cores}{Number of cores to use for bootstrapping using parallel
+    processing. See \code{\link{boot.msm}} for more details.}
+
   \item{...}{Arguments to pass to \code{\link{MatrixExp}}.}
 }
 \value{
@@ -68,8 +72,8 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
 
   \deqn{-Q_{\mathbf{i},\mathbf{i}}^{-1} \mathbf{1}}{-Q_{i,i}^{-1} 1}
 
-  where \eqn{\mathbf{1}}{1} is a vector of ones, and \eqn{Q_{\mathbf{i},\mathbf{i}}}
-  is the square subset of \eqn{Q} pertaining to states \eqn{\mathbf{i}}.
+  where \eqn{\mathbf{1}}{1} is a vector of ones, and \eqn{Q_{\mathbf{i},\mathbf{i}}}{Q_{i,i}}
+  is the square subset of \eqn{Q} pertaining to states \eqn{\mathbf{i}}{i}.
 
   It is equal to the sum of mean sojourn times for all states
   between the "from" and "to" states in a unidirectional model.

@@ -1,3 +1,104 @@
+2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  If msm is called with hessian=FALSE, then the Fisher (expected)
+	information is used to obtain standard errors and CIs, which may
+	be preferable if the observed Hessian is very intensive to
+	approximate or its estimate is nonsingular / nonpositive-definite.
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  Analytic derivatives available for most hidden Markov models and
+	models with censored states (excluding unknown initial state
+	probabilities, constraints on misclassification / categorical
+	outcome probabilities and their covariates, and truncated or
+	measurement error distributions).  This should speed up
+	optimisation with the BFGS or CG methods.  The corresponding
+	Fisher information matrix is also available for misclassification
+	(categorical/identity outcome) models.
+
+	*  The BFGS optimisation method is now the default, rather than
+	Nelder-Mead.
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* msm.optim.fixed, msm.rep.constraints: Bug fix for constraints on
+	misclassification probabilities and fixed parameters.
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* msm.R(msm.mnlogit.transform): Bug fix: reapply sum to 1
+	constraint after applying constraints to baseline probabilities in
+	HMMs.  May affect results.
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* hmm.R(msm.econstr2hconstr): internal constraints in
+	misclassification models mapped to 1,2,... using match(constr,
+	unique(constr))
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* msm.R(msm.unfixallparams): Don't unconstrain constraints, so
+	derivatives of fully fixed models refer to constrained pars.
+
+2014-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  Various help pages now document the objects and data structures
+	used internally and returned by msm() in the fitted model object.
+
+2014-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* msm.R and others: major rewrite of much of the internal code
+	that deals with reading the data and passing it to models.  This
+	uses model frames and model formulae more efficiently.  As a
+	result the "data" component of the msm has a different structure:
+	a list with one component "mf", the model frame, containing all
+	original variables required for the model fit.  This and related
+	data structures can can be extracted with the new
+	"model.frame.msm" and "model.matrix.msm" methods.
+
+	* outputs.R: new print method now the default, and new functions
+	msm.form.qoutput and msm.form.eoutput to produce the printed
+	numbers in the same arrangement.
+
+	* msm.R: Centering of "timeperiod" covariates in "pci" models is
+	now done consistently with other covariates, i.e. with last
+	observation omitted.
+
+	* outputs.R(factorcov2numeric.msm): bug fix for misclassification
+	covariates.
+
+	* msm.R(crudeinits.msm): Times consistency check added.
+
+	* msm.R(msm.check.model): Model consistency check error messages
+	now report row numbers before missing data are omitted.
+
+	* hmm.R(msm.form.hcmodel): Bug fix for when initial values for HMM
+	covariate effects of wrong length, this should ignore and carry
+	on.
+
+	* pearson.R: Bug fix for when integral for accurate p-value
+	doesn't converge.
+
+	* lik.c: Don't recalculate P matrices for timelag / obstype /
+	covariate combinations that occur more than once.  This may speed
+	up some hidden Markov or censoring models.
+
+2014-04-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* msm.R(msm.form.params): Fix of bug which broke models with
+	covariates on initial state occupancy.
+
+2014-04-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/boot.R,R/outputs.R: Parallel processing using "doParallel"
+	added for bootstrapping and bootstrap CIs.
+
+2014-04-09 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/optim.R: Optimisation methods abstracted into their own
+	functions.
+
 2014-04-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.3.1 released to r-forge.

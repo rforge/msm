@@ -7,14 +7,18 @@ coef.msm,
 contour.msm,
 crudeinits.msm,
 deltamethod,
+draic.msm,
+drlcv.msm,
 efpt.msm,
 ematrix.msm,
-envisits.msm,    
+envisits.msm,
 hazard.msm,
 image.msm,
 MatrixExp,
 msm,
 msm2Surv,
+msm.form.qoutput,
+msm.form.eoutput,
 logLik.msm,
 lrtest.msm,
 odds.msm,
@@ -28,9 +32,11 @@ pmatrix.msm,
 pmatrix.piecewise.msm,
 pnext.msm,
 prevalence.msm,
+printold.msm,
 printnew.msm,
 qmatrix.msm,
 qratio.msm,
+recreate.olddata,
 scoreresid.msm,
 sim.msm,
 simmulti.msm,
@@ -95,6 +101,8 @@ S3method(persp, msm)
 S3method(image, msm)
 S3method(coef, msm)
 S3method(logLik, msm)
+S3method(model.frame, msm)
+S3method(model.matrix, msm)
 S3method(print, hmodel)
 S3method(print, hmmdist)
 S3method(print, msm.est)
