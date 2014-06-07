@@ -870,7 +870,6 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 ### Heart transplant data
 ### For further details and background to this example, see
 ### Jackson (2011) or the PDF manual in the doc directory.
-data(cav)
 print(cav[1:10,])
 twoway4.q <- rbind(c(-0.5, 0.25, 0, 0.25), c(0.166, -0.498, 0.166, 0.166),
 c(0, 0.25, -0.5, 0.25), c(0, 0, 0, 0))

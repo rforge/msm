@@ -1552,6 +1552,8 @@ statetable.msm <- function(state, subject, data=NULL)
     previous <- c(NA, state[1:(n-1)])
     previous[prevsubj!=subject] <- NA
     ntrans <- table(previous, state)
+# or simpler as
+# ntrans <- table(state[duplicated(subject,fromLast=TRUE)], state[duplicated(subject)])
     names(dimnames(ntrans)) <- c("from", "to")
     ntrans
 }

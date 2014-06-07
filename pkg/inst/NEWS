@@ -34,19 +34,22 @@ o The internal code that deals with reading the data and passing it to
   old (undocumented) format back, but this will not be supported in
   the long term.
 
+o New methods (draic.msm, drlcv.msm) for comparing models with
+  differently-aggregated states.  Thanks to Howard Thom.
+
 o Parallel processing supported for bootstrapping and bootstrap
   confidence intervals (ci="boot"), if the "doParallel" package is
   installed.
 
 o If msm is called with hessian=FALSE, then the Fisher (expected)
-  information is used to obtain standard errors and CIs, if this is
-  available.  This may be preferable if the observed Hessian is very
-  intensive to approximate or its estimate is nonsingular /
-  nonpositive-definite.
+  information is used to obtain standard errors and CIs, though this
+  is only available for non-hidden and misclassification models).
+  This may be preferable if the observed Hessian is very intensive to
+  approximate.
 
-o Optimisation code tidied, making it easier to add new methods.  The
-  "bobyqa" algorithm, a fast derivative-free method, is now supported
-  if the "minqa" package is installed.
+o Optimisation code tidied, making it easier to add new methods.  As
+  an example, the "bobyqa" algorithm, a fast derivative-free method,
+  is now supported if the "minqa" package is installed.
 
 o Internal centering of "timeperiod" covariates around their means for
   inhomogeneous models specified with "pci" is now done consistently

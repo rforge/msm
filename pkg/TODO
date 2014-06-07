@@ -7,7 +7,7 @@ sojourn.msm with time dependent covs
 
 Give informative error if initprobs not changed from default, but observed initial states that are not allowed by the HMM outcome model for state 1.
 
-No point printing CIs for fixed parameters?
+No point printing CIs for fixed parameters? todo with qematrix.msm rewrite
 
 In extractor functions, warn that polynomial contrasts not supported,
 only treatment contrasts. (factorcov2numeric.msm)

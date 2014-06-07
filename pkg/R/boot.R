@@ -20,6 +20,11 @@ reconstruct.data <- function(mf){
     ids <- match(par.name, names(mf))
     names(mf) <- replace(names(mf), ids, un)
     if (!is.null(mf$"(pci.imp)")) mf <- mf[!mf$"(pci.imp)",]
+    if(is.na(un["subject"])) {
+        un["subject"] <- "subject"
+        mf$subject <- mf$"(subject)"
+        attr(mf, "usernames") <- un
+    }
     for (i in grep("^\\(.+\\)$", names(mf), value=TRUE)) mf[,i] <- NULL
     colnames(mf) <- gsub("factor\\((.+)\\)", "\\1", colnames(mf))
     mf
