@@ -12,6 +12,8 @@ vignettes/.+\.blg
 vignettes/msm\.bib
 vignettes/Sweave-local\.sty
 vignettes/figures
+vignettes/msm-manual.Rnw
+inst/doc/msm-manual.Rnw
 Rplots\.ps
 tests/.+\.Rout
 tests/.+\.Rout.save

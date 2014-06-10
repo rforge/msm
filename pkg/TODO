@@ -17,6 +17,10 @@ store in covdata whether model matrix built using treat/poly for factors
 
 POSSIBLE MAJOR DEVELOPMENTS
 
+Rewrite C interface to use Rcpp
+
+More formally organised unit tests
+
 Random effects models.  Could be done by translating a msm model to
 corresponding JAGS or Stan code, inserting the random effects
 then using MCMC for estimation.  HMMs would probably be better in
@@ -36,6 +40,9 @@ Or Rcpp.
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
 
+OpenMP for parallel C code called from R, see Writing R Extensions.
+Can't call R from parallel part, but using R math lib or lapack/expm OK?
+
 Turnbull method to non-parametrically estimate time to interval-censored event.
 
 Viterbi algorithm.  Probability of each hidden state at each time, instead of just most probable.
@@ -47,8 +54,6 @@ Multiple realisations from same hidden trace, and/or multivariate HMM outcomes
 cf. multiple multi-state processes with shared random effects?
 
 Truncated observations.
-
-.Call for passing data to C?  Rcpp package facilitates this.
 
 Steady state probabilities
 
