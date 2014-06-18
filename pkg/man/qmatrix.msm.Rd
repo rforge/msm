@@ -30,9 +30,12 @@ qmatrix.msm(x, covariates="mean", sojourn=FALSE,
     \code{list (60, 1)}
 
     where the order of the list follows the order of the covariates
-    originally given in the model formula, or a named list,
+    originally given in the model formula. Or more clearly, a named list,
 
     \code{list (age = 60, sex = 1)}
+
+    If some covariates are specified but not others, the missing ones
+    default to zero.
   }
   \item{sojourn}{Set to TRUE if the estimated sojourn times and their
     standard errors should also be returned.}

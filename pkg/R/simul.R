@@ -356,7 +356,7 @@ simfitted.msm <- function(x, drop.absorb=TRUE, drop.pci.imp=TRUE){
                             misccovariates=misccov.effs,
                             drop.absorb=drop.absorb
                             )
-    if (drop.pci.imp) {
+    if (drop.pci.imp & !is.null(boot.df$"(pci.imp)")) {
         boot.df <- boot.df[!boot.df$"(pci.imp)",]
         boot.df$"(pci.imp)" <- NULL
     }

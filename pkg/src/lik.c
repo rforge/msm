@@ -316,7 +316,7 @@ double likhidden(int pt, /* ordinal subject ID */
     double *newp     = Calloc(qm->nst, double);
     double *pout = Calloc(qm->nst, double);
     double lweight, lik, *hpars;
-    int i, obsno, nc=1;
+    int i, obsno, nc=1, allzero=1;
     if (d->firstobs[pt] + 1 == d->firstobs[pt+1])
       return 0; /* individual has only one observation. Shouldn't happen since 1.3.2 */
     /* Likelihood for individual's first observation */
@@ -329,8 +329,14 @@ double likhidden(int pt, /* ordinal subject ID */
       /* Ignore initprobs if observation is known to be the true state
 	 or TODO, can we set it in R to one for obs state, zero for others? */
       if (!d->obstrue[d->firstobs[pt]]) cump[i] = cump[i]*hm->initp[MI(pt,i,d->npts)];
+      if (!all_equal(cump[i], 0)) allzero = 0;
     }
-    //    printf("cump at 0=%16.12lf\n,", cump[0]);
+    if (allzero) {
+// don't leave this warning in - since extreme values visited by the optimiser break it (e.g. for log odds in misc models, see misccov.msm)
+//	warning("First observation of %f for subject number %d out of %d is impossible for given initial state probabilities and outcome model\n", curr[0], pt+1, d->npts);
+//	printf("initp: "); for (i = 0; i < qm->nst; ++i) printf("%f,",hm->initp[MI(pt,i,d->npts)]); printf("\n");
+//	printf("hpars: "); for (i = 0; i<hm->totpars; ++i) printf("%f,",hm->pars[MI(i, d->firstobs[pt], hm->totpars)]); printf("\n");	
+    }
     lweight=0;
     /* Matrix product loop to accumulate the likelihood for subsequent observations */
     for (obsno = d->firstobs[pt]+1; obsno <= d->firstobs[pt+1] - 1; ++obsno)

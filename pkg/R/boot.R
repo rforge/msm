@@ -170,7 +170,7 @@ totlos.ci.msm <- function(x, start=1, end=NULL, fromt=0, tot=Inf, covariates="me
 }
 
 efpt.ci.msm <- function(x, qmatrix=NULL, tostate, start, covariates="mean", cl=0.95, B=1000, cores=NULL) {
-    t.list <- boot.msm(x, function(x)efpt.msm(x, qmatrix, start, tostate, covariates, ci="none"), B=B, cores=cores)
+    t.list <- boot.msm(x, function(x)efpt.msm(x=x, qmatrix=qmatrix, start=start, tostate=tostate, covariates=covariates, ci="none"), B=B, cores=cores)
     t.array <- do.call("rbind", t.list)
     apply(t.array, 2, function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
 }

@@ -1,3 +1,10 @@
+FOR RELEASE
+
+
+---
+
+OTHER
+
 Probability of passage (document clearly as different from pmatrix)
 
 EFPT with time dependent covs?
@@ -5,14 +12,12 @@ support states as labels in efpt (and others?)
 
 sojourn.msm with time dependent covs
 
-Give informative error if initprobs not changed from default, but observed initial states that are not allowed by the HMM outcome model for state 1.
-
 No point printing CIs for fixed parameters? todo with qematrix.msm rewrite
 
 In extractor functions, warn that polynomial contrasts not supported,
 only treatment contrasts. (factorcov2numeric.msm)
-store in covdata whether model matrix built using treat/poly for factors
-
+store in covdata whether model matrix built using treat/poly for factors?
+one for output functions rewrite?  must be better r way of doing factors. predict.lm?
 
 
 POSSIBLE MAJOR DEVELOPMENTS
@@ -21,21 +26,14 @@ Rewrite C interface to use Rcpp
 
 More formally organised unit tests
 
-Random effects models.  Could be done by translating a msm model to
-corresponding JAGS or Stan code, inserting the random effects
-then using MCMC for estimation.  HMMs would probably be better in
-Stan.
+MCMC estimation.  Done basic JAGS interface, but convergence
+difficulties typical.  Stan might be better (esp for HMMs) but can't
+do matrix exponentials in it.  Haven't tried inserting random effects
+yet.
 
 Phase-type models.  Build appropriate parameter constraints in.
 
-Time-inhomogeneous models with smoothly-varying intensities.  Product
-integral method looks easy, e.g. for predictable covariates like age.
-Alternatively, numerically integrate the Kolmogorov equations, as in
-Titman (Biometrics 2011).  deSolve package could be used for this in C.
-Difficult .Call type mechanism needed for using user-defined R functions
-in C. See Writing R Extensions 5.11.1 for a possible starting point.
-Or Rcpp.
-
+Internationalisation.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
@@ -58,3 +56,13 @@ Truncated observations.
 Steady state probabilities
 
 Use S_alloc instead of Calloc as in Viterbi - no need to free. Can't use on.exit to free on interrupt unless pointer declared globally.
+
+Time-inhomogeneous models with smoothly-varying intensities.  Product
+integral method looks easy, e.g. for predictable covariates like age.
+Alternatively, numerically integrate the Kolmogorov equations, as in
+Titman (Biometrics 2011).  deSolve package could be used for this in C.
+Difficult .Call type mechanism needed for using user-defined R functions
+in C. See Writing R Extensions 5.11.1 for a possible starting point.
+Or Rcpp.
+
+make msm.check.model for censored states - detect model inconsistency. see previous errors.R

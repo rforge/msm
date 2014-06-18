@@ -1,5 +1,15 @@
 2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
+	* R/boot.R(efpt.ci.msm): Bug fix for bootstrap and efpt.msm.
+
+2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c(likhidden): Give informative warning for initial
+	outcomes in HMMs which are impossible for given initial state
+	probabilites and outcome models.
+
+2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
 	*  If msm is called with hessian=FALSE, then the Fisher (expected)
 	information is used to obtain standard errors and CIs, which may
 	be preferable if the observed Hessian is very intensive to

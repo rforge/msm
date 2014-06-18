@@ -67,7 +67,10 @@ o When calculating the likelihood for hidden Markov or censoring
 o Data consistency check added to crudeinits.msm().
 
 o Bug fix for misclassification models with constraints on baseline
-  intensities.
+  misclassification probabilities and fixed parameters.
+
+o Give informative warning for initial outcomes in HMMs which are
+  impossible for given initial state probabilites and outcome models.
 
 o Miscellaneous minor bug fixes, see Changelog.
 

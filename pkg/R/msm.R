@@ -84,6 +84,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     covnames <- unique(unlist(lapply(forms, varnames)))
     temp[["formula"]] <- if (length(covnames) > 0) reformulate(covnames) else ~1
     temp[["na.action"]] <- na.pass # run na.action later so we can pass aux info to it
+    temp[["data"]] <- data
     mf <- eval(temp, parent.frame())
     ## remember user-specified names for later (e.g. bootstrap/cross validation)
     attr(mf, "usernames") <- c(state=all.vars(formula[[2]]), time=all.vars(formula[[3]]), subject=as.character(temp$subject), obstype=as.character(substitute(obstype)), obstrue=as.character(temp$obstrue))
@@ -532,6 +533,7 @@ msm.form.obstype <- function(mf, obstype, dmodel, exacttimes)
     if (!is.null(obstype)) {
         if (!is.numeric(obstype)) stop("obstype should be numeric")
         if (length(obstype) == 1) obstype <- rep(obstype, nrow(mf))
+        else if (length(obstype)!=nrow(mf)) stop("obstype of length ", length(obstype), ", should be length 1 or ",nrow(mf))
         if (any(! obstype[duplicated(mf$"(subject)")] %in% 1:3)) stop("elements of obstype should be 1, 2, or 3") # ignore obstypes at subject's first observation
     }
     else if (!is.null(exacttimes) && exacttimes)

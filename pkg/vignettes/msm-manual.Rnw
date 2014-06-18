@@ -1191,13 +1191,13 @@ qmatrix.msm(cavsex.msm, covariates=list(sex=0)) # Male
 qmatrix.msm(cavsex.msm, covariates=list(sex=1)) # Female
 @
 
-Different transition rates may be easily modelled on different
-covariates by specifying a named list of formulae as the
-\Rfunarg{covariates} argument.  Each element of the list has a name
-identifying the transition.  In the model below, the transition rate
-from state 1 to state 2 and the rate from state 1 to state 4 are each
-modelled on sex as a covariate, but no other intensities have
-covariates on them.
+Since \Rpackage{msm} version 1.2.3, different transition rates may be
+easily modelled on different covariates by specifying a named list of
+formulae as the \Rfunarg{covariates} argument.  Each element of the
+list has a name identifying the transition.  In the model below, the
+transition rate from state 1 to state 2 and the rate from state 1 to
+state 4 are each modelled on sex as a covariate, but no other
+intensities have covariates on them.
 
 \paragraph{Model 2a: transition-specific covariates}
 <<eval=FALSE>>=

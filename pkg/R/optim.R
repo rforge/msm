@@ -20,10 +20,6 @@ info.supported <- function(msmdata, hmodel, cmodel){
 msm.optim <- function(opt.method, p, hessian, use.deriv, msmdata, qmodel, qcmodel, cmodel, hmodel, ...){
     p$params <- p$allinits
     gr <- if (deriv.supported(hmodel,cmodel) && use.deriv) deriv.msm else NULL
-    if (isTRUE(getOption("msm.test.analytic.derivatives"))){
-        if (!deriv.supported(hmodel,cmodel)) warning("Analytic derivatives not available for this model")
-        else print(deriv.test(msmdata, qmodel, qcmodel, cmodel, hmodel, msm.unfixallparams(p)))
-    }
     optfn <- paste("msm.optim", opt.method, sep=".")
     if (!exists(optfn)) stop("Unknown optimisation method \"", opt.method, "\"")
 
@@ -32,6 +28,10 @@ msm.optim <- function(opt.method, p, hessian, use.deriv, msmdata, qmodel, qcmode
                    cmodel=cmodel, hmodel=hmodel), list(...))
     p <- do.call(optfn, args)
 
+    if (isTRUE(getOption("msm.test.analytic.derivatives"))){
+        if (!deriv.supported(hmodel,cmodel)) warning("Analytic derivatives not available for this model")
+        else p$deriv.test <- deriv.test(msmdata, qmodel, qcmodel, cmodel, hmodel, msm.unfixallparams(p))
+    }
     ## Attach derivative and information matrix at the MLE.
     ## If all parameters fixed, do this at the initial values for all.
     pp <- if (opt.method=="fixed") msm.unfixallparams(p) else p
@@ -196,6 +196,7 @@ msm.optim.bobyqa <- function(p, gr, hessian, msmdata, qmodel, qcmodel, cmodel, h
 deriv.test <- function(msmdata, qmodel, qcmodel, cmodel, hmodel, p){
     an.d <- deriv.msm(p$inits, msmdata, qmodel, qcmodel, cmodel, hmodel, p)
 
+    if (0){ 
     ## fiddly method using stats::numericDeriv
     likwrap <- function(x, ...){
         pars <- list(unlist(list(...)))
@@ -209,7 +210,9 @@ deriv.test <- function(msmdata, qmodel, qcmodel, cmodel, hmodel, p){
     foo <- numericDeriv(as.call(lapply(as.list(c("likwrap", "x", pvec)), as.name)), pvec, myenv)
     num.d <- attr(foo,"gradient")
     err <- mean(abs(an.d - num.d))
-
+}
+    err <- num.d <- NULL
+    
     ## much cleaner method. appears to be more accurate as well
     require(numDeriv)
     numd2 <- grad(lik.msm, p$inits, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel, cmodel=cmodel, hmodel=hmodel, paramdata=p)

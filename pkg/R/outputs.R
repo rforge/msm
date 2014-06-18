@@ -481,7 +481,7 @@ qematrix.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, 
         covlabels <- x$ecmodel$covlabels
         covmeans <- x$ecmodel$covmeans
     }
-
+    if ((cl < 0) || (cl > 1)) stop("expected cl in [0,1]")
     se <- lse <- numeric(ni)
     if ((nc == 0) && (is.list(covariates)) && (length(covariates) > 0))
         warning(paste("Ignoring covariates - no covariates in model for",
@@ -830,6 +830,7 @@ qratio.msm <- function(x, ind1, ind2,
         stop("ind1 and ind2 must be numeric vectors of length 2")
     if (any (! (ind1 %in% 1 : x$qmodel$nstates))  |  any (! (ind2 %in% 1 : x$qmodel$nstates) ) )
         stop("ind1 and ind2 must be pairs of states in 1, ..., ", x$qmodel$nstates)
+    if ((cl < 0) || (cl > 1)) stop("expected cl in [0,1]")
     if (q[ind2[1], ind2[2]] == 0)
         stop (paste("Denominator q[",ind2[1],",",ind2[2],"", "] is zero\n", sep=""))
     else if (q[ind1[1], ind1[2]] ==  0) {
@@ -1396,7 +1397,7 @@ get.covhist <- function(x, subset=NULL) {
             mf <- mf[subs,,drop=FALSE]
         }
         n <- length(mf$"(subject)")
-        apaste <- do.call("paste", mf[,attr(mf,"covnames")])
+        apaste <- do.call("paste", mf[,attr(mf,"covnames"),drop=FALSE])
         first <- !duplicated(mf$"(subject)"); last <- rev(!duplicated(rev(mf$"(subject)")))
         keep <- (c(0, apaste[1:(n-1)]) != apaste) | first | last
         ## Keep and tabulate unique covariate series
@@ -1411,7 +1412,7 @@ get.covhist <- function(x, subset=NULL) {
         covseries.t <- paste(covseries, change.times, sep="; ")
         ids <- unique(mf$"(subject)")[!duplicated(covseries.t)] # subj ids, one with each distinct series
         ncombs <- table(covseries.t)[unique(covseries.t)]# how many per series
-        covmat <- cbind(subject=mf$"(subject)", time=mf$"(time)", mf[,attr(mf,"covnames")])
+        covmat <- cbind(subject=mf$"(subject)", time=mf$"(time)", mf[,attr(mf,"covnames"),drop=FALSE])
         covmat <- covmat[(mf$"(subject)" %in% ids) & keep,]
         list(example=covmat, # rows of the original data sufficient to define the distinct histories
              hist=covseries.t) # one per subject listing their covariate history as a string

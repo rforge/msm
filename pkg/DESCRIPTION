@@ -13,5 +13,5 @@ Description: Functions for fitting general continuous-time Markov and
  constant or piecewise-constant in time.
 License: GPL (>= 2)
 Imports: survival,mvtnorm,expm
-Suggests: mstate,minqa,doParallel,numDeriv
+Suggests: mstate,minqa,doParallel,numDeriv,testthat
 LazyData: yes
