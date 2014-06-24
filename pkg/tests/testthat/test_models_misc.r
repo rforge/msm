@@ -89,6 +89,12 @@ test_that("can't mix ematrix and hcovariates",{
                                      hcovariates=list(~dage + sex, ~dage + sex, ~dage + sex, ~1),
                                      hcovinits = list(c(0.01,0.013), c(0.01,0.013,0.01,0.013), c(0.01,0.013), NULL) ), "hcovariates have been specified, but no hmodel")
 })
+
+test_that("data inconsistent with initprobs/ematrix",{
+    cav2 <- cav
+    cav2$state[c(1,8)] <- 3
+    expect_warning(msm(state ~ years, subject = PTNUM, data = cav2, qmatrix = oneway4.q, ematrix=ematrix, death = 4, fixedpars=TRUE), "First observation .+ is impossible")
+})
           
 test_that("various errors",{
     wrong.e <- "foo"

@@ -23,10 +23,12 @@ msm.optim <- function(opt.method, p, hessian, use.deriv, msmdata, qmodel, qcmode
     optfn <- paste("msm.optim", opt.method, sep=".")
     if (!exists(optfn)) stop("Unknown optimisation method \"", opt.method, "\"")
 
+    assign("nliks", 0, envir=msm.globals)
     args <- c(list(p=p, gr=gr, hessian=hessian,
                    msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                    cmodel=cmodel, hmodel=hmodel), list(...))
     p <- do.call(optfn, args)
+    assign("nliks", 0, envir=msm.globals)
 
     if (isTRUE(getOption("msm.test.analytic.derivatives"))){
         if (!deriv.supported(hmodel,cmodel)) warning("Analytic derivatives not available for this model")
@@ -37,11 +39,10 @@ msm.optim <- function(opt.method, p, hessian, use.deriv, msmdata, qmodel, qcmode
     pp <- if (opt.method=="fixed") msm.unfixallparams(p) else p
     pi <- pp$params[pp$optpars]
     if (deriv.supported(hmodel,cmodel)) {
+        p$deriv <- deriv.msm(pi, msmdata, qmodel, qcmodel, cmodel, hmodel, pp)
         if (info.supported(msmdata,hmodel,cmodel)) {
-            info <- information.msm(pi, msmdata, qmodel, qcmodel, cmodel, hmodel, pp)
-            p$deriv <- info$deriv;  p$information <- info$info
+            p$information <- information.msm(pi, msmdata, qmodel, qcmodel, cmodel, hmodel, pp)
         }
-        else p$deriv <- deriv.msm(pi, msmdata, qmodel, qcmodel, cmodel, hmodel, pp)
     }
     p
 }
@@ -143,10 +144,11 @@ msm.optim.fisher <- function(p, gr, hessian, msmdata, qmodel, qcmodel, cmodel, h
     ctrace <- !is.null(optim.args$control$trace) && optim.args$control$trace > 0
     while(!converged) {
         if (ctrace) cat("-2loglik=",-lik.old,", pars=",theta,"\n")
-        VI <- information.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
+        Info <- information.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                               cmodel=cmodel, hmodel=hmodel, paramdata=p)
-        V <- -VI$deriv
-        Info <- VI$info + diag(damp, nrow(VI$info))
+        V <- -deriv.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
+                              cmodel=cmodel, hmodel=hmodel, paramdata=p)
+        Info <- Info + diag(damp, nrow(Info))
         theta <- theta + solve(Info, V)
         lik.new <- -lik.msm(theta, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                             cmodel=cmodel, hmodel=hmodel, paramdata=p)
@@ -196,7 +198,7 @@ msm.optim.bobyqa <- function(p, gr, hessian, msmdata, qmodel, qcmodel, cmodel, h
 deriv.test <- function(msmdata, qmodel, qcmodel, cmodel, hmodel, p){
     an.d <- deriv.msm(p$inits, msmdata, qmodel, qcmodel, cmodel, hmodel, p)
 
-    if (0){ 
+    if (0){
     ## fiddly method using stats::numericDeriv
     likwrap <- function(x, ...){
         pars <- list(unlist(list(...)))
@@ -212,7 +214,7 @@ deriv.test <- function(msmdata, qmodel, qcmodel, cmodel, hmodel, p){
     err <- mean(abs(an.d - num.d))
 }
     err <- num.d <- NULL
-    
+
     ## much cleaner method. appears to be more accurate as well
     require(numDeriv)
     numd2 <- grad(lik.msm, p$inits, msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel, cmodel=cmodel, hmodel=hmodel, paramdata=p)

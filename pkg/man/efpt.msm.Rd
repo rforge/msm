@@ -94,7 +94,9 @@ efpt.msm(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
   zero to make a model where those states are absorbing.  The
   corresponding transition probability matrix \eqn{Exp(Qt)} then gives
   the probabilities of having hit or passed that state by a time \eqn{t}
-  (see the example below).
+  (see the example below). This is implemented in
+  \code{\link{ppass.msm}}.
+  
 }
 \references{
 Norris, J. R. (1997) Markov Chains. Cambridge University Press.
@@ -125,8 +127,11 @@ Q <- twoway4.q[1:3,1:3]; diag(Q) <- 0; diag(Q) <- -rowSums(Q)
 # Firstly form a model where the desired hitting state is absorbing
 Q[3,] <- 0
 MatrixExp(Q, t=10)[,3]
+ppass.msm(qmatrix=Q, tot=10)
 # Given in state 1 at time 0, P(hit 3 by time 10) = 0.479
 MatrixExp(Q, t=50)[,3]  # P(hit 3 by time 50) = 0.98
+ppass.msm(qmatrix=Q, tot=50)
+
 }
 \author{C. H. Jackson \email{chris.jackson@mrc-bsu.cam.ac.uk}}
 \keyword{models}

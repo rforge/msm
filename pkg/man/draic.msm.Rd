@@ -55,27 +55,27 @@ drlcv.msm(msm.full, msm.coarse, tl=0.95, cores=NULL,
     used.}
 
   \item{verbose}{Print intermediate results of each iteration of
-    cross-validation to the console while running. Doesn't work with
+    cross-validation to the console while running. May not work with
     parallel processing. }
 
   \item{outfile}{Output file to print intermediate results of
-    cross-validation.  Required to track execution speed when using
-    parallel processing, where output to the console doesn't work.}
+    cross-validation.  Useful to track execution speed when using
+    parallel processing, where output to the console may not work.}
 }
 \value{
-  A vector containing \eqn{D_{RAIC}}{D_RAIC} (\code{draic.msm}) or
+  A list containing \eqn{D_{RAIC}}{D_RAIC} (\code{draic.msm}) or
     \eqn{D_{RLCV}}{D_RLCV} (\code{drlcv.msm}), its component terms, and tracking intervals.
 }
 \details{
-  The difference in modified AIC (Liquet and Commenges, 2011) is defined as
+  The difference in restricted AIC (Liquet and Commenges, 2011) is defined as
 
-  \deqn{D_{RAIC} = l(\gamma_n |\mathbf{x}'' ) - l(\theta_n |\mathbf{x}'' ) + trace ( J(\theta_n |\mathbf{x}'')J(\theta_n |\mathbf{x})^{-1} - J(\gamma_n |\mathbf{x}'' )J(\gamma_n |\mathbf{x}' )^{-1})}{D_RAIC = l(\gamma_n |x'' ) - l(theta_n |x'' ) + trace ( J(theta_n |x'')J(theta_n |x)^{-1} - J(gamma_n |x'' )J(gamma_n |x' )^{-1})}
+  \deqn{D_{RAIC} = l(\gamma_n |\mathbf{x}'' ) - l(\theta_n |\mathbf{x}'' ) + trace ( J(\theta_n |\mathbf{x}'')J(\theta_n |\mathbf{x})^{-1} - J(\gamma_n |\mathbf{x}'' )J(\gamma_n |\mathbf{x}' )^{-1})}{D_RAIC = l(gamma_n |x'' ) - l(theta_n |x'' ) + trace ( J(theta_n |x'')J(theta_n |x)^{-1} - J(gamma_n |x'' )J(gamma_n |x' )^{-1})}
 
   where \eqn{\gamma}{gamma} and \eqn{\theta}{theta} are the maximum likelihood estimates of the smaller and bigger models, fitted to the smaller and bigger data, respectively.
 
-  \eqn{l(\gamma_n |x'')}{l(\gamma_n |x'')} represents the likelihood of the simpler model evaluated on the restricted data.
+  \eqn{l(\gamma_n |x'')}{l(gamma_n |x'')} represents the likelihood of the simpler model evaluated on the restricted data.
 
-  \eqn{l(\theta_n |x'')}{l(\theta_n |x'')} represents the likelihood of
+  \eqn{l(\theta_n |x'')}{l(theta_n |x'')} represents the likelihood of
   the complex model evaluated on the restricted data.  This is a hidden
   Markov model, with a misclassification matrix and initial state
   occupancy probabilities as described by Thom et al (2014).
@@ -89,7 +89,7 @@ drlcv.msm(msm.full, msm.coarse, tl=0.95, cores=NULL,
 
   The difference in likelihood cross-validatory criteria  (Liquet and Commenges, 2011) is defined as
 
-  \deqn{D_{RLCV} = 1/n \sum_{i=1}^n \log( h_{X''}(x_i'' | \gamma_{-i}) / g_{X''}(x_i''| \theta_{-i}))}
+  \deqn{D_{RLCV} = 1/n \sum_{i=1}^n \log( h_{X''}(x_i'' | \gamma_{-i}) / g_{X''}(x_i''| \theta_{-i}))}{D_{RLCV} = 1/n \sum_{i=1}^n log( h_{X''}(x_i'' | gamma_{-i}) / g_{X''}(x_i''| theta_{-i}))}
 
   where \eqn{\gamma_{-i}} and \eqn{\theta_{-i}} are the maximum likelihood estimates from the smaller and bigger models fitted to datasets with subject \eqn{i} left out, \eqn{g()} and \eqn{h()} are the densities of the corresponding models, and \eqn{x_i''} is the restricted data from subject \eqn{i}.
 

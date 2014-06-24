@@ -1,16 +1,17 @@
-FOR RELEASE
+for every release
+-----------------
+check all files are included in package build: help pages, PDF manual rebuilt, run update-docsrc.
+check Changelog, NEWS, DESCRIPTION file have correct dates and versions
+Run fast and slow tests
 
 
 ---
 
 OTHER
 
-Probability of passage (document clearly as different from pmatrix)
-
-EFPT with time dependent covs?
+efpt.msm, ppass.msm and sojourn.msm with time dependent covs? easier with qematrix.msm rewrite.
+   
 support states as labels in efpt (and others?)
-
-sojourn.msm with time dependent covs
 
 No point printing CIs for fixed parameters? todo with qematrix.msm rewrite
 

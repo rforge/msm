@@ -1,6 +1,6 @@
 \name{hmodel.object}
 \alias{hmodel.object}
-\title{Hidden Markov model structure object}
+\title{Developer documentation: hidden Markov model structure object}
 \description{
 A list giving information about the models for the outcome data
 conditionally on the states of a hidden Markov model.  Used in internal

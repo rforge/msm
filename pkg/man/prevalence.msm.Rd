@@ -106,7 +106,7 @@ prevalence.msm(x, times=NULL, timezero=NULL, initstates=NULL, covariates="popula
      subjects with only one observation (thus no observed transitions),
      and subjects for whom every observation has missing values.
      (Note, to help construct this, the complete data used for the model
-     fit can be accessed with \code{x$data$mf}, where \code{x} is the
+     fit can be accessed with \code{model.frame(x)}, where \code{x} is the
      fitted model object)
 
      This is ignored if it is less than the subject's maximum

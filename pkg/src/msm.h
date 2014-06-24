@@ -43,12 +43,12 @@ struct msmdata {
     int *subject;
     double *time;
     double *obs; /* observed state or any other HMM observation */
-    int *firstobs;
     int *obstype;
     int *obstrue;
     int *pcomb;
+    int *firstobs;
 
-    int nobs;
+    int nagg;
     int n;
     int npts;
     int ntrans;
@@ -59,30 +59,30 @@ struct qmodel {
     int nst;
     int npars;
     int nopt;
-    int *ivector;
     double *intens;
     double *dintens;
     int iso;
     int *perm;
     int *qperm;
     int expm;
+    int nliks;
 };
 
 struct cmodel {
     int ncens;
     int *censor;
-    int *censstind;
-    int *censstates;
+    int *states;
+    int *index;
 };
 
 struct hmodel {
     int hidden;
     int *models;
+    int totpars;
     int *npars;
     int *firstpar;
     double *pars;
     double *dpars;
-    int totpars;
     int nopt;
     double *initp;
 };

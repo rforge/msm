@@ -1,12 +1,26 @@
+2014-06-23 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  C interface changed from .C to .Call.
+
+	*  Added ppass.msm for passage probabilites.
+
 2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c: Bug fix in infosimple: info was not being initialized
+	at zero, leading to occasional random output.
+
+2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* tests: Test suite tidied up and converted to use "testthat" package.
 
 	* R/boot.R(efpt.ci.msm): Bug fix for bootstrap and efpt.msm.
 
-2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
-
 	* src/lik.c(likhidden): Give informative warning for initial
 	outcomes in HMMs which are impossible for given initial state
-	probabilites and outcome models.
+	probabilites and outcome models.  Makes use of a global variable
+	in a private environment called msm.globals.
+
+	* draic.msm, drlcv.msm added.
 
 2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

@@ -11,6 +11,7 @@
 #include "msm.h"
 #include "hmm.h"
 #include <Rmath.h>
+#include <Rdefines.h>
 #define NODEBUG
 #define NOVITDEBUG
 #define NODERIVDEBUG
@@ -111,14 +112,14 @@ void GetCensored (double obs, cmodel *cm, int *nc, double **states)
 	    ++k;
 	if (k < cm->ncens) {
 	    cens = 1;
-	    n =  cm->censstind[k+1] - cm->censstind[k];
+	    n =  cm->index[k+1] - cm->index[k];
 	}
 	else n = 1;
     }
     if (cm->ncens == 0 || !cens)
 	(*states)[0] = obs;
-    else { for (j = cm->censstind[k]; j < cm->censstind[k+1]; ++j)
-	(*states)[j - cm->censstind[k]] = cm->censstates[j]; }
+    else { for (j = cm->index[k]; j < cm->index[k+1]; ++j)
+	(*states)[j - cm->index[k]] = cm->states[j]; }
     *nc = n;
 }
 
@@ -331,11 +332,8 @@ double likhidden(int pt, /* ordinal subject ID */
       if (!d->obstrue[d->firstobs[pt]]) cump[i] = cump[i]*hm->initp[MI(pt,i,d->npts)];
       if (!all_equal(cump[i], 0)) allzero = 0;
     }
-    if (allzero) {
-// don't leave this warning in - since extreme values visited by the optimiser break it (e.g. for log odds in misc models, see misccov.msm)
-//	warning("First observation of %f for subject number %d out of %d is impossible for given initial state probabilities and outcome model\n", curr[0], pt+1, d->npts);
-//	printf("initp: "); for (i = 0; i < qm->nst; ++i) printf("%f,",hm->initp[MI(pt,i,d->npts)]); printf("\n");
-//	printf("hpars: "); for (i = 0; i<hm->totpars; ++i) printf("%f,",hm->pars[MI(i, d->firstobs[pt], hm->totpars)]); printf("\n");	
+    if (allzero && (qm->nliks==1)) {
+	warning("First observation of %f for subject number %d out of %d is impossible for given initial state probabilities and outcome model\n", curr[0], pt+1, d->npts);
     }
     lweight=0;
     /* Matrix product loop to accumulate the likelihood for subsequent observations */
@@ -689,7 +687,7 @@ double liksimple(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm)
     double lik=0, contrib=0;
     double *pmat = Calloc((qm->nst)*(qm->nst), double), *qmat;
     qmat = &(qm->intens[MI3(0, 0, 0, qm->nst, qm->nst)]);
-    for (i=0; i < d->nobs; ++i)
+    for (i=0; i < d->nagg; ++i)
 	{
 	    R_CheckUserInterrupt();
 	    if ((i==0) || (d->whicha[i] != d->whicha[i-1]) || (d->obstypea[i] != d->obstypea[i-1])) {
@@ -791,7 +789,7 @@ void derivsimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *deriv)
     qmat = &(qm->intens[MI3(0, 0, 0, qm->nst, qm->nst)]);
     dqmat = &(qm->dintens[MI4(0, 0, 0, 0, qm->nst, qm->nst, np)]);
     for (p = 0; p < np; ++p) deriv[p] = 0;
-    for (i=0; i < d->nobs; ++i)
+    for (i=0; i < d->nagg; ++i)
     {
 	    R_CheckUserInterrupt();
 	    if ((i==0) || (d->whicha[i] != d->whicha[i-1]) || (d->obstypea[i] != d->obstypea[i-1])) {
@@ -890,7 +888,10 @@ void infosimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *info)
     double *dpmat = Calloc(qm->nst * qm->nst * np, double);
     double *dpm = Calloc(qm->nst* np, double);
     double *pm = Calloc(qm->nst, double);
-    for (i=0; i < d->nobs; ++i)
+    for (p = 0; p < np; ++p)
+	for (q = 0; q < np; ++q)
+	    info[MI(p,q,np)] = 0;
+    for (i=0; i < d->nagg; ++i)
 	{
 	    R_CheckUserInterrupt();
 	    if ((i==0) || (d->whicha[i] != d->whicha[i-1]) || (d->obstypea[i] != d->obstypea[i-1])) {
@@ -905,8 +906,9 @@ void infosimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *info)
 		error("Fisher information only available for panel data\n");
 	    for (j=0; j < qm->nst; ++j)  {
 		pm[j] = pmat[MI(d->fromstate[i], j, qm->nst)];
-		for (p = 0; p < np; ++p)
+		for (p = 0; p < np; ++p){
 		    dpm[MI(j,p,qm->nst)] = dpmat[MI3(d->fromstate[i], j, p, qm->nst, qm->nst)];
+		}
 	    }
 	    if ((i==0) || (d->whicha[i] != d->whicha[i-1]) || (d->obstypea[i] != d->obstypea[i-1]) ||
 		(d->fromstate[i] != d->fromstate[i-1])) {
@@ -1205,113 +1207,143 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
     Free(pmat); Free(ptr); Free(lvold); Free(lvnew); Free(lvp); Free(curr); Free(pout);
 }
 
-/* This function is called from R to provide an entry into C code for
-   evaluating likelihoods and related quantities  */
+/* get the list element named str, or return NULL */
+SEXP getListElement(SEXP list, const char *str)
+{
+    SEXP elmt = R_NilValue, names = getAttrib(list, R_NamesSymbol);
 
-void msmCEntry(
-	       int *do_what,
-	       /* Parameters */
-	       double *Q,  /* Array nstates x nstates x nobs */
-	       double *DQ,  /* Array nstates x nstates x nqopt x nobs */
-	       double *hmmpars,
-	       double *DH, /* Array nhpars x nhopt x nobs */
+    for (int i = 0; i < length(list); i++)
+	if(strcmp(CHAR(STRING_ELT(names, i)), str) == 0) {
+	    elmt = VECTOR_ELT(list, i);
+	    break;
+	}
+    return elmt;
+}
 
-	       /* Data in aggregate form, for non-HMM multi-state models */
-	       int *fromstate,  /* Distinct combinations of from, to, time lag, covariates */
-	       int *tostate,
-	       double *timelag,
-	       int *nocc,       /* Number of occurrences of each distinct combination */
-	       int *noccsum,    /* Number of those summed over tostate and replicated (for Fisher info) */
-	       int *whicha,   /* indicator for the from, to, time lag, covs combination corresponding to the current obs */
-	       int *obstypea,   /* observation scheme, 1 snapshot, 2 exact, 3 death */
+double *list_double_vec(SEXP list, const char *str) {
+    SEXP elt = getListElement(list, str);
+    return REAL(elt);
+}
 
-	       /* Data by observation, for HMMs, censoring and lik/deriv by subject */
-	       int *subjvec,      /* vector of subject IDs */
-	       double *timevec,   /* vector of observation times */
-	       double *obsvec,     /* vector of observations (observed states in the case of misclassification models) */
-	       int *firstobs,   /* 0-based index into data of the first observation for each individual */
-	       int *obstype,   /* observation scheme, 1 snapshot, 2 exact, 3 death */
-	       int *obstrue,   /* which observations in a HMM represent the true underlying state (none by default) */
-	       int *pcomb,   /*  Unique timelag/obstype/covariate combination for pre-calculating P matrix in HMMs */
+int *list_int_vec(SEXP list, const char *str) {
+    SEXP elt = getListElement(list, str);
+    return INTEGER(elt);
+}
 
-	       /* HMM specification */
-	       int *hidden,       /* well, is it or isn't it? */
-	       int *hmodels,      /* which hidden Markov distribution */
-	       int *hnpars,      /* number of HMM base parameters for each state */
+double list_double(SEXP list, const char *str) {
+    SEXP elt = getListElement(list, str);
+    return REAL(elt)[0];
+}
 
-	       int *htotpars,      /* total number of HMM base parameters */
-	       int *nhopt,     /* number of unique HMM parameters (base and cov effs) after constraints */
-	       int *hfirstpar,    /* index into hmmpars of first parameter for each state */
-	       double *initprobs, /* initial state occupancy probabilities, as a npts x nstates matrix (since v1.2.1) */
+int list_int(SEXP list, const char *str) {
+    SEXP elt = getListElement(list, str);
+    return INTEGER(elt)[0];
+}
 
-	       int *nst,      /* number of Markov states */
-	       int *iso, /* graph isomorphism ID */
-	       int *perm, /* permutation to the base isomorphism */
-	       int *qperm, /* permutation of intensity parameters from the base isomorphism */
-	       int *expm, /* use expm package for matrix exponential */
-	       int *nintens,      /* number of intensity parameters */
-	       int *nqopt, /* number of free parameters in model for intensities + covariates, after constraints ( = dimension of derivatives) */
-	       int *nobs,         /* number of aggregated transitions */
-	       int *n,            /* number of observations */
-	       int *npts,         /* number of subjects */
-	       int *ntrans,       /* number of (disaggregated) transitions, equal to n - npts if at least two obs (one trans) per individual */
-	       int *npcombs,     /* Number of unique timelag/obstype/cov combs for precalculating P matrix in HMMs */
-
-	       int *ncens,     /* number of distinct forms of censoring */
-	       int *censor,    /* censoring indicators in data, of length ncens */
-	       int *censstates, /* list of possible states represented by censoring indicators */
-	       int *censstind,  /* starting index into censstates for each censoring indicator */
-
-	       double *returned,   /* returned -2 log likelihood , derivatives or Viterbi fitted values */
-	       double *returned2   /* Fisher information if required */
-	       )
+SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qmodel_s, SEXP cmodel_s, SEXP hmodel_s, SEXP pars_s)
 {
     msmdata d; qmodel qm; cmodel cm; hmodel hm;
-    d.fromstate = fromstate;     d.tostate = tostate;     d.timelag = timelag;
-    d.nocc = nocc;  d.noccsum=noccsum; d.obstypea = obstypea;
-    d.whicha = whicha; d.obstype = obstype; d.obstrue = obstrue; d.pcomb = pcomb;
-    d.subject = subjvec; d.time = timevec; d.obs = obsvec; d.firstobs = firstobs;
-    d.nobs = *nobs;  d.n = *n; d.npts = *npts; d.ntrans = *ntrans; d.npcombs = *npcombs;
+    int do_what = INTEGER(do_what_s)[0], nopt;
+    double lik, *ret;
+    SEXP ret_s;
 
-    qm.nst = *nst; qm.npars = *nintens; qm.intens = Q;
-    qm.dintens = DQ; qm.nopt = *nqopt;
-    qm.iso = *iso; qm.perm = perm; qm.qperm = qperm; qm.expm = *expm;
+/* type coercion for all these is done in R */
+    d.fromstate = list_int_vec(mf_agg_s, "(fromstate)");
+    d.tostate = list_int_vec(mf_agg_s, "(tostate)");
+    d.timelag = list_double_vec(mf_agg_s, "(timelag)");
+    d.nocc = list_int_vec(mf_agg_s, "(nocc)");
+    d.noccsum = list_int_vec(mf_agg_s, "(noccsum)");
+    d.whicha = list_int_vec(mf_agg_s, "(whicha)");
+    d.obstypea = list_int_vec(mf_agg_s, "(obstype)");
 
-    cm.ncens = *ncens; cm.censor = censor; cm.censstates=censstates; cm.censstind=censstind;
+    d.subject = list_int_vec(mf_s, "(subject)");
+    d.time = list_double_vec(mf_s, "(time)");
+    d.obs = list_double_vec(mf_s, "(state)");
+    d.obstype = list_int_vec(mf_s, "(obstype)");
+    d.obstrue = list_int_vec(mf_s, "(obstrue)");
+    d.pcomb = list_int_vec(mf_s, "(pcomb)");
 
-    hm.hidden = *hidden;  hm.models = hmodels;  hm.totpars = *htotpars;
-    hm.firstpar = hfirstpar;  hm.pars = hmmpars;
-    hm.npars = hnpars; hm.dpars = DH; hm.nopt = *nhopt;
-    hm.initp = initprobs;
+    d.nagg = list_int(auxdata_s, "nagg");
+    d.n = list_int(auxdata_s, "n");
+    d.npts = list_int(auxdata_s, "npts");
+    d.ntrans = list_int(auxdata_s, "ntrans");
+    d.npcombs = list_int(auxdata_s, "npcombs");
+    d.firstobs = list_int_vec(auxdata_s, "firstobs");
 
-    if (*do_what == DO_LIK) {
-	msmLikelihood(&d, &qm, &cm, &hm, returned);
+    qm.nst = list_int(qmodel_s,"nstates");
+    qm.npars = list_int(qmodel_s,"npars");
+    qm.nopt = list_int(qmodel_s,"nopt");
+    qm.iso = list_int(qmodel_s,"iso");
+    qm.perm = list_int_vec(qmodel_s,"perm");
+    qm.qperm = list_int_vec(qmodel_s,"qperm");
+    qm.expm = list_int(qmodel_s,"expm");
+    qm.nliks = list_int(auxdata_s,"nliks");
+    qm.intens = list_double_vec(pars_s,"Q"); // TODO name
+    qm.dintens = list_double_vec(pars_s,"DQ"); // TODO name
+
+    cm.ncens = list_int(cmodel_s,"ncens");
+    cm.censor = list_int_vec(cmodel_s,"censor");
+    cm.states = list_int_vec(cmodel_s,"states");
+    cm.index = list_int_vec(cmodel_s,"index");
+
+    hm.hidden = list_int(hmodel_s,"hidden");
+    hm.models = list_int_vec(hmodel_s,"models");
+    hm.totpars = list_int(hmodel_s,"totpars");
+    hm.npars = list_int_vec(hmodel_s,"npars");
+    hm.firstpar = list_int_vec(hmodel_s,"firstpar");
+    hm.pars = list_double_vec(pars_s,"H");
+    hm.dpars = list_double_vec(pars_s,"DH");
+    hm.nopt = list_int(hmodel_s,"nopt");
+    hm.initp = list_double_vec(pars_s,"initprobs");
+    nopt = list_int(pars_s, "nopt");
+
+    if (do_what == DO_LIK) {
+	msmLikelihood(&d, &qm, &cm, &hm, &lik);
+	ret_s = ScalarReal(lik);
     }
 
-    else if (*do_what == DO_DERIV) {
-	msmDeriv(&d, &qm, &cm, &hm, returned);
+    else if (do_what == DO_DERIV) {
+	ret_s = PROTECT(NEW_NUMERIC(nopt));
+	ret = REAL(ret_s);
+	msmDeriv(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
-    else if (*do_what == DO_INFO) {
-	msmDeriv(&d, &qm, &cm, &hm, returned);
-	msmInfo(&d, &qm, &cm, &hm, returned2);
+    else if (do_what == DO_INFO) {
+	ret_s = PROTECT(allocMatrix(REALSXP, nopt, nopt));
+	ret = REAL(ret_s);
+	msmInfo(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
-    else if (*do_what == DO_LIK_SUBJ) {
-	msmLikelihood_subj(&d, &qm, &cm, &hm, returned);
+    else if (do_what == DO_LIK_SUBJ) {
+	ret_s = PROTECT(NEW_NUMERIC(d.npts));
+	ret = REAL(ret_s);
+	msmLikelihood_subj(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
-    else if (*do_what == DO_DERIV_SUBJ) {
-	msmDeriv_subj(&d, &qm, &cm, &hm, returned); /* derivative of loglik by subject. used for score residuals */
+    else if (do_what == DO_DERIV_SUBJ) {
+	ret_s = PROTECT(allocMatrix(REALSXP, d.npts, nopt));
+	ret = REAL(ret_s);
+	msmDeriv_subj(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
-    else if (*do_what == DO_VITERBI) {
-	Viterbi(&d, &qm, &cm, &hm, returned);
+    else if (do_what == DO_VITERBI) {
+	ret_s = PROTECT(NEW_NUMERIC(d.n));
+	ret = REAL(ret_s);
+	Viterbi(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
-    else if (*do_what == DO_DPMAT) {
-	dpmat_obs(&d, &qm, &cm, &hm, returned);
+    else if (do_what == DO_DPMAT) {
+	ret_s = PROTECT(alloc3DArray(REALSXP, d.ntrans, qm.nst, nopt));
+	ret = REAL(ret_s);
+	dpmat_obs(&d, &qm, &cm, &hm, ret);
+	UNPROTECT(1);
     }
 
     else error("Unknown C task.\n");
+    return ret_s;
 }

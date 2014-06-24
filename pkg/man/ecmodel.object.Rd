@@ -1,6 +1,6 @@
 \name{ecmodel.object}
 \alias{ecmodel.object}
-\title{Model for covariates on misclassification probabilities}
+\title{Developer documentation: model for covariates on misclassification probabilities}
 \description{A list representing the model for covariates on misclassification probabilities.}
 \value{
   \item{npars}{Number of covariate effect parameters.  This is defined as the

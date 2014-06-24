@@ -113,7 +113,7 @@ getobs.msm <- function(sim, obstimes, death=FALSE, drop.absorb=TRUE)
 
 ### Simulate a multi-state Markov or hidden Markov model dataset using fixed observation times
 
-### Would it be better to make specification of covariate model consistent with model fitting function?
+### Would it be better to make specification of covariate model consistent with model fitting function?
 ### e.g. separate hcovariates and  covariates formulae,
 ### plus covinits and hcovinits?
 
@@ -137,7 +137,7 @@ simmulti.msm <- function(data,           # data frame with subject, times, covar
     msm.check.qmatrix(qmatrix)
     qmatrix <- msm.fixdiag.qmatrix(qmatrix)
 
-### Subject, time and state
+### Subject, time and state
     if (!("subject" %in% names(data)))
         data$subject <- rep(1, nrow(data))
     if (!("time" %in% names(data)))
@@ -198,8 +198,9 @@ simmulti.msm <- function(data,           # data frame with subject, times, covar
 
 ### Starting states
     if (missing(start)) start <- rep(1, n)
+    else if (length(start) == 1) start <- rep(start, n)
     else if (length(start) != n)
-        stop("Supplied ", length(start), " starting states, expected ", n)
+        stop("Supplied ", length(start), " starting states, expected 1 or ", n)
 
     nq <- length(qmatrix[qmatrix > 0])
     misspeccovs <- covnames[sapply(covariates, length) != nq]
@@ -311,7 +312,7 @@ simhidden.msm <- function(state, hmodel, nstates, beta=NULL, x=NULL)
             ## don't change the underlying state if the HMM is the null (identity) model
             if (!(hmodel[[i]]$label=="identity" && (length(hmodel[[i]]$pars) == 0)))  {
                 ## simulate from the sampling function "r" in the HMM object
-                ## transform the location parameter by covariates if necessary
+                ## transform the location parameter by covariates if necessary
                 rcall <- list(n=length(state[state==i]))
                 if (!is.null(beta[[i]])) {
                     link <- get(hmodel[[i]]$link)

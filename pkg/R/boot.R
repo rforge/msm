@@ -175,6 +175,17 @@ efpt.ci.msm <- function(x, qmatrix=NULL, tostate, start, covariates="mean", cl=0
     apply(t.array, 2, function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
 }
 
+ppass.ci.msm <- function(x, qmatrix, tot, start, covariates="mean", piecewise.times=NULL, piecewise.covariates=NULL, cl=0.95, B=1000, cores=NULL,...) {
+    t.list <- boot.msm(x, function(x)ppass.msm(x=x, qmatrix=qmatrix, tot=tot, start=start, covariates=covariates,
+                                                piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates,
+                                                ci="none",...), B=B, cores=cores)
+    nst <- ncol(t.list[[1]])
+    t.array <- do.call("rbind", lapply(t.list, as.vector))
+    ci <- apply(t.array, 2, function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
+    di <- dimnames(t.list[[1]])
+    list(L=matrix(ci[1,],ncol=nst,dimnames=di), U=matrix(ci[2,],ncol=nst, dimnames=di))
+}
+
 expected.ci.msm <- function(x,
                             times=NULL,
                             timezero=NULL,
@@ -282,6 +293,17 @@ efpt.normci.msm <- function(x, qmatrix=NULL, tostate, start, covariates="mean", 
     t.list <- normboot.msm(x, function(x)efpt.msm(x=x, qmatrix=qmatrix, tostate=tostate, start=start, covariates=covariates, ci="none", ...), B)
     t.array <- do.call("rbind", t.list)
     apply(t.array, 2, function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
+}
+
+ppass.normci.msm <- function(x, qmatrix, tot, start, covariates="mean", piecewise.times=NULL, piecewise.covariates=NULL, cl=0.95, B=1000, ...) {
+    t.list <- normboot.msm(x, function(x)ppass.msm(x=x, qmatrix=qmatrix, tot=tot, start=start, covariates=covariates,
+                                                    piecewise.times=piecewise.times, piecewise.covariates=piecewise.covariates,
+                                                    ci="none", ...), B)
+    nst <- ncol(t.list[[1]])
+    t.array <- do.call("rbind", lapply(t.list, as.vector))
+    ci <- apply(t.array, 2, function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
+    di <- dimnames(t.list[[1]])
+    list(L=matrix(ci[1,],ncol=nst,dimnames=di), U=matrix(ci[2,],ncol=nst, dimnames=di))
 }
 
 expected.normci.msm <- function(x,

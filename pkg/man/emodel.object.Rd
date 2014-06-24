@@ -1,6 +1,6 @@
 \name{emodel.object}
 \alias{emodel.object}
-\title{Misclassification model structure object}
+\title{Developer documentation: misclassification model structure object}
 \description{
   A list giving information about the misclassifications assumed in a
   multi-state model fitted with the \code{ematrix} argument of

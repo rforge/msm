@@ -3,8 +3,16 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.3.3  (2014-06-23)
+--------------
 
-Version 1.3.2  (2014-06-03)
+o C interface changed from .C to .Call, giving a slight speed
+  improvement.
+
+o Probabilities of passage, see ppass.msm.
+
+
+Version 1.3.2  (2014-06-19)
 --------------
 
 o The new compact format for printing results from fitted models is
@@ -30,7 +38,7 @@ o The internal code that deals with reading the data and passing it to
   matrices more efficiently.  As a result the "data" component of msm
   objects now has a different structure.  The data can be extracted
   with the new model.frame() and model.matrix() methods for msm
-  objects.  Also see help(convert.olddata) for a utility to get the
+  objects.  Also see help(recreate.olddata) for a utility to get the
   old (undocumented) format back, but this will not be supported in
   the long term.
 
@@ -51,6 +59,9 @@ o Optimisation code tidied, making it easier to add new methods.  As
   an example, the "bobyqa" algorithm, a fast derivative-free method,
   is now supported if the "minqa" package is installed.
 
+o Give informative warning for initial outcomes in HMMs which are
+  impossible for given initial state probabilites and outcome models.
+
 o Internal centering of "timeperiod" covariates around their means for
   inhomogeneous models specified with "pci" is now done consistently
   with other covariates, by omitting subjects' last observations
@@ -64,13 +75,14 @@ o When calculating the likelihood for hidden Markov or censoring
   models, P matrices are not recalculated when the same one occurs
   more than once.  This may speed up some models.
 
+o Test suite tidied up and converted to use "testthat" package.
+
 o Data consistency check added to crudeinits.msm().
 
 o Bug fix for misclassification models with constraints on baseline
   misclassification probabilities and fixed parameters.
 
-o Give informative warning for initial outcomes in HMMs which are
-  impossible for given initial state probabilites and outcome models.
+o Bug fix for bootstrap CIs with efpt.msm
 
 o Miscellaneous minor bug fixes, see Changelog.
 

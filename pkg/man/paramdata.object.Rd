@@ -1,6 +1,6 @@
 \name{paramdata.object}
 \alias{paramdata.object}
-\title{Internal msm parameters object}
+\title{Developer documentation: internal msm parameters object}
 \description{
   An object giving information about the parameters of the multi-state
   model.  Used internally during maximum likelihood estimation and

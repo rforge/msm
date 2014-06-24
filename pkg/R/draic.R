@@ -64,7 +64,7 @@ draic.msm <- function(msm.full,msm.coarse,
     lmm <- logLik.msm(msm.full)  # Complex model on full data
     lss <- logLik.msm(msm.coarse) # Simple model on restricted data
     dfit <- (1/n)*(lss - lsm)
-    res.lik <- c("LL(complex on full)"=lmm,"LL(complex on restricted)"=lsm,"LL(simple on restricted)"=lss)
+    res.lik <- c("complex"=-lsm, "simple"=-lss, "complex-simple"=-(lsm-lss),"(complex-simple)/n"=dfit)
 
     if (!likelihood.only) {
         information <- match.arg(information)
@@ -82,7 +82,7 @@ draic.msm <- function(msm.full,msm.coarse,
             res$paramdata$optpars <- msm.full$paramdata$optpars
             res$paramdata$fixedpars <- c(msm.full$paramdata$fixedpars, res$paramdata$auxpars)
             I <- information.msm(res$paramdata$allinits[res$paramdata$optpars], expand.data(res), res$qmodel,
-                                 res$qcmodel, res$cmodel, res$hmodel, res$paramdata)$info
+                                 res$qcmodel, res$cmodel, res$hmodel, res$paramdata)
             I.restricted <- -0.5*(1/n)*I
         }
         npars.restricted <- sum(diag(I.restricted %*% solve(I.complex)))
@@ -94,17 +94,16 @@ draic.msm <- function(msm.full,msm.coarse,
         dlh <- lh.restricted.obj(mle, by.subject=TRUE) - logLik.msm(msm.coarse, by.subject=TRUE)
         omega.sq <- mean(dlh*dlh) - mean(dlh)^2
         half.width <- qnorm(1 - 0.5*(1 - tl)) * sqrt(omega.sq / n)
-        prob.DRAIC <- pnorm(-DRAIC * sqrt(omega.sq / n))
+        prob.DRAIC <- pnorm(-DRAIC / sqrt(omega.sq / n))
         res.int <- c("2.5%"=DRAIC-half.width,"97.5%"=DRAIC+half.width,"Prob<0"=prob.DRAIC)
 
-        res <- c("DRAIC"=DRAIC, "dtrace"=dcompl,
-                 res.lik,
-                 "npars(complex on restricted)"=npars.restricted,
-                 "npars(simple on restricted)"=msm.coarse$paramdata$npars,
-                 "DRAIC*n"=DRAIC*n,
-                 res.int)
+        liks <- cbind("-LL" = res.lik,
+                      npars=c(npars.restricted, msm.coarse$paramdata$npars,
+                      npars.restricted - msm.coarse$paramdata$npars, dcompl))
+        res <- list(lik.restricted = liks, draic = as.numeric(DRAIC), ti=res.int)
     }
-
+    else res <- res.lik
+    
     res
 }
 
@@ -213,7 +212,6 @@ drlcv.msm <- function(msm.full,msm.coarse,tl=0.95,cores=NULL,verbose=TRUE,outfil
 
         c(lsm=lsm, lss=lss, lssf=lssf, lsmf=lsmf)
     }
-
     if (is.null(cores) || cores==1) parallel <- FALSE else parallel <- TRUE;
     if (parallel){
         if (!is.null(cores) && cores=="default") cores <- NULL
@@ -232,9 +230,7 @@ drlcv.msm <- function(msm.full,msm.coarse,tl=0.95,cores=NULL,verbose=TRUE,outfil
             cv[[i]] <- cv.fn(i)
         }
     }
-    print(cv)
     LCVi <- sapply(cv, function(x){x["lss"] - x["lsm"]})
-    print(LCVi)
     DRLCV <- mean(LCVi)
 
     dlh <- logLik.msm(msm.full.on.restricted, by.subject=TRUE) -
@@ -243,7 +239,8 @@ drlcv.msm <- function(msm.full,msm.coarse,tl=0.95,cores=NULL,verbose=TRUE,outfil
     half.width <- qnorm(1 - 0.5*(1 - tl)) * sqrt(omega.sq / n)
     prob.DRLCV <- pnorm(-DRLCV * sqrt(omega.sq / n))
     res.int <- c("2.5%"=DRLCV-half.width,"97.5%"=DRLCV+half.width,"Prob<0"=prob.DRLCV)
-    res.lik <- c("LL(complex on full)"=lmm,"LL(complex on restricted)"=lsm,"LL(simple on restricted)"=lss)
-    res <- c("DRLCV"=DRLCV, res.lik, res.int)
+    liks <- cbind("-LL" = c(-lsm, -lss, -(lsm-lss), -(lsm-lss)/n))
+    rownames(liks) <- c("complex","simple","complex-simple","(complex-simple)/n")
+    res <- list(lik.restricted = liks, drlcv = as.numeric(DRLCV), ti=res.int)
     res
 }

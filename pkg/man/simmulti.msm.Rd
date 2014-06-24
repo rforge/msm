@@ -3,7 +3,7 @@
 \alias{simmulti.msm}
 \concept{Simulation}
 \description{Simulate a number of individual realisations from a
-  multi-state Markov process. Observations of the process are made at
+  continuous-time Markov process. Observations of the process are made at
   specified arbitrary times for each individual, giving panel-observed data.
 }
 \usage{
@@ -70,8 +70,8 @@ simmulti.msm(data, qmatrix, covariates=NULL, death = FALSE,  start,
 
 \item{start}{A vector with the same number of elements as there are
   distinct subjects in the data, giving the states in which each
-  corresponding individual begins. Defaults to state 1 for each
-  subject.}
+  corresponding individual begins.  Or a single number, if all of these
+  are the same.  Defaults to state 1 for each subject.}
 
 \item{ematrix}{An optional misclassification matrix for generating observed states
   conditionally on the simulated true states. As defined in

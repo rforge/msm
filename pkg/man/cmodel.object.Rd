@@ -1,6 +1,6 @@
 \name{cmodel.object}
 \alias{cmodel.object}
-\title{Censoring model object}
+\title{Developer documentation: censoring model object}
 \description{A list giving information about censored states, their
   labels in the data and what true states they represent.}
 \value{

@@ -16,6 +16,7 @@ vignettes/msm-manual.Rnw
 inst/doc/msm-manual.Rnw
 Rplots\.ps
 tests/slow
+tests/test_slow.R
 \.gdb_history
 \.Rprofile
 \.Rhistory

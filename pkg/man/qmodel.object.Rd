@@ -1,6 +1,6 @@
 \name{qmodel.object}
 \alias{qmodel.object}
-\title{Transition model structure object}
+\title{Developer documentation: transition model structure object}
 \description{
   A list giving information about the structure of states and allowed
   transitions in a multi-state model, and options for likelihood

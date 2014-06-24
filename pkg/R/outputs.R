@@ -1880,6 +1880,7 @@ scoreresid.msm <- function(x, plot=FALSE){
 # Function to calculate expected first passage times for continuous-time Markov chain with arbitrary Q matrix
 # Returns vector with EFPT for each "from" state in the state space.
 # Could also get CDF simply by making tostate absorbing and calculating pmatrix.
+# TODO time-dependent covariates
 
 efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
                      ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000, cores=NULL, ...)
@@ -1933,35 +1934,46 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mea
     if (ci=="none") est else rbind(est, e.ci)
 }
 
-## TODO matrix probabilities of passage through each to-state in an interval, given start in each from-state
-## Make every state other than the from-state absorbing,
-## and calculate the P matrix
 
-## ppass.msm <- function(x=NULL, qmatrix=NULL, tostate, covariates="mean",
-##                       ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000)
-## {
-##     ci <- match.arg(ci)
-##     if (!is.null(x)) {
-##         if (!inherits(x, "msm")) stop("expected x to be a msm model")
-##         qmatrix <- qmatrix.msm(x, covariates=covariates, ci="none")
-##     }
-##     else if (!is.null(qmatrix)) {
-##         if (!is.matrix(qmatrix) || (nrow(qmatrix) != ncol(qmatrix)))
-##             stop("expected qmatrix to be a square matrix")
-##         if (ci != "none") {warning("No fitted model supplied: not calculating confidence intervals."); ci <- "none"}
-##     }
-
-##     res <- matrix(dim=dim(qmatrix))
-##     states <- 1:nrow(qmatrix)
-##     for (i in states) {
-##         Qred <- qmatrix; Qred[,states[-i]] <- 0
-##         res[i,] <- MatrixExp(Qred)
-##     }
-
-## TODO handle time dependent covs in x
-
-#    p.ci <- switch(ci,
-#                   bootstrap = ppass.ci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
-#                   normal = ppass.normci.msm(x=x, qmatrix=qmatrix, tostate=tostate, covariates=covariates, cl=cl, B=B),
-#                   none = NULL)
-#}
+ppass.msm <- function(x=NULL, qmatrix=NULL, tot, start="all", covariates="mean",
+                      piecewise.times=NULL, piecewise.covariates=NULL,
+                      ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000, cores=NULL, ...)
+{
+    ci <- match.arg(ci)
+    if (!is.null(x)) {
+        if (!inherits(x, "msm")) stop("expected x to be a msm model")
+        qmatrix <- qmatrix.msm(x, covariates=covariates, ci="none")
+    }
+    else if (!is.null(qmatrix)) {
+        if (!is.matrix(qmatrix) || (nrow(qmatrix) != ncol(qmatrix)))
+            stop("expected qmatrix to be a square matrix")
+        if (ci != "none") {warning("No fitted model supplied: not calculating confidence intervals."); ci <- "none"}
+    }
+    res <- array(dim=dim(qmatrix))
+    if (!is.null(dimnames(qmatrix))) {
+        dimnames(res) <- dimnames(qmatrix)
+        names(dimnames(res)) <- c("from","to")
+    }
+    states <- 1:nrow(qmatrix)
+    for (i in states) {
+        Qred <- qmatrix; Qred[states[i],] <- 0
+        res[,i] <- MatrixExp(Qred*tot, ...)[,i]
+    }
+    if (!is.character(start)) {
+        if (!is.numeric(start) || (length(start)!=nrow(qmatrix)))
+            stop("Expected \"start\" to be \"all\" or a numeric vector of length ", nrow(qmatrix))
+        start <- start / sum(start)
+        res <- matrix(start %*% res, nrow=1, dimnames=list(from="start",to=colnames(res)))
+    }
+    else if (any(start!="all"))
+        stop("Expected \"start\" to be \"all\" or a numeric vector of length ", nrow(qmatrix))
+    p.ci <- switch(ci,
+                   bootstrap = ppass.ci.msm(x=x, qmatrix=qmatrix, tot=tot, start=start, covariates=covariates, cl=cl, B=B, cores=cores),
+                   normal = ppass.normci.msm(x=x, qmatrix=qmatrix, tot=tot, start=start, covariates=covariates, cl=cl, B=B),
+                   none = NULL)
+    if (ci != "none") {
+        res <- list(estimates=res, L=p.ci$L, U=p.ci$U)
+        class(res) <- "msm.est"
+    }
+    res
+}

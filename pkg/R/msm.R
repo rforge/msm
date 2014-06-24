@@ -566,7 +566,7 @@ msm.form.obstrue <- function(mf, hmodel) {
 
 msm.impute.censored <- function(fromstate, tostate, Pmat, cmodel)
 {
-    ## e.g. cmodel$censor 99,999;  cmodel$states 1,2,1,2,3;  cmodel$index 1, 3, 6
+    ## e.g. cmodel$censor 99,999;  cmodel$states 1,2,1,2,3;  cmodel$index 1, 3, 6
     ## Both from and to are censored
     wb <- which ( fromstate %in% cmodel$censor & tostate %in% cmodel$censor)
     for (i in wb) {
@@ -798,7 +798,7 @@ msm.form.dmodel <- function(death, qmodel, hmodel)
     if (is.logical(death) && death==TRUE)
         states <- nstates
     else if (is.logical(death) && death==FALSE)
-        states <- numeric(0) ## Will be changed to -1 when passing to C
+        states <- numeric(0) ## Will be changed to -1 when passing to C
     else if (!is.numeric(death)) stop("Death states indicator must be numeric")
     else if (length(setdiff(death, 1:nstates)) > 0)
         stop("Death states indicator contains states not in ",statelist)
@@ -1329,109 +1329,61 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
     mm.cov <- if (agg) msmdata$mm.cov.agg else msmdata$mm.cov
     Q <- msm.add.qcovs(qmodel, pars, mm.cov)
     DQ <- if (do.what %in% c("deriv","info","deriv.subj","dpmat")) msm.form.dq(qmodel, qcmodel, pars, p, mm.cov) else NULL
-    hpars <- if (hmodel$hidden) msm.add.hmmcovs(hmodel, pars, msmdata$mm.hcov) else NULL
-    DH <- if (hmodel$hidden && (do.what %in% c("deriv","info","deriv.subj"))) msm.form.dh(hmodel, pars, hpars, paramdata, msmdata$mm.hcov) else NULL
+    H <- if (hmodel$hidden) msm.add.hmmcovs(hmodel, pars, msmdata$mm.hcov) else NULL
+    DH <- if (hmodel$hidden && (do.what %in% c("deriv","info","deriv.subj"))) msm.form.dh(hmodel, pars, H, paramdata, msmdata$mm.hcov) else NULL
     initprobs <- msm.initprobs2mat(hmodel, pars, msmdata$mm.icov, msmdata$mf)
 
-    mf <- msmdata$mf; mf.agg <- msmdata$mf.agg
-    ## In R, work with states / parameter indices / model indices 1, ... n. In C, work with 0, ... n-1
-    mf.agg$"(fromstate)" <- mf.agg$"(fromstate)" - 1
-    mf.agg$"(tostate)" <- mf.agg$"(tostate)" - 1
-    firstobs <- c(which(!duplicated(model.extract(mf, "subject"))), nrow(mf)+1) - 1
-    mf$"(subject)" <- match(mf$"(subject)", unique(mf$"(subject)"))
-    ntrans <- sum(duplicated(model.extract(mf, "subject")))
-    hmodel$models <- hmodel$models - 1
-    hmodel$links <- hmodel$links - 1
-    nagg <- if(is.null(mf.agg)) 0 else nrow(mf.agg)
-    mf$"(pcomb)" <- mf$"(pcomb)" - 1
-    npcombs <- length(unique(na.omit(model.extract(mf, "pcomb"))))
-    nqopt <- if (is.null(DQ)) 0 else dim(DQ)[3]
-    nhopt <- if (is.null(DH)) 0 else dim(DH)[2]
-    nopt <- nqopt + nhopt
-    lik <- .C("msmCEntry",
-              as.integer(match(do.what, .msm.CTASKS) - 1),
-              as.double(Q),
-              as.double(DQ),
-              as.double(hpars),
-              as.double(DH),
+   mf <- msmdata$mf; mf.agg <- msmdata$mf.agg
+   ## In R, work with states / parameter indices / model indices 1, ... n. In C, work with 0, ... n-1
+   mf.agg$"(fromstate)" <- mf.agg$"(fromstate)" - 1
+   mf.agg$"(tostate)" <- mf.agg$"(tostate)" - 1
+   firstobs <- c(which(!duplicated(model.extract(mf, "subject"))), nrow(mf)+1) - 1
+   mf$"(subject)" <- match(mf$"(subject)", unique(mf$"(subject)"))
+   ntrans <- sum(duplicated(model.extract(mf, "subject")))
+   hmodel$models <- hmodel$models - 1
+   hmodel$links <- hmodel$links - 1
+   nagg <- if(is.null(mf.agg)) 0 else nrow(mf.agg)
+   mf$"(pcomb)" <- mf$"(pcomb)" - 1
+   npcombs <- length(unique(na.omit(model.extract(mf, "pcomb"))))
+   qmodel$nopt <- if (is.null(DQ)) 0 else dim(DQ)[3]
+   hmodel$nopt <- if (is.null(DH)) 0 else dim(DH)[2]
+   nopt <- qmodel$nopt + hmodel$nopt
 
-              ## data for non-HMM.  From aggregate data. mf.agg=NULL in hmms, so will segfault if try to access
-              as.integer(mf.agg$"(fromstate)"),
-              as.integer(mf.agg$"(tostate)"),
-              as.double(mf.agg$"(timelag)"),
-              as.integer(mf.agg$"(nocc)"),
-              as.integer(mf.agg$"(noccsum)"),
-              as.integer(mf.agg$"(whicha)"),
-              as.integer(mf.agg$"(obstype)"),
-
-              ## data for HMM or censored.
-              as.integer(model.extract(mf,"subject")), # only used in Viterbi
-              as.double(model.extract(mf,"time")),
-              as.double(model.extract(mf,"state")), # If misc or censored state, indexed from 1.
-              as.integer(firstobs),
-              as.integer(model.extract(mf,"obstype")),
-              as.integer(model.extract(mf,"obstrue")),
-              as.integer(model.extract(mf,"pcomb")),
-
-              ## HMM specification
-              as.integer(hmodel$hidden),
-              as.integer(hmodel$models),
-              as.integer(hmodel$npars),
-              as.integer(hmodel$totpars),
-              as.integer(nhopt),
-              as.integer(hmodel$firstpar),
-              as.double(initprobs),
-
-              ## various constants
-              as.integer(qmodel$nstates),
-              as.integer(qmodel$iso),
-              as.integer(qmodel$perm),
-              as.integer(qmodel$qperm),
-              as.integer(qmodel$expm),
-              as.integer(qmodel$npars),
-              as.integer(nqopt),
-
-              as.integer(nagg), # number of aggregated transitions
-              as.integer(nrow(mf)), # number of observations.
-              as.integer(attr(mf,"npts")),  # HMM only
-              as.integer(ntrans), # number of (disaggregated) transitions
-              as.integer(npcombs),
-
-              as.integer(cmodel$ncens),
-              as.integer(cmodel$censor),
-              as.integer(cmodel$states),
-              as.integer(cmodel$index - 1),
-
-              returned = double(
-              if (do.what %in% c("deriv","info")) (nopt)
-              else if (do.what=="lik.subj") attr(mf,"npts")
-              else if (do.what=="deriv.subj") attr(mf,"npts") * nopt
-              else if (do.what=="dpmat") ntrans * qmodel$nstates * nopt
-              else if (do.what=="viterbi") nrow(mf)
-              else 1),
-
-              returned2 = double(
-              if (do.what=="info") nopt^2
-              else 1),
-
-              ## so that Inf values are allowed for parameters denoting truncation points of truncated distributions
-              NAOK = TRUE
-              )
-    ## Fisher information matrix
-    if (do.what=="info")
-        lik$returned2 <- matrix(lik$returned2, nrow=nopt)
-    ## subject-specific derivatives, to use for score residuals
-    if (do.what=="deriv.subj")
-        lik$returned <- matrix(lik$returned, nrow=attr(mf, "npts"))
-    ## transition-specific derivatives of P matrix, to use for Pearson test
-    if (do.what=="dpmat")
-        lik$returned <- array(lik$returned, dim=c(ntrans, qmodel$nstates, nopt))
-    if (do.what=="info") list(deriv=lik$returned, info=lik$returned2) else lik$returned
+   ## coerce types here to avoid PROTECT faff with doing this in C
+   mfac <- list("(fromstate)" = as.integer(mf.agg$"(fromstate)"),
+                  "(tostate)" = as.integer(mf.agg$"(tostate)"),
+                  "(timelag)" = as.double(mf.agg$"(timelag)"),
+                  "(nocc)" = as.integer(mf.agg$"(nocc)"),
+                  "(noccsum)" = as.integer(mf.agg$"(noccsum)"),
+                  "(whicha)" = as.integer(mf.agg$"(whicha)"),
+                  "(obstype)" = as.integer(mf.agg$"(obstype)"))
+   mfc <- list("(subject)" = as.integer(mf$"(subject)"),  "(time)" = as.double(mf$"(time)"),
+              "(state)" = as.double(mf$"(state)"), "(obstype)" = as.integer(mf$"(obstype)"),
+              "(obstrue)" = as.integer(mf$"(obstrue)"), "(pcomb)" = as.integer(mf$"(pcomb)"))
+   auxdata <- list(nagg=as.integer(nagg),n=as.integer(nrow(mf)),npts=as.integer(attr(mf,"npts")),
+                   ntrans=as.integer(ntrans), npcombs=as.integer(npcombs),
+                   nliks=as.integer(get("nliks",msm.globals)),firstobs=as.integer(firstobs))
+   qmodel <- list(nstates=as.integer(qmodel$nstates), npars=as.integer(qmodel$npars),
+                  nopt=as.integer(qmodel$nopt), iso=as.integer(qmodel$iso),
+                  perm=as.integer(qmodel$perm), qperm=as.integer(qmodel$qperm),
+                  expm=as.integer(qmodel$expm))
+   cmodel <- list(ncens=as.integer(cmodel$ncens), censor=as.integer(cmodel$censor),
+                  states=as.integer(cmodel$states), index=as.integer(cmodel$index - 1))
+   hmodel <- list(hidden=as.integer(hmodel$hidden), models=as.integer(hmodel$models),
+                  totpars=as.integer(hmodel$totpars), firstpar=as.integer(hmodel$firstpar),
+                  npars=as.integer(hmodel$npars), nopt=as.integer(hmodel$nopt))
+   pars <- list(Q=as.double(Q),DQ=as.double(DQ),H=as.double(H),DH=as.double(DH),
+                initprobs=as.double(initprobs),nopt=as.integer(nopt))
+   .Call("msmCEntry",  as.integer(match(do.what, .msm.CTASKS) - 1),
+         mfac, mfc, auxdata, qmodel, cmodel, hmodel, pars, PACKAGE="msm")
 }
 
 
 lik.msm <- function(params, ...)
 {
+    ## number of likelihood evaluations so far including this one
+    ## used for error message for iffy initial values in HMMs
+    assign("nliks", get("nliks",msm.globals) + 1, envir=msm.globals)
     Ccall.msm(params, do.what="lik", ...)
 }
 
@@ -1925,4 +1877,9 @@ model.matrix.msm <- function(object, model="intens", state=1, ...){
            misc=msm.form.mm.mcov(object),
            hmm=msm.form.mm.hcov(object)[[state]],
            init=msm.form.mm.icov(object))
+}
+
+.onLoad <- function(libname, pkgname) {
+    assign("msm.globals", new.env(), envir=parent.env(environment()))
+    assign("nliks", 0, envir=msm.globals)
 }

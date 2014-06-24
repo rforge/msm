@@ -86,7 +86,7 @@ cat(format(Sys.time(), "%d %B, %Y"))
 \label{sec:intro}
 
 
-Figure~\ref{fig:multi} illustrates a multi-state model in continuous
+Figure \ref{fig:multi} illustrates a multi-state model in continuous
 time. Its four states are labelled {\bf 1, 2, 3, 4}.  At a time $t$
 the individual is in state $S(t)$.  The arrows show which transitions
 are possible between states. The next state to which the individual
@@ -952,7 +952,7 @@ statetable.msm(state, PTNUM, data=cav)
 @
 Thus there were 148 CAV-free deaths, 48 deaths from state 2, and
 55 deaths from state 3.  On only four occasions was there an
-observation of severe CAV followed by an observation of no CAV.
+observation of severe CAV followed by an observation of no CAV.   
 
 
 \subsection{Specifying a model}
