@@ -23,10 +23,6 @@ one for output functions rewrite?  must be better r way of doing factors. predic
 
 POSSIBLE MAJOR DEVELOPMENTS
 
-Rewrite C interface to use Rcpp
-
-More formally organised unit tests
-
 MCMC estimation.  Done basic JAGS interface, but convergence
 difficulties typical.  Stan might be better (esp for HMMs) but can't
 do matrix exponentials in it.  Haven't tried inserting random effects
@@ -66,4 +62,11 @@ Difficult .Call type mechanism needed for using user-defined R functions
 in C. See Writing R Extensions 5.11.1 for a possible starting point.
 Or Rcpp.
 
-make msm.check.model for censored states - detect model inconsistency. see previous errors.R
+make msm.check.model for censored states - detect model
+   inconsistency. see previous errors.R
+
+check out Banks, H. T., et al (2012). Simulation algorithms for
+   continuous time Markov chain models. Simulation and
+Modeling Related to Computational Science and Robotics Technology 37, 3-18.
+
+Li, Y. P., and Chan, W. (2006). Analysis of longitudinal multinomial outcome data. Biometrical Journal 48, 319-326.
