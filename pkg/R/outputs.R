@@ -1128,7 +1128,7 @@ sojourn.msm <- function(x, covariates = "mean", ci=c("delta","normal","bootstrap
 
 ### Extract the probabilities of occupying each state next
 
-pnext.msm <- function(x, covariates="mean", ci=c("delta","normal","bootstrap","none"), cl=0.95, B=1000, cores=NULL)
+pnext.msm <- function(x, covariates="mean", ci=c("normal","bootstrap","delta","none"), cl=0.95, B=1000, cores=NULL)
 {
     ci <- match.arg(ci)
     Q <- qmatrix.msm(x, covariates, ci="none")

@@ -9,7 +9,7 @@
 }
 \usage{
 pnext.msm(x, covariates = "mean",
-           ci=c("delta","normal","bootstrap","none"), cl = 0.95,
+           ci=c("normal","bootstrap","delta","none"), cl = 0.95,
            B=1000, cores=NULL)
 }
 \arguments{
@@ -37,10 +37,7 @@ pnext.msm(x, covariates = "mean",
   }
 
   \item{ci}{
-    If \code{"delta"} (the default) then confidence intervals are
-    calculated by the delta method.
-
-    If \code{"normal"}, then calculate a confidence interval by
+    If \code{"normal"} (the default) then calculate a confidence interval by
     simulating \code{B} random vectors
     from the asymptotic multivariate normal distribution implied by the
     maximum likelihood estimates (and covariance matrix) of the log
@@ -50,7 +47,13 @@ pnext.msm(x, covariates = "mean",
     non-parametric bootstrap refitting.  This is 1-2 orders of magnitude
     slower than the \code{"normal"} method, but is expected to be more
     accurate. See \code{\link{boot.msm}} for more details of
-    bootstrapping in \pkg{msm}.}
+    bootstrapping in \pkg{msm}.
+
+    If \code{"delta"} then confidence intervals are
+    calculated based on the delta method SEs of the log rates, but this is
+    not recommended since it may not respect the constraint 
+    that probabilities are less than one.
+  }
 
   \item{cl}{Width of the symmetric confidence interval to present.
     Defaults to 0.95.}
@@ -70,12 +73,12 @@ pnext.msm(x, covariates = "mean",
   that the next state is \eqn{s} is \eqn{-q_{rs} / q_{rr}}, where
   \eqn{q_{rs}} is the transition intensity (\code{\link{qmatrix.msm}}).
 
-  The model is fully parameterised by these probabilities together with
+  A continuous-time Markov model is fully specified by these probabilities together with
   the mean sojourn times \eqn{-1/q_{rr}} in each state \eqn{r}. This
   gives a more intuitively meaningful description of a model than the
   intensity matrix.
 
-  Remember that \pkg{msm} deals with continuous-time not discrete-time
+  Remember that \pkg{msm} deals with continuous-time, not discrete-time
   models, so these are \emph{not} the same as the probability of observing
   state \eqn{s} at a fixed time in the future.  Those probabilities are
   given by \code{\link{pmatrix.msm}}.

@@ -1,13 +1,27 @@
+2014-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* DESCRIPTION: Version 1.4 released to CRAN.
+
+2014-07-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: Default CI method for pnext.msm changed to
+	"normal", since delta method may not respect probability <1
+	constraint.
+
 2014-06-23 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	*  C interface changed from .C to .Call.
 
 	*  Added ppass.msm for passage probabilites.
 
+	* DESCRIPTION: Version 1.3.3 released to r-forge.
+
 2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/lik.c: Bug fix in infosimple: info was not being initialized
 	at zero, leading to occasional random output.
+
+	* DESCRIPTION: Version 1.3.2 released to r-forge.
 
 2014-06 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

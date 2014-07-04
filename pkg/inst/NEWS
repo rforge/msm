@@ -3,8 +3,21 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.4  (2014-07-04)
+------------
+
+o CRAN release.  Includes the major changes from versions 1.3.2 and
+  1.3.3 below, previously only released on R-forge, plus:
+
+o Default confidence interval method for pnext.msm changed to
+  "normal", since delta method may not respect probability <1
+  constraint.
+
+
 Version 1.3.3  (2014-06-23)
 --------------
+
+o R-forge only release. 
 
 o C interface changed from .C to .Call, giving a slight speed
   improvement.
@@ -14,6 +27,8 @@ o Probabilities of passage, see ppass.msm.
 
 Version 1.3.2  (2014-06-19)
 --------------
+
+o R-forge only release. 
 
 o The new compact format for printing results from fitted models is
   now the default.  The underlying numbers can be accessed from the

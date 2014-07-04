@@ -113,8 +113,7 @@ returns a list with
 }
 \references{
   Mandel, M. (2013). "Simulation based confidence intervals for
-  functions with complicated derivatives." The American Statistician (in
-  press).
+  functions with complicated derivatives." The American Statistician 67(2):76-81
 }
 \seealso{
   \code{\link{qmatrix.msm}},  \code{\link{pmatrix.piecewise.msm}}, \code{\link{boot.msm}}

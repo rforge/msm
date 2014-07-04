@@ -20,6 +20,10 @@ only treatment contrasts. (factorcov2numeric.msm)
 store in covdata whether model matrix built using treat/poly for factors?
 one for output functions rewrite?  must be better r way of doing factors. predict.lm?
 
+warn for factor states
+	* R/msm.R(msm.form.data): Handle factor states (with levels
+	1:nstates) by converting to numeric.
+
 
 POSSIBLE MAJOR DEVELOPMENTS
 
