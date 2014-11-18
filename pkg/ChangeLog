@@ -5,15 +5,13 @@
 	* R/outputs.R,R/msm.R: Don't print CIs for fixed parameters in
 	output formatting functions.
 
+	* R/msm.R: Warn that polynomial contrasts aren't supported.
+	
 2014-11-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/pijt.c(MatrixExpEXPM): give error if optimiser has chosen
 	overflowing parameter values.  Stops infinite loops seen on
 	Windows.
-
-	* R/optim.R: Pass fnscale to optim() automatically, if not already
-	provided, using the likelihood at the initial values.  Wastes a
-	likelihood calculation but should improve convergence.
 
 2014-11-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 

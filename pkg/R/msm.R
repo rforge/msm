@@ -254,7 +254,9 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     p$estimates.t <- msm.inv.transform(p$params, hmodel, p$ranges)
     ## calculate CIs for misclassification probabilities (needs multivariate transform and delta method)
     if (any(p$plabs=="p") && p$foundse){
-        p.se <- p.se.msm(qmodel,emodel,hmodel,qcmodel,ecmodel,p,center, covariates = if(center) "mean" else 0)
+        p.se <- p.se.msm(x=list(data=msmdata,qmodel=qmodel,emodel=emodel,hmodel=hmodel,
+                         qcmodel=qcmodel,ecmodel=ecmodel,paramdata=p,center=center),
+                         covariates = if(center) "mean" else 0)
         p$ci[p$plabs %in% c("p","pbase"),] <- as.numeric(unlist(p.se[,c("LCL","UCL")]))
     }
     ## calculate CIs for initial state probabilities in HMMs (using normal simulation method)
@@ -265,6 +267,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     output <- msm.form.output("intens", qmodel, qcmodel, p)
     Qmatrices <- output$Matrices;  QmatricesSE <- output$MatricesSE
     QmatricesL <-  output$MatricesL;  QmatricesU <-  output$MatricesU
+    QmatricesFixed <- output$MatricesFixed
 
     if (hmodel$hidden) {
         hmodel <- msm.form.houtput(hmodel, p, msmdata)
@@ -279,6 +282,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
                        QmatricesSE = QmatricesSE,
                        QmatricesL = QmatricesL,
                        QmatricesU = QmatricesU,
+                       QmatricesFixed = QmatricesFixed,
                        minus2loglik = p$lik,
                        deriv = p$deriv,
                        estimates = p$params,
@@ -315,12 +319,11 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     msmobject$QmatricesU$baseline <- q$U
     if (emodel$misc) {
         output <- msm.form.output("misc", emodel, ecmodel, p)
-        Ematrices <- output$Matrices; EmatricesSE <- output$MatricesSE
-        EmatricesL <-  output$MatricesL; EmatricesU <-  output$MatricesU
-        msmobject$Ematrices <- Ematrices
-        msmobject$EmatricesSE <- EmatricesSE
-        msmobject$EmatricesL <- EmatricesL
-        msmobject$EmatricesU <- EmatricesU
+        msmobject$Ematrices <- output$Matrices
+        msmobject$EmatricesSE <- output$MatricesSE
+        msmobject$EmatricesL <- output$MatricesL
+        msmobject$EmatricesU <- output$MatricesU
+        msmobject$EmatricesFixed <- output$MatricesFixed
         e <- ematrix.msm(msmobject, covariates=(if(center) "mean" else 0))
         msmobject$Ematrices$baseline <- e$estimates
         msmobject$EmatricesSE$baseline <- e$SE
@@ -1406,8 +1409,9 @@ information.msm <- function(params, ...)
 
 msm.form.output <- function(whichp, model, cmodel, p)
 {
-    Matrices <- MatricesSE <- MatricesL <- MatricesU <- list()
+    Matrices <- MatricesSE <- MatricesL <- MatricesU <- MatricesFixed <- list()
     basename <- if (whichp=="intens") "logbaseline" else "logitbaseline"
+    fixedpars.logical <- p$constr %in% p$constr[p$fixedpars]
     for (i in 0:cmodel$ncovs) {
         matrixname <- if (i==0) basename else cmodel$covlabels[i] # name of the current output matrix.
         mat <- t(model$imatrix) # state matrices filled by row, while R fills them by column.
@@ -1423,29 +1427,36 @@ msm.form.output <- function(whichp, model, cmodel, p)
             intenscov <- p$covmat[parinds, parinds]
             intensse <- sqrt(diag(as.matrix(intenscov)))
             semat <- lmat <- umat <- t(model$imatrix)
+            fixed <- array(FALSE, dim=dim(model$imatrix))
             if (any(parinds)){
                 semat[t(model$imatrix)==1] <- intensse
                 lmat[t(model$imatrix)==1] <- p$ci[parinds,1]
                 umat[t(model$imatrix)==1] <- p$ci[parinds,2]
+                fixed[t(model$imatrix)==1] <- fixedpars.logical[parinds]
             }
             else semat[semat==1] <- lmat[lmat==1] <- umat[umat==1] <- Inf
-            semat <- t(semat); lmat <- t(lmat); umat <- t(umat)
+            semat <- t(semat); lmat <- t(lmat); umat <- t(umat); fixed <- t(fixed)
             diag(semat) <- diag(lmat) <- diag(umat) <- 0
+            for (i in 1:nrow(fixed)){
+                fixed[i,i] <- all(fixed[i,-i][model$imatrix[i,-i]==1])
+            }
             dimnames(semat)  <- dimnames(mat)
         }
         else {
-            semat <- lmat <- umat <- NULL
+            semat <- lmat <- umat <- fixed <- NULL
         }
         Matrices[[matrixname]] <- mat
         MatricesSE[[matrixname]] <- semat
         MatricesL[[matrixname]] <- lmat
         MatricesU[[matrixname]] <- umat
+        MatricesFixed[[matrixname]] <- fixed
     }
     list(Matrices=Matrices,     # list of baseline log intensities/logit misc probability matrix
                                         # and linear effects of covariates
          MatricesSE=MatricesSE,  # corresponding matrices of standard errors
          MatricesL=MatricesL,  # corresponding matrices of standard errors
-         MatricesU=MatricesU  # corresponding matrices of standard errors
+         MatricesU=MatricesU,  # corresponding matrices of standard errors
+         MatricesFixed=MatricesFixed # whether parameter was fixed during optimisation
          )
 }
 
@@ -1814,7 +1825,7 @@ msm.form.hmm.agg <- function(mf){
 
 ### FORM DESIGN MATRICES FOR COVARIATE MODELS.
 msm.form.mm.cov <- function(x){
-    mm.cov <- model.matrix(x$covariates, x$data$mf)
+    mm.cov <- model.matrix.wrap(x$covariates, x$data$mf)
     msm.center.covs(mm.cov, attr(x$data$mf,"covmeans"), x$center)
 }
 
@@ -1824,7 +1835,7 @@ msm.form.mm.cov.agg <- function(x){
 }
 
 msm.form.mm.mcov <- function(x){
-    mm.mcov <- if (x$emodel$misc) model.matrix(x$misccovariates, x$data$mf) else NULL
+    mm.mcov <- if (x$emodel$misc) model.matrix.wrap(x$misccovariates, x$data$mf) else NULL
     msm.center.covs(mm.mcov, attr(x$data$mf,"covmeans"), x$center)
 }
 
@@ -1837,7 +1848,7 @@ msm.form.mm.hcov <- function(x){
             hcov <- rep(list(~1), nst)
         for (i in seq_len(nst)){
             if (is.null(hcov[[i]])) hcov[[i]] <- ~1
-            mm.hcov[[i]] <- model.matrix(hcov[[i]], x$data$mf)
+            mm.hcov[[i]] <- model.matrix.wrap(hcov[[i]], x$data$mf)
             mm.hcov[[i]] <- msm.center.covs(mm.hcov[[i]], attr(x$data$mf,"covmeans"), x$center)
         }
     } else mm.hcov <- NULL
@@ -1847,9 +1858,18 @@ msm.form.mm.hcov <- function(x){
 msm.form.mm.icov <- function(x){
     if (x$hmodel$hidden) {
         if (is.null(x$initcovariates)) x$initcovariates <- ~1
-        mm.icov <- model.matrix(x$initcovariates, x$data$mf[!duplicated(x$data$mf$"(subject)"),])
+        mm.icov <- model.matrix.wrap(x$initcovariates, x$data$mf[!duplicated(x$data$mf$"(subject)"),])
     } else mm.icov <- NULL
     msm.center.covs(mm.icov, attr(x$data$mf,"covmeans"), x$center)
+}
+
+model.matrix.wrap <- function(formula, data){
+    mm <- model.matrix(formula, data)
+    polys <- unlist(attr(mm, "contrasts") == "contr.poly")
+    covlist <- paste(names(polys),collapse=",")
+    if (any(polys))
+        warning(sprintf("Polynomial factor contrasts (found for covariates \"%s\") not supported in msm output functions.  Use treatment contrasts for ordered factors", covlist))   
+    mm
 }
 
 msm.center.covs <- function(covmat, cm, center=TRUE){

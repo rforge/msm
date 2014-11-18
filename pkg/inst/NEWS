@@ -8,15 +8,14 @@ Version 1.4.1
 
 o Memory leaks in C code fixed.  Thanks to Brian Ripley.
 
-o Confidence intervals are not printed for fixed parameters.
+o Don't print CIs for fixed parameters.
+
+o Three and four-state versions of the BOS data provided.
 
 o Documented that factors are allowed as the state variable as long as
   their levels are called "1", "2",...
 
-o Three and four-state versions of the BOS data provided.
-
-o Give explicit warning that polynomial factor contrasts are not
-  supported.
+o Give warning that polynomial contrasts aren't supported.
 
 
 Version 1.4  (2014-07-04)

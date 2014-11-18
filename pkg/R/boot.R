@@ -121,8 +121,8 @@ boot.msm <- function(x, stat=pmatrix.msm, B=1000, file=NULL, cores=NULL){
 
 ### Utilities for calculating bootstrap CIs for particular statistics
 
-qematrix.ci.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, cl=0.95, B=1000, cores=NULL) {
-    q.list <- boot.msm(x, function(x)qematrix.msm(x=x, covariates=covariates, intmisc=intmisc)$estimates, B=B, cores=cores)
+qmatrix.ci.msm <- function(x, covariates="mean", sojourn=FALSE, cl=0.95, B=1000, cores=NULL) {
+    q.list <- boot.msm(x, function(x)qmatrix.msm(x=x, covariates=covariates)$estimates, B=B, cores=cores)
     q.array <- array(unlist(q.list), dim=c(dim(q.list[[1]]), length(q.list)))
     q.ci <- apply(q.array, c(1,2), function(x)(c(quantile(x, c(0.5 - cl/2, 0.5 + cl/2)), sd(x))))
     q.ci <- aperm(q.ci, c(2,3,1))
@@ -132,6 +132,13 @@ qematrix.ci.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALS
         list(q=q.ci, soj=soj.ci)
     }
     else q.ci
+}
+
+ematrix.ci.msm <- function(x, covariates="mean", cl=0.95, B=1000, cores=NULL) {
+    e.list <- boot.msm(x, function(x)ematrix.msm(x=x, covariates=covariates)$estimates, B=B, cores=cores)
+    e.array <- array(unlist(e.list), dim=c(dim(e.list[[1]]), length(e.list)))
+    e.ci <- apply(e.array, c(1,2), function(x)(c(quantile(x, c(0.5 - cl/2, 0.5 + cl/2)), sd(x))))
+    aperm(e.ci, c(2,3,1))
 }
 
 qratio.ci.msm <- function(x, ind1, ind2, covariates="mean", cl=0.95, B=1000, cores=NULL) {
@@ -241,8 +248,8 @@ normboot.msm <- function(x, stat, B=1000) {
     sim.stat
 }
 
-qematrix.normci.msm <- function(x, covariates="mean", intmisc="intens", sojourn=FALSE, cl=0.95, B=1000) {
-    q.list <- normboot.msm(x, function(x)qematrix.msm(x=x, covariates=covariates, intmisc=intmisc, ci="none"), B)
+qmatrix.normci.msm <- function(x, covariates="mean", sojourn=FALSE, cl=0.95, B=1000) {
+    q.list <- normboot.msm(x, function(x)qmatrix.msm(x=x, covariates=covariates, ci="none"), B)
     q.array <- array(unlist(q.list), dim=c(dim(q.list[[1]]), length(q.list)))
     q.ci <- apply(q.array, c(1,2), function(x)(c(quantile(x, c(0.5 - cl/2, 0.5 + cl/2)), sd(x))))
     q.ci <- aperm(q.ci, c(2,3,1))
@@ -252,6 +259,13 @@ qematrix.normci.msm <- function(x, covariates="mean", intmisc="intens", sojourn=
         list(q=q.ci, soj=soj.ci)
     }
     else q.ci
+}
+
+ematrix.normci.msm <- function(x, covariates="mean", cl=0.95, B=1000) {
+    e.list <- normboot.msm(x, function(x)ematrix.msm(x=x, covariates=covariates, ci="none"), B)
+    e.array <- array(unlist(e.list), dim=c(dim(e.list[[1]]), length(e.list)))
+    e.ci <- apply(e.array, c(1,2), function(x)(c(quantile(x, c(0.5 - cl/2, 0.5 + cl/2)), sd(x))))
+    aperm(e.ci, c(2,3,1))
 }
 
 qratio.normci.msm <- function(x, ind1, ind2, covariates="mean", cl=0.95, B=1000) {

@@ -17,7 +17,6 @@ efpt.msm, ppass.msm and sojourn.msm with time dependent covs? easier with qematr
 
 
 
-
 POSSIBLE MAJOR DEVELOPMENTS
 
 MCMC estimation.  Done basic JAGS interface, but convergence

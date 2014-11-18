@@ -336,12 +336,6 @@ test_that("qratio.msm",{
     expect_error(qratio.msm(psor.msm, c(1,2), c(1,0)))
     expect_error(qratio.msm(psor.msm, c(1,2), c(2,3), cl="foo"))
     expect_error(qratio.msm(psor.msm, c(1,2), c(2,3), cl=2), "expected cl in")
-    q <- qratio.msm(psor.msm, c(1,2), c(3,4), covariates=list(ollwsdrt=0.1, hieffusn=0.2))
-    expect_equal(c(0.47151160241106, 0.091749365604936, 0.322003672745454, 0.690436818042113), as.numeric(q), tol=1e-04)
-    q <- qratio.msm(psor.msm, c(1,2), c(3,4), covariates=0)
-    expect_equal(c(0.524538757953833, 0.109128662333278, 0.348889373217087, 0.788619343887413), as.numeric(q), tol=1e-04)
-    q <- qratio.msm(psor.msm, c(1,2), c(3,4), covariates="mean")
-    expect_equal(c(0.377128475929849, 0.0729336767845035, 0.258150905105287, 0.550940882036282), as.numeric(q), tol=1e-04)
 })
 
 test_that("coef.msm",{
