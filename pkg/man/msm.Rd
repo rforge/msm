@@ -28,10 +28,13 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
     \code{state ~ time}
 
-    Observed states should be in the set \code{1, \dots, n}, where
-    \code{n} is the number of states.  The times can indicate different
-    types of observation scheme, so be careful to choose the correct
-    \code{obstype}.
+    Observed states should be numeric variables
+    in the set \code{1, \dots, n}, where
+    \code{n} is the number of states.  Factors are allowed only if their
+    levels are called \code{"1", \dots, "n"}.
+
+    The times can indicate different types of observation scheme, so be
+    careful to choose the correct \code{obstype}.
 
     For hidden Markov models, \code{state} refers to the outcome
     variable, which need not be a discrete state.
@@ -72,6 +75,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     represents a 'health - disease - death' model, with initial transition intensities
     0.1 from health to disease, 0.01 from health to death, 0.1 from disease to health,
     and 0.2 from disease to death.
+
+    If the states represent ordered levels of severity of a disease,
+    then this matrix should usually only allow transitions between
+    adjacent states.  For example, if someone was observed in state 1
+    ("mild") at their first observation, followed by state 3 ("severe")
+    at their second observation, they are assumed to have passed through
+    state 2 ("moderate") in between, and the 1,3 entry of \code{qmatrix}
+    should be zero.
 
     The initial intensities given here are with any covariates set to
     their means in the data (or set to zero, if \code{center =
@@ -624,9 +635,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     with this type of data.  The models which \pkg{msm} fits have the
     strong assumption of constant (or piecewise-constant) transition
     rates.  Knowing the exact transition times allows
-    potentially more realistic models to be fitted with other
+    more realistic models to be fitted with other
     packages.  For example parametric models with sojourn distributions
-    more flexible than the exponential can be fitted with the \pkg{survival} package,
+    more flexible than the exponential can be fitted with the \pkg{flexsurv} package,
     or semi-parametric models can be implemented with \pkg{survival} in
     conjunction with \pkg{mstate}.
   }
@@ -726,10 +737,11 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     optimisation routine, \code{\link{optim}} by default. Useful options for \code{\link{optim}} include
     \code{method="BFGS"} for using a quasi-Newton optimisation
     algorithm, which can often be faster than the default Nelder-Mead.
-    If the optimisation fails to converge, consider normalising the
-    problem using, for example, \code{control=list(fnscale = 2500)}, for
-    example, replacing 2500 by a number of the order of magnitude of the
-    likelihood. If 'false' convergence is reported and the standard
+    
+    If not provided by the user, \code{control=list(fnscale = a)} is
+    applied automatically to normalise the optimisation, where \code{a}
+    is the minus twice log likelihood at the initial values.
+    If 'false' convergence is reported and the standard
     errors cannot be calculated due to a non-positive-definite Hessian,
     then consider tightening the tolerance criteria for convergence. If
     the optimisation takes a long time, intermediate steps can be

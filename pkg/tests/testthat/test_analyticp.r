@@ -68,8 +68,8 @@ test_that("3 state analytic P matrices",{
                                         # 1,2,4
     (three.q <- fixq(rbind(c(0, exp(-3), exp(-6)), c(0, 0, exp(-3)), c(0, 0, 0))))
     sim2.df <- simmulti.msm(sim.df[,1:2], qmatrix=three.q)
-    (sim.mod1 <- msm(state ~ time, subject=subject, data=sim2.df, qmatrix = rbind(c(0, exp(-1), exp(-2)), c(0, 0, exp(-1)), c(0, 0, 0)), analyticp=TRUE))
-    (sim.mod2 <- msm(state ~ time, subject=subject, data=sim2.df, qmatrix = rbind(c(0, exp(-1), exp(-2)), c(0, 0, exp(-1)), c(0, 0, 0)), analyticp=FALSE))
+    (sim.mod1 <- msm(state ~ time, subject=subject, data=sim2.df, qmatrix = rbind(c(0, exp(-1), exp(-2)), c(0, 0, exp(-1)), c(0, 0, 0)), analyticp=TRUE, control=list(fnscale=1)))
+    (sim.mod2 <- msm(state ~ time, subject=subject, data=sim2.df, qmatrix = rbind(c(0, exp(-1), exp(-2)), c(0, 0, exp(-1)), c(0, 0, 0)), analyticp=FALSE, control=list(fnscale=1)))
     expect_equal(sim.mod1$minus2loglik, sim.mod2$minus2loglik)
 
                                         # 1,2,4 (=1,2,6)

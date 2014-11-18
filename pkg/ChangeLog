@@ -1,3 +1,41 @@
+2014-11-18 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: qmatrix.msm and related functions tidied up.
+
+	* R/outputs.R,R/msm.R: Don't print CIs for fixed parameters in
+	output formatting functions.
+
+2014-11-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/pijt.c(MatrixExpEXPM): give error if optimiser has chosen
+	overflowing parameter values.  Stops infinite loops seen on
+	Windows.
+
+	* R/optim.R: Pass fnscale to optim() automatically, if not already
+	provided, using the likelihood at the initial values.  Wastes a
+	likelihood calculation but should improve convergence.
+
+2014-11-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R: Documentation and error message for factor states.
+
+2014-10-31 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(efpt.msm): Support tostate as character.
+
+	* man/plot.survfit.msm: Reference Turnbull method.
+
+	* src/lik.c(GetCensored): Fixed valgrind uninitialized value warning.
+
+2014-09-22 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/optim.R(deriv.test): require namespace instead of loading
+	numDeriv
+
+2014-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/analyticp.c: memory leaks removed.
+
 2014-07-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.4 released to CRAN.

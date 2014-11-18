@@ -88,6 +88,11 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     mf <- eval(temp, parent.frame())
     ## remember user-specified names for later (e.g. bootstrap/cross validation)
     attr(mf, "usernames") <- c(state=all.vars(formula[[2]]), time=all.vars(formula[[3]]), subject=as.character(temp$subject), obstype=as.character(substitute(obstype)), obstrue=as.character(temp$obstrue))
+    if (is.factor(mf$"(state)")){
+        if (!all(grepl("^[[:digit:]]+$", as.character(mf$"(state)"))))
+            stop("state variable should be numeric or a factor with ordinal numbers as levels")
+        else mf$"(state)" <- as.numeric(as.character(mf$"(state)"))
+    }
     if (!(hmodel$hidden || emodel$misc))
         msm.check.state(qmodel$nstates, mf$"(state)", cmodel$censor)
     if (is.null(mf$"(subject)")) mf$"(subject)" <- rep(1, nrow(mf))

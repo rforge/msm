@@ -5,9 +5,10 @@
   Converts longitudinal data for a \code{\link{msm}} model fit, where observations
   represent the exact transition times of the process, to counting process
   data.
-  This enables, for example, semiparametric models to be fitted with
-  \code{\link[survival]{coxph}}, 
-  and subsequent multi-state prediction with the \pkg{mstate} package.
+  This enables, for example, flexible parametric multi-state models to
+  be fitted with \code{\link[flexsurv]{flexsurvreg}} from the
+  \pkg{flexsurv} package, or semiparametric models to be implemented with
+  \code{\link[survival]{coxph}} and the \pkg{mstate} package.
 }
 \usage{
 msm2Surv(data, subject, time, state, covs, Q)

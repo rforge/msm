@@ -1895,6 +1895,10 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mea
             stop("expected qmatrix to be a square matrix")
         if (ci != "none") {warning("No fitted model supplied: not calculating confidence intervals."); ci <- "none"}
     }
+    if (is.character(tostate)) {
+        if (!tostate %in% rownames(qmatrix)) stop(sprintf("state \"%s\" unknown", tostate))
+        tostate <- match(tostate, rownames(qmatrix))
+    }
     est <- rep(NA, nrow(qmatrix))
     ## EFPT is zero if we're already in tostate
     est[tostate] <- 0

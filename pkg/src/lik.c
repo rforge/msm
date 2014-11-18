@@ -108,8 +108,9 @@ void GetCensored (double obs, cmodel *cm, int *nc, double **states)
     if (cm->ncens == 0)
 	n = 1;
     else {
-	while (!all_equal(obs, cm->censor[k]) && k < cm->ncens)
+	while ((k < cm->ncens) && !all_equal(obs, cm->censor[k])){ 
 	    ++k;
+	}
 	if (k < cm->ncens) {
 	    cens = 1;
 	    n =  cm->index[k+1] - cm->index[k];
@@ -535,7 +536,7 @@ void hmm_deriv(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pm
     }
     lp *= -2;
     //    printf("lp=%lf\n",lp);
-    Free(curr); Free(aold); Free(anew); Free(phiold); Free(phinew); Free(xiold); Free(xinew); Free(phiold); Free(phinew); Free(dpok);
+    Free(curr); Free(aold); Free(anew); Free(phiold); Free(phinew); Free(xiold); Free(xinew); Free(dxiold); Free(dxinew); Free(dpok);
 }
 
 
@@ -611,7 +612,7 @@ void hmm_info(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pma
 	    }
 	}
     }
-    Free(curr); Free(potential); Free(aold); Free(anew); Free(phiold); Free(phinew); Free(xiold); Free(xinew); Free(phiold); Free(phinew); Free(dpok);
+    Free(curr); Free(potential); Free(anew); Free(aold); Free(phiold); Free(phinew); Free(xinew); Free(xiold); Free(dxiold); Free(dxinew); Free(dpok);
 }
 
 

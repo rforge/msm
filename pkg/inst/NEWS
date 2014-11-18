@@ -3,6 +3,22 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.4.1
+-------------
+
+o Memory leaks in C code fixed.  Thanks to Brian Ripley.
+
+o Confidence intervals are not printed for fixed parameters.
+
+o Documented that factors are allowed as the state variable as long as
+  their levels are called "1", "2",...
+
+o Three and four-state versions of the BOS data provided.
+
+o Give explicit warning that polynomial factor contrasts are not
+  supported.
+
+
 Version 1.4  (2014-07-04)
 ------------
 
@@ -66,7 +82,7 @@ o Parallel processing supported for bootstrapping and bootstrap
 
 o If msm is called with hessian=FALSE, then the Fisher (expected)
   information is used to obtain standard errors and CIs, though this
-  is only available for non-hidden and misclassification models).
+  is only available for non-hidden and misclassification models.
   This may be preferable if the observed Hessian is very intensive to
   approximate.
 
