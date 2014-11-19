@@ -1,4 +1,5 @@
 ### METHODS FOR MSM OBJECTS
+
 qmatrix.msm <- function(x, covariates="mean", sojourn=FALSE, ci=c("delta","normal","bootstrap","none"), cl=0.95, B=1000, cores=NULL)
 {   
     if (!inherits(x, "msm")) stop("expected x to be a msm model")
@@ -156,7 +157,7 @@ ematrix.msm <- function(x, covariates="mean", ci=c("delta","normal","bootstrap",
 msm.parse.covariates <- function(x, covariates, mod, consider.center=TRUE){
     nc <- mod$ncovs
     if (nc == 0){
-        if ((is.list(covariates)) && (length(covariates) > 0))
+        if (is.list(covariates) && (length(covariates) > 0))
             warning("Ignoring covariates - no covariates in this part of the model")
         return(list())
     }
