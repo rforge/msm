@@ -975,7 +975,7 @@ qratio.msm <- function(x, ind1, ind2,
 
 ### Extract the transition probability matrix at given covariate values
 
-pmatrix.msm <- function(x, # fitted msm model
+pmatrix.msm <- function(x=NULL, # fitted msm model
                         t = 1, # time interval
                         t1 = 0, # start time for pci models
                         covariates = "mean",  # covariate values to calculate transition matrix for
@@ -984,33 +984,40 @@ pmatrix.msm <- function(x, # fitted msm model
                         cl = 0.95, # width of symmetric confidence interval
                         B = 1000, # number of bootstrap replicates or normal simulations
                         cores=NULL,
+                        qmatrix=NULL,
                         ...
                         )
 {
-    if (!inherits(x, "msm")) stop("expected x to be a msm model")
     if (!is.numeric(t) || (t < 0)) stop("t must be a positive number")
-    if (is.null(x$pci)) {
-        q <- qmatrix.msm(x, covariates, ci="none")
-        p <- MatrixExp(q, t, ...)
-        colnames(p) <- rownames(p) <- rownames(q)
-        ci <- match.arg(ci)
-        p.ci <- switch(ci,
-                       bootstrap = pmatrix.ci.msm(x=x, t=t, t1=t1, covariates=covariates, cl=cl, B=B, cores=cores),
-                       normal = pmatrix.normci.msm(x=x, t=t, t1=t1, covariates=covariates, cl=cl, B=B),
-                       none = NULL)
-        res <- if (ci=="none") p else list(estimates = p, L=p.ci[,,1], U=p.ci[,,2])
+    if (!is.null(x)) { 
+        if (!inherits(x, "msm")) stop("expected x to be a msm model")
+        if (is.null(x$pci)) {
+            q <- qmatrix.msm(x, covariates, ci="none")
+            p <- MatrixExp(q, t, ...)
+            colnames(p) <- rownames(p) <- rownames(q)
+            ci <- match.arg(ci)
+            p.ci <- switch(ci,
+                           bootstrap = pmatrix.ci.msm(x=x, t=t, t1=t1, covariates=covariates, cl=cl, B=B, cores=cores),
+                           normal = pmatrix.normci.msm(x=x, t=t, t1=t1, covariates=covariates, cl=cl, B=B),
+                           none = NULL)
+            res <- if (ci=="none") p else list(estimates = p, L=p.ci[,,1], U=p.ci[,,2])
+        }
+        else {
+            piecewise.covariates <- msm.fill.pci.covs(x, covariates)
+            res <- pmatrix.piecewise.msm(x, t1, t1 + t, x$pci, piecewise.covariates, ci, cl, B, ...)
+        }
     }
-    else {
-        piecewise.covariates <- msm.fill.pci.covs(x, covariates)
-        res <- pmatrix.piecewise.msm(x, t1, t1 + t, x$pci, piecewise.covariates, ci, cl, B, ...)
+    else if (!is.null(qmatrix)){
+        res <- MatrixExp(qmatrix, t, ...)
     }
+    else stop("Neither a fitted model nor a qmatrix supplied")
     class(res) <- "msm.est"
     res
 }
 
 ### Extract the transition probability matrix at given covariate values - where the Q matrix is piecewise-constant
 
-pmatrix.piecewise.msm <- function(x, # fitted msm model
+pmatrix.piecewise.msm <- function(x=NULL, # fitted msm model
                                   t1, # start time
                                   t2, # stop time
                                   times,  # vector of cut points
@@ -1020,10 +1027,12 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
                                   cl = 0.95, # width of symmetric confidence interval
                                   B = 1000, # number of bootstrap replicates or normal simulations
                                   cores=NULL,
+                                  qlist=NULL,
                                   ... # arguments to pass to MatrixExp
                                   )
 {
-    if (!inherits(x, "msm")) stop("expected x to be a msm model")
+    if (!is.null(x)) { if (!inherits(x, "msm")) stop("expected x to be a msm model") }
+    if (is.null(x) && is.null(qlist))  stop("Neither a fitted model nor a list of Q matrices have been supplied")
     x$pci <- NULL # to avoid infinite recursion when calling pmatrix.msm
     ## Input checks
     if (t2 < t1) stop("Stop time t2 should be greater than or equal to start time t1")
@@ -1031,7 +1040,7 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
     if (length(covariates) != length(times) + 1)
         stop("Number of covariate lists must be one greater than the number of cut points")
     if (length(times)==0)
-        return(pmatrix.msm(x, t=t2-t1, t1=t1, covariates=covariates[[1]], ci=ci, cl=cl, B=B, ...))
+        return(pmatrix.msm(x=x, t=t2-t1, t1=t1, covariates=covariates[[1]], ci=ci, cl=cl, B=B, qmatrix=qlist[[1]], ...))
     ## Locate which intervals t1 and t2 fall in, as indices ind1, ind2 into "times".
     if (t1 <= times[1]) ind1 <- 1
     else if (length(times)==1) ind1 <- 2
@@ -1053,26 +1062,26 @@ pmatrix.piecewise.msm <- function(x, # fitted msm model
     ## Calculate accumulated pmatrix
     ## Three cases: ind1, ind2 in the same interval
     if (ind1 == ind2) {
-        P <- pmatrix.msm(x, t = t2 - t1, covariates=covariates[[ind1]], ...)
+        P <- pmatrix.msm(x=x, t = t2 - t1, covariates=covariates[[ind1]], qmatrix=qlist[[ind1]], ...)
     }
     ## ind1, ind2 in successive intervals
     else if (ind2 == ind1 + 1) {
-        P.start <- pmatrix.msm(x, t = times[ind1] - t1 , covariates=covariates[[ind1]], ...)
-        P.end <- pmatrix.msm(x, t = t2 - times[ind2-1], covariates=covariates[[ind2]], ...)
+        P.start <- pmatrix.msm(x=x, t = times[ind1] - t1 , covariates=covariates[[ind1]], qmatrix=qlist[[ind1]], ...)
+        P.end <- pmatrix.msm(x=x, t = t2 - times[ind2-1], covariates=covariates[[ind2]], qmatrix=qlist[[ind2]], ...)
         P <- P.start %*% P.end
     }
     ## ind1, ind2 separated by one or more whole intervals
     else {
-        P.start <- pmatrix.msm(x, t = times[ind1] - t1, covariates=covariates[[ind1]], ...)
-        P.end <- pmatrix.msm(x, t = t2 - times[ind2-1], covariates=covariates[[ind2]], ...)
+        P.start <- pmatrix.msm(x=x, t = times[ind1] - t1, covariates=covariates[[ind1]], qmatrix=qlist[[ind1]], ...)
+        P.end <- pmatrix.msm(x=x, t = t2 - times[ind2-1], covariates=covariates[[ind2]], qmatrix=qlist[[ind2]], ...)
         P.middle <- diag(x$qmodel$nstates)
         for (i in (ind1+1):(ind2-1)) {
-            P.middle <- P.middle %*% pmatrix.msm(x, t = times[i] - times[i-1], covariates=covariates[[i]], ...)
+            P.middle <- P.middle %*% pmatrix.msm(x=x, t = times[i] - times[i-1], covariates=covariates[[i]], qmatrix=qlist[[i]], ...)
         }
         P <- P.start %*% P.middle %*% P.end
     }
 
-    ci <- match.arg(ci)
+    ci <- if (!is.null(x)) match.arg(ci) else "none"
     P.ci <- switch(ci,
                    bootstrap = pmatrix.piecewise.ci.msm(x=x, t1=t1, t2=t2, times=times, covariates=covariates, cl=cl, B=B, cores=cores),
                    normal = pmatrix.piecewise.normci.msm(x=x, t1=t1, t2=t2, times=times, covariates=covariates, cl=cl, B=B),
@@ -1855,7 +1864,7 @@ scoreresid.msm <- function(x, plot=FALSE){
 # Function to calculate expected first passage times for continuous-time Markov chain with arbitrary Q matrix
 # Returns vector with EFPT for each "from" state in the state space.
 # Could also get CDF simply by making tostate absorbing and calculating pmatrix.
-# TODO time-dependent covariates
+# TODO time-dependent covariates.  Unclear if the expectation has a solution for piecewise-constant rate.
 
 efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mean",
                      ci=c("none","normal","bootstrap"), cl = 0.95, B = 1000, cores=NULL, ...)
@@ -1913,6 +1922,12 @@ efpt.msm <- function(x=NULL, qmatrix=NULL, tostate, start="all", covariates="mea
     if (ci=="none") est else rbind(est, e.ci)
 }
 
+
+## TODO time-inhomogeneous models.
+## Do msm.fill.pci.covs to get covariate list
+## Get list of Qs by calling qmatrix.msm for each member of this list
+## Zero out the appropriate rows
+## Supply this to pmatrix.piecewise.msm, which will call pmatrix.msm
 
 ppass.msm <- function(x=NULL, qmatrix=NULL, tot, start="all", covariates="mean",
                       piecewise.times=NULL, piecewise.covariates=NULL,

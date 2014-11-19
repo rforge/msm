@@ -11,11 +11,6 @@ test failures with new fnscale forcing  -   converges to different stuff.
 reltol would then tighten the tolerance so that results agree.
 
 
-OTHER
-
-efpt.msm, ppass.msm and sojourn.msm with time dependent covs? easier with qematrix.msm rewrite.
-
-
 
 POSSIBLE MAJOR DEVELOPMENTS
 
@@ -33,6 +28,10 @@ Internationalisation.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
+
+ppass.msm with time dependent covs.  method in source comment.
+
+sojourn.msm with time dependent covs - needs mean of piecewise exponential, not sure analytic.  Similarly for efpt.msm
   
 more print statements for tracing.  print in lik.msm.  print parameter values before doing the likelihood, user accessible debug in C? 
 

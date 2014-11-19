@@ -505,8 +505,7 @@ test_that("observed, expected etc with one covariate, should run",{
 
 test_that("observed, expected etc with PCI, should run",{
     psor1.msm <- msm(state ~ months, covariates=~ollwsdrt+hieffusn, subject=ptnum, data=psor, qmatrix = psor.q, pci=c(5,10))
-    x <- psor1.msm
-    (covhist <- get.covhist(psor1.msm))
+    covhist <- get.covhist(psor1.msm)
     observed.msm(psor1.msm)
     expected.msm(psor1.msm)
     expected.msm(psor1.msm, covariates="mean")
