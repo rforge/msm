@@ -1,3 +1,9 @@
+2014-11-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R: Allow qmatrix to be passed to pmatrix.msm, and a
+	list of qmatrices to pmatrix.piecewise.msm, instead of a fitted
+	model.
+
 2014-11-18 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: qmatrix.msm and related functions tidied up.
@@ -6,7 +12,7 @@
 	output formatting functions.
 
 	* R/msm.R: Warn that polynomial contrasts aren't supported.
-	
+
 2014-11-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/pijt.c(MatrixExpEXPM): give error if optimiser has chosen
