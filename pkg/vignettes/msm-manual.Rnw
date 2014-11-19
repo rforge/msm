@@ -1597,7 +1597,11 @@ maximum likelihood, or it may be close to the maximum.
   to run the model for several different initial values to ensure that
   the estimation has converged to a global rather than a local optimum.
 
-\item[Scaling] It is often necessary to apply a scaling factor to normalise the likelihood (\Rfunarg{fnscale}), or certain individual parameters \Rfunarg{(parscale)}.  This may prevent overflow or underflow problems within the optimisation.  For example, if the value of the -2 $\times$ log-likelihood is around 5000, then the following option leads to an minimisation of the -2 $\times$ log-likelihood on an approximate unit scale: \Rfunarg{control = list(fnscale = 5000)}.  Though since version 1.4.1, \code{fnscale} is applied automatically using the likelihood at the initial values, unless the user has already supplied it.
+\item[Scaling] It is often necessary to apply a scaling factor to normalise the likelihood (\Rfunarg{fnscale}), or certain individual parameters \Rfunarg{(parscale)}.  This may prevent overflow or underflow problems within the optimisation.  For example, if the value of the -2 $\times$ log-likelihood is around 5000, then the following option leads to an minimisation of the -2 $\times$ log-likelihood on an approximate unit scale: \Rfunarg{control = list(fnscale = 5000)}.  
+  % Though since version 1.4.1, \Rfunarg{fnscale} is applied automatically using the likelihood at the initial values, unless the user has already supplied it.
+%    If not provided by the user, \code{control=list(fnscale = a)} is
+%    applied automatically to normalise the optimisation, where \code{a}
+%    is the minus twice log likelihood at the initial values.
 
   It is also advisable to analyse all variables, including covariates
   and the time unit, on a roughly normalised scale. For example,

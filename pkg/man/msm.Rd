@@ -734,13 +734,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   }
 
   \item{...}{Optional arguments to the general-purpose \R
-    optimisation routine, \code{\link{optim}} by default. Useful options for \code{\link{optim}} include
-    \code{method="BFGS"} for using a quasi-Newton optimisation
-    algorithm, which can often be faster than the default Nelder-Mead.
+    optimisation routine, \code{\link{optim}} by default. For example
+    \code{method="Nelder-Mead"} to change the optimisation 
+    algorithm from the \code{"BFGS"} method that msm calls by default.
+
+    It is often worthwhile to normalize the optimisation using
+    \code{control=list(fnscale = a)}, where \code{a} is the a number of
+    the order of magnitude of the -2 log likelihood.
     
-    If not provided by the user, \code{control=list(fnscale = a)} is
-    applied automatically to normalise the optimisation, where \code{a}
-    is the minus twice log likelihood at the initial values.
     If 'false' convergence is reported and the standard
     errors cannot be calculated due to a non-positive-definite Hessian,
     then consider tightening the tolerance criteria for convergence. If
