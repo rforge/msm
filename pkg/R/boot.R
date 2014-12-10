@@ -193,6 +193,13 @@ ppass.ci.msm <- function(x, qmatrix, tot, start, covariates="mean", piecewise.ti
     list(L=matrix(ci[1,],ncol=nst,dimnames=di), U=matrix(ci[2,],ncol=nst, dimnames=di))
 }
 
+phasemeans.ci.msm <- function(x, covariates="mean", cl=0.95, B=1000, cores=NULL, ...) {
+    p.list <- boot.msm(x, function(x)phasemeans.msm(x=x, covariates=covariates, ci="none", ...), B=B, cores=cores)
+    p.array <- array(unlist(p.list), dim=c(dim(p.list[[1]]), length(p.list)))
+    p.ci <- apply(p.array, c(1,2), function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
+    aperm(p.ci, c(2,3,1))
+}
+
 expected.ci.msm <- function(x,
                             times=NULL,
                             timezero=NULL,
@@ -236,11 +243,11 @@ normboot.msm <- function(x, stat, B=1000) {
     for (i in 1:B) {
         x.rep <- x
         x.rep$paramdata$params <- params[i,]
-        output <- msm.form.output("intens", x.rep$qmodel, x.rep$qcmodel, x.rep$paramdata)
-        x.rep$Qmatrices <- output$Matrices
+        output <- msm.form.output(x.rep, "intens")
+        x.rep$Qmatrices <- output$Qmatrices
         if (x$emodel$misc) {
-            output <- msm.form.output("misc", x.rep$emodel, x.rep$ecmodel, x.rep$paramdata)
-            x.rep$Ematrices <- output$Matrices
+            output <- msm.form.output(x.rep, "misc")
+            x.rep$Ematrices <- output$Ematrices
             names(x.rep$Ematrices)[1] <- "logitbaseline"
         }
         sim.stat[[i]] <- stat(x.rep)
@@ -341,4 +348,11 @@ expected.normci.msm <- function(x,
     res <- list(aperm(e.tab.ci, c(2,3,1)),  aperm(e.perc.ci, c(2,3,1)))
     names(res) <- c("Expected", "Expected percentages")
     res
+}
+
+phasemeans.normci.msm <- function(x, covariates="mean", cl=0.95, B=1000, ...) {
+    p.list <- normboot.msm(x, function(x)phasemeans.msm(x=x, covariates=covariates, ci="none", ...), B)
+    p.array <- array(unlist(p.list), dim=c(dim(p.list[[1]]), length(p.list)))
+    p.ci <- apply(p.array, c(1,2), function(x)(quantile(x, c(0.5 - cl/2, 0.5 + cl/2))))
+    aperm(p.ci, c(2,3,1))
 }

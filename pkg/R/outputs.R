@@ -10,6 +10,7 @@ qmatrix.msm <- function(x, covariates="mean", sojourn=FALSE, ci=c("delta","norma
     if ((cl < 0) || (cl > 1)) stop("expected cl in [0,1]")
     se <- lse <- fixed <- numeric(ni)
     logest <- x$Qmatrices$logbaseline
+    if (is.null(x$QmatricesFixed)) x <- msm.form.output(x, "intens") # for back-compat with pre 1.4.1 model objects
     fixed <- x$QmatricesFixed$logbaseline
     for (i in seq_len(nc)) {
         logest <- logest + x$Qmatrices[[i+1]] * covlist[[i]]
@@ -98,6 +99,7 @@ ematrix.msm <- function(x, covariates="mean", ci=c("delta","normal","bootstrap",
     if ((cl < 0) || (cl > 1)) stop("expected cl in [0,1]")
     se <- lse <- numeric(ni)
     logest <- x$Ematrices$logitbaseline
+    if (is.null(x$EmatricesFixed)) x <- msm.form.output(x, "misc") # for back-compat with pre 1.4.1 model objects
     fixed <- x$EmatricesFixed$logitbaseline
     for (i in seq_len(nc)) {
         logest <- logest + x$Ematrices[[i+1]] * covlist[[i]]
@@ -515,6 +517,7 @@ mattotrans <- function(x, matrix, lower, upper, fixed, keep.diag=FALSE, intmisc=
 
 msm.form.qoutput <- function(x, covariates="mean", cl=0.95, digits=4, ...){
     qbase <- qmatrix.msm(x, covariates=covariates, cl=cl)
+    if (is.null(x$QmatricesFixed)) x <- msm.form.output(x, "intens") # for back-compat with pre 1.4.1 model objects
     y <- mattotrans(x, qbase$estimates, qbase$L, qbase$U, qbase$fixed, keep.diag=TRUE)
     ret <- data.frame(base=y)
     fres <- matrix("", nrow=nrow(y), ncol=x$qcmodel$ncovs+1)
@@ -538,6 +541,7 @@ msm.form.qoutput <- function(x, covariates="mean", cl=0.95, digits=4, ...){
 
 msm.form.eoutput <- function(x, covariates="mean", cl=0.95, digits=4, ...){
     ebase <- ematrix.msm(x, covariates=covariates, cl=cl)
+    if (is.null(x$EmatricesFixed)) x <- msm.form.output(x, "misc") # for back-compat with pre 1.4.1 model objects
     y <- mattotrans(x, ebase$estimates, ebase$L, ebase$U, ebase$fixed, keep.diag=TRUE, intmisc="misc")
     rete <- data.frame(base=y)
     frese <- matrix("", nrow=nrow(y), ncol=x$ecmodel$ncovs+1)
@@ -609,6 +613,10 @@ print.msm <- function(x, covariates=NULL, digits=4, ...)
             else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
                 cat("\n")
                 print(x$hmodel)
+            }
+            if (!is.null(x$hmodel$phase.states)) {
+                cat("\nPhase-type model\n")
+                print(phasemeans.msm(x))
             }
         }
     }
@@ -1168,6 +1176,11 @@ logLik.msm <- function(object, by.subject=FALSE, ...)
         class(val) <- "logLik"
     }
     val
+}
+
+AIC.msm <- function(object, ..., k=2){
+    npars <- object$paramdata$nopt
+    object$minus2loglik + k*npars
 }
 
 ### Likelihood ratio test between two or more models
@@ -1835,15 +1848,25 @@ viterbi.msm <- function(x)
         x$paramdata$constr <- c(x$paramdata$constr,max(x$paramdata$constr)+seq(along=x$hmodel$pars))
     }
     if (x$hmodel$hidden) {
-        fitted <- Ccall.msm(x$paramdata$opt$par, do.what="viterbi", expand.data(x),
+        ret <- Ccall.msm(x$paramdata$opt$par, do.what="viterbi", expand.data(x),
                                x$qmodel, x$qcmodel, x$cmodel, x$hmodel, x$paramdata)
+        fitted <- ret[[1]]; pstate <- ret[[2]]
         fitted <- fitted + 1
     }
-    else fitted <- x$data$mf$"(state)"
-    data.frame(subject = x$data$mf$"(subject)",
+    else { 
+        fitted <- x$data$mf$"(state)"
+        pstate <- NULL
+    }
+    if (!is.null(x$hmodel$phase.states)){
+        fitted <- x$hmodel$phase.labs[fitted]
+        pstate <- NULL
+    }
+    ret <- data.frame(subject = x$data$mf$"(subject)",
                time = x$data$mf$"(time)",
                observed = x$data$mf$"(state)",
                fitted = fitted)
+    if (!is.null(pstate)) ret$pstate <- pstate
+    ret
 }
 
 scoreresid.msm <- function(x, plot=FALSE){

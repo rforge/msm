@@ -1069,18 +1069,9 @@ void pmax(double *x, int n, int *maxi)
 
 /* Calculates the most likely path through underlying states */
 
-void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
+void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, double *pstate)
 {
     int i, j, tru, k, kmax, obs, nc = 1;
-/*
-    double *pmat = (double *) S_alloc((qm->nst)*(qm->nst), sizeof(double));
-    int *ptr = (int *) S_alloc((d->n)*(qm->nst), sizeof(int));
-    double *lvold = (double *) S_alloc(qm->nst, sizeof(double));
-    double *lvnew = (double *) S_alloc(qm->nst, sizeof(double));
-    double *lvp = (double *) S_alloc(qm->nst, sizeof(double));
-    double *curr = (double *) S_alloc (qm->nst, sizeof(double));
-    double *pout = (double *) S_alloc(qm->nst, sizeof(double));
-*/
 
     double *pmat = Calloc((qm->nst)*(qm->nst), double);
     int *ptr = Calloc((d->n)*(qm->nst), int);
@@ -1089,8 +1080,9 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
     double *lvp = Calloc(qm->nst, double);
     double *curr = Calloc (qm->nst, double);
     double *pout = Calloc(qm->nst, double);
+//    double *pstate = Calloc((d->n)*(qm->nst), double);
 
-    double dt;
+    double dt, sump;
     double *qmat, *hpars;
 
     i = 0;
@@ -1115,7 +1107,9 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 	    lvold[k] = log(hm->initp[MI(0, k, d->npts)]);
       }
     }
-
+    for (k = 0; k < qm->nst; ++k)
+    	pstate[MI(i,k,d->n)] = exp(lvold[k]); 
+		  
     for (i = 1; i <= d->n; ++i)
 	{
 	    R_CheckUserInterrupt();
@@ -1138,26 +1132,33 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 		    Pmat(pmat, dt, qmat, qm->nst,
 			 (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 
+		    sump = 0;
 		    for (tru = 0; tru < qm->nst; ++tru)
 			{
 /* lvnew =  log prob of most likely path ending in tru at current obs.
    kmax  = most likely state at the previous obs
 */
+			    pstate[MI(i,tru,d->n)] = 0;
 			    for (k = 0; k < qm->nst; ++k) {
 				lvp[k] = lvold[k] + log(pmat[MI(k, tru, qm->nst)]);
+				pstate[MI(i,tru,d->n)] += pstate[MI(i-1,k,d->n)] * pmat[MI(k,tru,qm->nst)];
 			    }
 			    if (d->obstrue[i-1])
 				kmax = d->obs[i-1] - 1;
 			    else pmax(lvp, qm->nst, &kmax);
 			    lvnew[tru] = log ( pout[tru] )  +  lvp[kmax];
 			    ptr[MI(i, tru, d->n)] = kmax;
+			    pstate[MI(i,tru,d->n)] *= pout[tru];
+			    sump += pstate[MI(i,tru,d->n)];
 #ifdef VITDEBUG
 			    printf("true %d, pout[%d] = %lf, lvold = %lf, pmat = %lf, lvnew = %lf, ptr[%d,%d]=%d\n",
 				   tru, tru, pout[tru], lvold[tru], pmat[MI(kmax, tru, qm->nst)], lvnew[tru], i, tru, ptr[MI(i, tru, d->n)]);
 #endif
 			}
-		    for (k = 0; k < qm->nst; ++k)
+		    for (k = 0; k < qm->nst; ++k){
 			lvold[k] = lvnew[k];
+			pstate[MI(i,k,d->n)] /= sump;
+		    }
 		}
 	    else
 		{
@@ -1165,6 +1166,8 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 		    pmax(lvold, qm->nst, &kmax);
 		    obs = i-1;
 		    fitted[obs] = (d->obstrue[obs] ? d->obs[obs]-1 : kmax);
+		    /* TODO prob of each state, as well as just one with max prob */
+
 #ifdef VITDEBUG
 		    printf("traceback for subject %d\n", d->subject[i-1]);
 		    printf("obs=%d,fitted[%d]=%1.0lf\n",obs,obs,fitted[obs]);
@@ -1174,6 +1177,9 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 			    fitted[obs-1] = ptr[MI(obs, fitted[obs], d->n)];
 #ifdef VITDEBUG
 			    printf("fitted[%d] = ptr[%d,%1.0lf] = %1.0lf\n", obs-1, obs, fitted[obs], fitted[obs-1]);
+			    for (k = 0; k < qm->nst; ++k)
+				printf("pstate[%d,%d]=%f, ", obs, k, pstate[MI(obs,k,d->n)]);
+			    printf("\n");
 #endif
 			    --obs;
 			}
@@ -1202,6 +1208,8 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted)
 				    lvold[k] = log(hm->initp[MI(d->subject[i]-1, k, d->npts)]);
 			    }
 			}
+			for (k = 0; k < qm->nst; ++k)
+			    pstate[MI(i,k,d->n)] = exp(lvold[k]); 
 		    }
 		}
 	}
@@ -1245,7 +1253,7 @@ SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qm
 {
     msmdata d; qmodel qm; cmodel cm; hmodel hm;
     int do_what = INTEGER(do_what_s)[0], nopt;
-    double lik, *ret;
+    double lik, *ret, *fitted, *pstate;
     SEXP ret_s;
 
 /* type coercion for all these is done in R */
@@ -1332,9 +1340,14 @@ SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qm
     }
 
     else if (do_what == DO_VITERBI) {
-	ret_s = PROTECT(NEW_NUMERIC(d.n));
-	ret = REAL(ret_s);
-	Viterbi(&d, &qm, &cm, &hm, ret);
+	/* Return a list of a vector and a matrix */
+        /* see https://stat.ethz.ch/pipermail/r-devel/2013-April/066246.html */
+	ret_s = PROTECT(allocVector(VECSXP, 2));
+	SEXP fitted_s = SET_VECTOR_ELT(ret_s, 0, NEW_NUMERIC(d.n));
+	SEXP pstate_s = SET_VECTOR_ELT(ret_s, 1, allocMatrix(REALSXP, d.n, qm.nst));
+	fitted = REAL(fitted_s);
+	pstate = REAL(pstate_s);
+	Viterbi(&d, &qm, &cm, &hm, fitted, pstate);
 	UNPROTECT(1);
     }
 

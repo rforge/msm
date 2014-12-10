@@ -6,7 +6,9 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
                 qconstraint=NULL, econstraint=NULL, initprobs = NULL,
                 est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
                 death = FALSE, exacttimes = FALSE, censor=NULL,
-                censor.states=NULL, pci=NULL, cl = 0.95, fixedpars = NULL, center=TRUE,
+                censor.states=NULL, pci=NULL, phase.states=NULL,
+                phase.inits = NULL, # TODO merge with inits eventually
+                cl = 0.95, fixedpars = NULL, center=TRUE,
                 opt.method="optim", hessian=NULL, use.deriv=TRUE,
                 use.expm=TRUE, analyticp=TRUE, na.action=na.omit, ...)
 {
@@ -22,32 +24,39 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
         }
         else warning("gen.inits not supported for hidden Markov models, ignoring")
     }
-    qmodel <- msm.form.qmodel(qmatrix, qconstraint, analyticp, use.expm)
+    qmodel <- msm.form.qmodel(qmatrix, qconstraint, analyticp, use.expm, phase.states)
 
-### MISCLASSIFICATION MODEL
-    if (!is.null(ematrix)) {
-        emodel <- msm.form.emodel(ematrix, econstraint, initprobs, est.initprobs, qmodel)
+    if (!is.null(phase.states)) {
+        pm <- msm.form.pmodel(qmodel, phase.states, phase.inits, qconstraint, analyticp, use.expm)
+        qmodel <- pm$qmodel; hmodel <- pm$hmodel
+        emodel <- list(misc=FALSE, npars=0, ndpars=0)
     }
-    else emodel <- list(misc=FALSE, npars=0, ndpars=0)
-    if (emodel$npars==0) emodel <- list(misc=FALSE, npars=0, ndpars=0) # user supplied degenerate ematrix with no misclassification
+    else { 
+### MISCLASSIFICATION MODEL
+        if (!is.null(ematrix)) {
+            emodel <- msm.form.emodel(ematrix, econstraint, initprobs, est.initprobs, qmodel)
+        }
+        else emodel <- list(misc=FALSE, npars=0, ndpars=0)
+        if (emodel$npars==0) emodel <- list(misc=FALSE, npars=0, ndpars=0) # user supplied degenerate ematrix with no misclassification
 
 ### GENERAL HIDDEN MARKOV MODEL
-    if (!is.null(hmodel)) {
-        msm.check.hmodel(hmodel, qmodel$nstates)
-        if (!is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
-        hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
-    }
-    else {
-        if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
-        hmodel <- list(hidden=FALSE, models=rep(0, qmodel$nstates), nipars=0, nicoveffs=0, totpars=0, ncoveffs=0) # might change later if misc
-    }
+        if (!is.null(hmodel)) {
+            msm.check.hmodel(hmodel, qmodel$nstates)
+            if (!is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
+            hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
+        }
+        else {
+            if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
+            hmodel <- list(hidden=FALSE, models=rep(0, qmodel$nstates), nipars=0, nicoveffs=0, totpars=0, ncoveffs=0) # might change later if misc
+        }
 
 ### CONVERT OLD STYLE MISCLASSIFICATION MODEL TO NEW GENERAL HIDDEN MARKOV MODEL
-    if (emodel$misc) {
-        hmodel <- msm.emodel2hmodel(emodel, qmodel)
+        if (emodel$misc) {
+            hmodel <- msm.emodel2hmodel(emodel, qmodel)
+        }
+        else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
     }
-    else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
-
+    
 ### EXACT DEATH TIMES. Logical values allowed for backwards compatibility (TRUE means final state has exact death time, FALSE means no states with exact death times)
     dmodel <- msm.form.dmodel(death, qmodel, hmodel)  # returns death, ndeath,
     if (dmodel$ndeath > 0 && exacttimes) warning("Ignoring death argument, as all states have exact entry times")
@@ -213,7 +222,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     }
     if (hmodel$hidden) hmodel$ranges <- msm.form.hranges(hranges, hmodel)
 ### INITIAL STATE OCCUPANCY PROBABILITIES IN HMMS
-    if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, attr(mf,"npts"))
+    if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, mf)
 ### FORM LIST OF INITIAL PARAMETERS, MATCHING PROVIDED INITS WITH SPECIFIED MODEL, FIXING SOME PARS IF REQUIRED
     p <- msm.form.params(qmodel, qcmodel, emodel, hmodel, fixedpars)
 
@@ -262,27 +271,9 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     ## calculate CIs for initial state probabilities in HMMs (using normal simulation method)
     if (p$foundse && any(p$plabs=="initp"))  p <- initp.ci.msm(p, cl)
 
-### REARRANGE THE VECTOR OF PARAMETER ESTIMATES (LOG-INTENSITIES, MISC PROBS AND
-### COVARIATE EFFECTS) INTO LISTS OF MATRICES
-    output <- msm.form.output("intens", qmodel, qcmodel, p)
-    Qmatrices <- output$Matrices;  QmatricesSE <- output$MatricesSE
-    QmatricesL <-  output$MatricesL;  QmatricesU <-  output$MatricesU
-    QmatricesFixed <- output$MatricesFixed
-
-    if (hmodel$hidden) {
-        hmodel <- msm.form.houtput(hmodel, p, msmdata)
-    }
-
-    msmdata[!names(msmdata)=="mf"] <- NULL # only keep model frame in returned data
-
 ### FORM A MSM OBJECT FROM THE RESULTS
     msmobject <- list (
                        call = match.call(),
-                       Qmatrices = Qmatrices,
-                       QmatricesSE = QmatricesSE,
-                       QmatricesL = QmatricesL,
-                       QmatricesU = QmatricesU,
-                       QmatricesFixed = QmatricesFixed,
                        minus2loglik = p$lik,
                        deriv = p$deriv,
                        estimates = p$params,
@@ -311,25 +302,28 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     attr(msmobject, "fixed") <- p$fixed
     class(msmobject) <- "msm"
 
+### Form lists of matrices from parameter estimates 
+    msmobject <- msm.form.output(msmobject, "intens")
+   
 ### Include intensity and misclassification matrices on natural scales
     q <- qmatrix.msm(msmobject, covariates=(if(center) "mean" else 0))
     msmobject$Qmatrices$baseline <- q$estimates
     msmobject$QmatricesSE$baseline <- q$SE
     msmobject$QmatricesL$baseline <- q$L
     msmobject$QmatricesU$baseline <- q$U
+
+    if (hmodel$hidden) {
+        msmobject$hmodel <- msm.form.houtput(hmodel, p, msmdata)
+    }
     if (emodel$misc) {
-        output <- msm.form.output("misc", emodel, ecmodel, p)
-        msmobject$Ematrices <- output$Matrices
-        msmobject$EmatricesSE <- output$MatricesSE
-        msmobject$EmatricesL <- output$MatricesL
-        msmobject$EmatricesU <- output$MatricesU
-        msmobject$EmatricesFixed <- output$MatricesFixed
+        msmobject <- msm.form.output(msmobject, "misc")
         e <- ematrix.msm(msmobject, covariates=(if(center) "mean" else 0))
         msmobject$Ematrices$baseline <- e$estimates
         msmobject$EmatricesSE$baseline <- e$SE
         msmobject$EmatricesL$baseline <- e$L
         msmobject$EmatricesU$baseline <- e$U
     }
+    msmobject$msmdata[!names(msmobject$msmdata)=="mf"] <- NULL # only keep model frame in returned data.  drop at last minute, as might be needed in msm.form.houtput.
 ### Include mean sojourn times
     msmobject$sojourn <- sojourn.msm(msmobject, covariates=(if(center) "mean" else 0))
     msmobject
@@ -361,7 +355,7 @@ msm.fixdiag.ematrix <- function(ematrix)
     ematrix
 }
 
-msm.form.qmodel <- function(qmatrix, qconstraint=NULL, analyticp=TRUE, use.expm=FALSE)
+msm.form.qmodel <- function(qmatrix, qconstraint=NULL, analyticp=TRUE, use.expm=FALSE, phase.states=NULL)
 {
     msm.check.qmatrix(qmatrix)
     nstates <- dim(qmatrix)[1]
@@ -372,7 +366,8 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, analyticp=TRUE, use.expm=
     imatrix <- ifelse(qmatrix > 0, 1, 0)
     inits <- t(qmatrix)[t(imatrix)==1]
     npars <- sum(imatrix)
-    if (!is.null(qconstraint)) {
+    ## for phase-type models, leave processing qconstraint until after phased Q matrix has been formed in msm.form.pmodel.
+    if (!is.null(qconstraint) && is.null(phase.states)) { 
         if (!is.numeric(qconstraint)) stop("qconstraint should be numeric")
         if (length(qconstraint) != npars)
             stop("baseline intensity constraint of length " ,length(qconstraint), ", should be ", npars)
@@ -1081,7 +1076,8 @@ msm.add.qcovs <- function(qmodel, pars, mm){
         qmat[row[i],col[i],] <- qvec[,i]
     }
     for (i in 1:qmodel$nstates)
-        qmat[i,i,] <- -apply(qmat[i,,,drop=FALSE], 3, sum)
+        ## qmat[i,i,] <- -apply(qmat[i,,,drop=FALSE], 3, sum)
+        qmat[i,i,] <- -colSums(qmat[i,,,drop=FALSE], , 2)
     qmat
 }
 
@@ -1123,7 +1119,8 @@ msm.form.dq <- function(qmodel, qcmodel, pars, paramdata, mm){
     for (i in 1:qmodel$npars)
         dqmat[row[i],col[i],,] <- t(dqvec[,i,])
     for (i in 1:qmodel$nstates)
-        dqmat[i,i,,] <- -apply(dqmat[i,,,,drop=FALSE], c(3,4), sum)
+        ## dqmat[i,i,,] <- -apply(dqmat[i,,,,drop=FALSE], c(3,4), sum)
+        dqmat[i,i,,] <- -colSums(dqmat[i,,,,drop=FALSE], , 2)
     p <- paramdata # leave fixed parameters out
     fixed <- p$fixedpars[p$plabs[p$fixedpars] %in% c("qbase","qcov")]
     con <- abs(p$constr[p$plabs %in% c("qbase","qcov")])
@@ -1311,7 +1308,6 @@ msm.initprobs2mat <- function(hmodel, pars, mm, mf){
             ## cov effs ordered by states (excluding state 1) within covariates
             coveffs <- pars[names(pars)=="initpcov"]
             coveffs <- matrix(coveffs, nrow=max(hmodel$nicovs), byrow=TRUE)
-            coveffs[,hmodel$nicovs==0] <- 0 # states with fixed initp=zero
             ip <- ip + as.matrix(mm[,-1,drop=FALSE]) %*% coveffs
         }
         initp[,est] <- exp(ip) / (1 + rowSums(exp(ip)))
@@ -1405,10 +1401,13 @@ information.msm <- function(params, ...)
     Ccall.msm(params, do.what="info", ...)
 }
 
-## Convert vector of MLEs into matrices
+## Convert vector of MLEs into matrices and append them to the model object
 
-msm.form.output <- function(whichp, model, cmodel, p)
+msm.form.output <- function(x, whichp)
 {
+    model <- if (whichp=="intens") x$qmodel else x$emodel
+    cmodel <- if (whichp=="intens") x$qcmodel else x$ecmodel
+    p <- x$paramdata
     Matrices <- MatricesSE <- MatricesL <- MatricesU <- MatricesFixed <- list()
     basename <- if (whichp=="intens") "logbaseline" else "logitbaseline"
     fixedpars.logical <- p$constr %in% p$constr[p$fixedpars]
@@ -1451,13 +1450,10 @@ msm.form.output <- function(whichp, model, cmodel, p)
         MatricesU[[matrixname]] <- umat
         MatricesFixed[[matrixname]] <- fixed
     }
-    list(Matrices=Matrices,     # list of baseline log intensities/logit misc probability matrix
-                                        # and linear effects of covariates
-         MatricesSE=MatricesSE,  # corresponding matrices of standard errors
-         MatricesL=MatricesL,  # corresponding matrices of standard errors
-         MatricesU=MatricesU,  # corresponding matrices of standard errors
-         MatricesFixed=MatricesFixed # whether parameter was fixed during optimisation
-         )
+    nam <- if(whichp=="intens") "Qmatrices" else "Ematrices"
+    x[[nam]] <- Matrices; x[[paste0(nam, "SE")]] <- MatricesSE; x[[paste0(nam, "L")]] <- MatricesL
+    x[[paste0(nam, "U")]] <- MatricesU; x[[paste0(nam, "Fixed")]] <- MatricesFixed
+    x
 }
 
 ## Format hidden Markov model estimates and CIs
@@ -1469,6 +1465,8 @@ msm.form.houtput <- function(hmodel, p, msmdata)
     hmodel$fitted <- !p$fixed
     hmodel$foundse <- p$foundse
     if (hmodel$nip > 0) {
+        iplabs <- p$plabs[p$plabs %in% c("initp","initp0")]
+        whichst <- which(iplabs == "initp") + 1  # init probs for which states have covs on them (not the zero probs)
         if (hmodel$foundse) {
             hmodel$initprobs <- rbind(cbind(p$estimates.t[p$plabs %in% c("initpbase","initp","initp0")],
                                             p$ci[p$plabs %in% c("initpbase","initp","initp0"),,drop=FALSE]))
@@ -1477,8 +1475,6 @@ msm.form.houtput <- function(hmodel, p, msmdata)
             if (any(hmodel$nicovs > 0)) {
                 covnames <- names(hmodel$icoveffect)
                 hmodel$icoveffect <- cbind(p$estimates.t[p$plabs == "initpcov"],  p$ci[p$plabs == "initpcov",,drop=FALSE])
-                iplabs <- p$plabs[p$plabs %in% c("initp","initp0")]
-                whichst <- which(iplabs == "initp") + 1  # init probs for which states have covs on them (not the zero probs)
                 rownames(hmodel$icoveffect) <- paste(covnames, paste("State",whichst), sep=", ")
                 colnames(hmodel$icoveffect) <- c("Estimate", "LCL", "UCL")
             }
@@ -1490,7 +1486,8 @@ msm.form.houtput <- function(hmodel, p, msmdata)
             if (any(hmodel$nicovs > 0)) {
                 covnames <- names(hmodel$icoveffect)
                 hmodel$icoveffect <- p$estimates.t[p$plabs == "initpcov"]
-                names(hmodel$icoveffect) <- paste(covnames, paste("State",2:hmodel$nstates), sep=", ")
+#                names(hmodel$icoveffect) <- paste(covnames, paste("State",2:hmodel$nstates), sep=", ")
+                names(hmodel$icoveffect) <- paste(covnames, paste("State",whichst), sep=", ")
             }
         }
     }

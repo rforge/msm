@@ -1,3 +1,45 @@
+2014-12-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c, R/outputs.R: Viterbi algorithm now also returns the
+	probability of each hidden state at each time given the data up to
+	that point.
+
+	* data/msmdata.rda: statemax added to CAV data.
+
+	* man: Document that generic AIC function AIC() works for msm
+	models.
+
+	* DESCRIPTION: Version 1.4.1 released to r-forge.
+
+2014-12-08 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/phase.R,R/msm.R,Rd/2phase.Rd: New features for phase-type
+	models.
+
+2014-12-04 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/draic.R: Bug fixes in drlcv.msm (likelihood of big model on
+	left-one-out subject was using the original instead of the
+	refitted model, and used covariate centering
+	inconsistently). Thanks to Howard Thom.
+
+2014-12-02 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(msm.initprobs2mat,msm.form.houtput): Bug fixes for
+	covariates on initial state occupancy probabilities with
+	structural zeros in.  Thanks to Jeffrey Eaton and Tara Mangal.
+
+	* R/msm.R(msm.form.output): Clean up code, also ensure models
+	fitted with 1.4 can be printed with 1.4.1.
+
+2014-11-27 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/draic.R: Bug fix in "prob > 0" in drlcv.msm. Thanks to Howard
+	Thom.
+
+	* R/msm.R: colSums efficiency improvement in msm.add.qcovs,
+	msm.form.dq.  Thanks to Jeffrey Eaton.
+
 2014-11-19 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* R/outputs.R: Allow qmatrix to be passed to pmatrix.msm, and a

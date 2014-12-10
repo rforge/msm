@@ -1,16 +1,15 @@
 Package: msm
 Version: 1.4.1
-Date: 2014-11-19
-Title: Multi-state Markov and hidden Markov models in continuous time
+Date: 2014-12-10
+Title: Multi-state Markov and Hidden Markov Models in Continuous Time
 Author: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
 Maintainer: Christopher Jackson <chris.jackson@mrc-bsu.cam.ac.uk>
-Description: Functions for fitting general continuous-time Markov and
- hidden Markov multi-state models to longitudinal data.  The package
- is designed for processes observed at arbitrary times (panel data)
- but some other observation schemes are supported. Both Markov
- transition rates and the hidden Markov output process can be modelled
- in terms of covariates, which may be constant or piecewise-constant
- in time.
+Description: Continuous-time Markov and hidden Markov multi-state
+ models for longitudinal data.  Designed for processes observed at
+ arbitrary times in continuous time (panel data) but some other
+ observation schemes are supported. Both Markov transition rates and
+ the hidden Markov output process can be modelled in terms of
+ covariates, which may be constant or piecewise-constant in time.
 License: GPL (>= 2)
 Imports: survival,mvtnorm,expm
 Suggests: mstate,minqa,doParallel,numDeriv,testthat,flexsurv

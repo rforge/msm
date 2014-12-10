@@ -27,7 +27,14 @@ viterbi.msm(x)
     \code{fitted} = corresponding fitted states found by Viterbi
     recursion. If the model is not a hidden Markov model and there are
     no censored state observations, this is just the observed states. 
-}
+
+    For hidden Markov models, an additional matrix \code{pstate} is also
+    returned inside the data frame, giving the probability of each
+    hidden state at each point, conditionally on all the data up to that
+    point.  The maximum is not necessarily the same as the fitted state,
+    since the Viterbi algorithm also conditions on observations after
+    that time point.
+  }
 \seealso{
   \code{\link{msm}}
 }

@@ -3,19 +3,31 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
-Version 1.4.1
+Version 1.4.1  (2014-12-10)
 -------------
+
+o R-forge only release. 
+
+o Experimental facility for two-phase semi-Markov models.
+
+o viterbi.msm also now returns the "posterior" probability of each
+  hidden state at each time given the data up to that point.
 
 o Memory leaks in C code fixed.  Thanks to Brian Ripley.
 
 o Don't print CIs for fixed parameters.
 
-o Three and four-state versions of the BOS data provided.
-
 o Documented that factors are allowed as the state variable as long as
   their levels are called "1", "2",...
 
+o Bug fixes for covariates on initial state occupancy probabilities
+  with structural zeros.  Thanks to Jeffrey Eaton and Tara Mangal.
+
+o Bug fixes for drlcv.msm. Thanks to Howard Thom.
+
 o Give warning that polynomial contrasts aren't supported.
+
+o Three and four-state versions of the BOS data provided.
 
 
 Version 1.4  (2014-07-04)

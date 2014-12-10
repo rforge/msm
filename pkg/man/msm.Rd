@@ -18,7 +18,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       qconstraint=NULL, econstraint=NULL, initprobs = NULL,
       est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
       death = FALSE, exacttimes = FALSE, censor=NULL,
-      censor.states=NULL, pci=NULL, cl = 0.95, fixedpars = NULL, center=TRUE,
+      censor.states=NULL, pci=NULL, phase.states=NULL, phase.inits=NULL,
+      cl = 0.95, fixedpars = NULL, center=TRUE,
       opt.method="optim", hessian=NULL, use.deriv=TRUE,
       use.expm=TRUE, analyticp=TRUE, na.action=na.omit, ... )
 }
@@ -617,7 +618,54 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
      change at the times when they are observed.  \code{pci} is for when
      you want all intensities to change at the same pre-specified times
      for all subjects.
+   }
+
+   \item{phase.states}{
+     Indices of states which have a two-phase sojourn distribution.
+     This defines a semi-Markov model, in which the hazard of an onward
+     transition depends on the time spent in the state.   
+
+     This uses the technique described by Titman and Sharples (2009).  A
+     hidden Markov model is automatically constructed on an expanded
+     state space, where the phases correspond to the hidden states, and
+     the unphased states are assumed to be observed without error.
+     Covariates, initial values and constraints are expressed with
+     respect to the expanded state space.  \code{initprobs} is defined
+     automatically so that subjects are assumed to begin in the first of
+     the two phases.
+
+     This is an experimental feature, and some functions are not
+     implemented.  For example, it only applies to non-hidden Markov
+     models: an additional hidden Markov model can not be defined on top
+     of a phase-type model using this facility. Hidden semi-Markov
+     models must be specified by defining an appropriate \code{hmodel}
+     and \code{initprobs} by hand.
+
+     Output functions are presented as if it were a hidden Markov model
+     on the expanded state space, for example, transition probabilities
+     between states, or covariate effects on transition rates, are not
+     aggregated over the hidden phases.
+
+     Numerical estimation will be unstable when there is weak evidence
+     for a two-phase sojourn distribution, that is, if the model is
+     close to Markov. 
+     
+     See \code{\link{d2phase}} for the definition of the two-phase
+     distribution and the interpretation of its parameters.
+
+     Please report any experiences of using this facility to the author!
      }
+   
+  \item{phase.inits}{ Initial values for phase-type models.  A list with
+    one component for each "two-phased" state.  Each component is itself
+    a list of two elements.  The first of these elements is a scalar
+    defining the transition intensity from phase 1 to phase 2.  The
+    second element is a matrix, with one row for each potential
+    destination state from the two-phased state, and two columns.  The
+    first column is the transition rate from phase 1 to the destination
+    state, and the second column is the transition rate from phase 2 to
+    the destination state.  If there is only one destination state, then
+    this may be supplied as a vector.  }
 
   \item{exacttimes}{By default, the transitions of the Markov process
     are assumed to take place at unknown occasions in between the
@@ -869,6 +917,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   Jackson, C.H., Sharples, L.D., Thompson, S.G. and Duffy, S.W. and
   Couto, E.  Multi-state Markov models for disease progression with
   classification error. \emph{The Statistician}, 52(2): 193--209 (2003)
+
+  Titman, A.C. and Sharples, L.D.  Semi-Markov models with phase-type
+  sojourn distributions.  \emph{Biometrics} 66, 742-752 (2009).
 
   Venables, W.N. and Ripley, B.D. (2002) \emph{Modern Applied Statistics with
     S}, second edition. Springer.

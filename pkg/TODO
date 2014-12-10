@@ -1,15 +1,15 @@
 for every release
 -----------------
-check all files are included in package build: help pages, PDF manual rebuilt, run update-docsrc.
-check Changelog, NEWS, DESCRIPTION file have correct dates and versions
-Run fast and slow tests
-R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" --vanilla < ~/work/msm/devel/test.R
-PKG_CFLAGS=-g to get line numbers in valgrind
+* check all files are included in package build: help pages, PDF manual rebuilt, run update-docsrc.
+* check Changelog, NEWS, DESCRIPTION file have correct dates and versions
+* Run fast and slow tests
+* Use winbuilder to run checks on R-devel
+* R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" --vanilla < ~/work/msm/devel/test.R.   PKG_CFLAGS=-g to get line numbers in valgrind  
+* undefined behaviour sanitizer: gcc 4.9, and R-3.1.2 configured with flags on, installed locally at work. turn flags on for package building in .R/Makevars
 
+investigate forcing treatment contrasts in model matrix instead of warning?
 
-test failures with new fnscale forcing  -   converges to different stuff. 
-reltol would then tighten the tolerance so that results agree.
-
+HMMs on top of phase type models
 
 
 POSSIBLE MAJOR DEVELOPMENTS
@@ -18,8 +18,6 @@ MCMC estimation.  Done basic JAGS interface, but convergence
 difficulties typical.  Stan might be better (esp for HMMs) but can't
 do matrix exponentials in it.  Haven't tried inserting random effects
 yet.
-
-Phase-type models.  Build appropriate parameter constraints in.
 
 Multiple realisations from same hidden trace, and/or multivariate HMM outcomes
 see devel/multiple-realisations.txt
