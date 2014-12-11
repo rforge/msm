@@ -1,11 +1,14 @@
 \name{viterbi.msm}
-\title{Calculate the most likely path through underlying states}
+\title{Calculate the probabilities of underlying states and the most
+  likely path through them}
 \alias{viterbi.msm}
 
 \description{
   For a fitted hidden Markov model, or a model with censored state
   observations, the Viterbi algorithm recursively constructs the path
-  with the highest probability through the underlying states.
+  with the highest probability through the underlying states.  The
+  probability of each hidden state is also computed for hidden Markov
+  models.
 }
 
 \usage{
@@ -30,10 +33,8 @@ viterbi.msm(x)
 
     For hidden Markov models, an additional matrix \code{pstate} is also
     returned inside the data frame, giving the probability of each
-    hidden state at each point, conditionally on all the data up to that
-    point.  The maximum is not necessarily the same as the fitted state,
-    since the Viterbi algorithm also conditions on observations after
-    that time point.
+    hidden state at each point, conditionally on all the data.  This is
+    computed by the forward/backward algorithm.
   }
 \seealso{
   \code{\link{msm}}

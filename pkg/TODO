@@ -4,10 +4,11 @@ for every release
 * check Changelog, NEWS, DESCRIPTION file have correct dates and versions
 * Run fast and slow tests
 * Use winbuilder to run checks on R-devel
-* R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" --vanilla < ~/work/msm/devel/test.R.   PKG_CFLAGS=-g to get line numbers in valgrind  
+* R -d "valgrind --tool=memcheck --leak-check=full --track-origins=yes" --vanilla < ~/work/msm/devel/test.R.   
+* PKG_CFLAGS=-g to get line numbers in valgrind  
 * undefined behaviour sanitizer: gcc 4.9, and R-3.1.2 configured with flags on, installed locally at work. turn flags on for package building in .R/Makevars
 
-investigate forcing treatment contrasts in model matrix instead of warning?
+
 
 HMMs on top of phase type models
 
@@ -31,15 +32,14 @@ ppass.msm with time dependent covs.  method in source comment.
 
 sojourn.msm with time dependent covs - needs mean of piecewise exponential, not sure analytic.  Similarly for efpt.msm
   
+force treatment contrasts in model matrix instead of warning?
+
 more print statements for tracing.  print in lik.msm.  print parameter values before doing the likelihood, user accessible debug in C? 
 
 A FAQ: discrete-time models, exact times, flexible models
 
 OpenMP for parallel C code called from R, see Writing R Extensions.
 Can't call R from parallel part, but using R math lib or lapack/expm OK?
-
-Viterbi algorithm.  Probability of each hidden state at each time, instead of just most probable.
-To compute this, need probabilities of all paths ending in state L at time ti: i.e. be sum_k instead of max_k in formula in Sec2.17 of PDF manual.
 
 Bureau survival plots
 

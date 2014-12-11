@@ -109,9 +109,10 @@ ematrix.msm <- function(x, covariates="mean", ci=c("delta","normal","bootstrap",
     plabs[x$emodel$imatrix==1] <- "p"
     diag(plabs)[rowSums(x$emodel$imatrix)>0] <- "pbase"
     mat <- matrix(msm.mninvlogit.transform(as.vector(t(logest)), as.vector(t(plabs)), rep(1:nst, each=nst)), nrow=nst, byrow=TRUE)
-    diag(mat)[rowSums(x$emodel$imatrix)==0] <- 1
-    mat[is.infinite(logest)] <- 1 # if any offdiagonal misc probs 1
-
+    ## true states with no misclassification or perfect misclassification 
+    mat[cbind(which(x$hmodel$model==match("identity", .msm.HMODELS)),
+              x$hmodel$pars[names(x$hmodel$pars)=="which"])] <- 1
+    
     ci <- match.arg(ci)
     if (x$foundse && (ci!="none")) {
         if (ci == "delta") {
@@ -261,34 +262,36 @@ p.se.msm <- function(x, covariates)
     cur.i <- 1
     for (i in unique(res$parstate)) {
         nir <- sum(hmodel$parstate[hmodel$plabs=="p"] == i) # number of independent misc probs for current state
-        p.inds <- which(hmodel$plabs=="p" & hmodel$parstate==i) # indices into HMM parameter vector of logit baseline p for that state
-        cov.inds <- sum(hmodel$npars) + (cur.i-1)*nc + seq(length=(nc*nir)) # indices into HMM parameter vector of corresp cov effects
-        parinds <- numeric(); formstr <- character(nir)
-        for (j in 1:nir) {
-            formstr[j] <- expsum(1:((nc+1)*nir), coefs) # string of form exp(1*x1+beta1*x2*beta2*x3), exp(x4+beta*x5+...)
-            parinds <- c(parinds, p.inds[j], cov.inds[(j-1)*nc + seq(length=nc)]) # indices into HMM par vector corresp to x1,x2,x3,...
-        }
-        sumstr <- paste(formstr, collapse = " + ") # "parinds" are
-        formstr <- paste("1 / (1 + ", sumstr, ")")
-        form <- as.formula(paste("~ ",formstr))
-        lform <- as.formula(paste("~ log( (", formstr, ") / (1 - ", formstr, "))"))
-        ests <- paramdata$params[hmmallpars][parinds]
-        cov <- paramdata$covmat[hmmallpars,hmmallpars][parinds, parinds]
-        res$se[res$parstate==i & res$lab=="pbase"] <- deltamethod(form, ests, cov)
-        res$lse[res$parstate==i & res$lab=="pbase"] <- deltamethod(lform, ests, cov)
-        res$strs[res$parstate==i & res$lab=="pbase"] <- paste(as.character(form),collapse="")
-        res$inds[res$parstate==i & res$lab=="pbase"] <- paste(parinds,collapse=",")
-        for (j in 1:nir){
-            istr <- expsum(((j-1)*(nc+1)+1):(j*(nc+1)), coefs)
-            formstr <- paste(istr, "/ (1 + ", sumstr, ")")
+        if (nir > 0){  # might be perfect misclassification
+            p.inds <- which(hmodel$plabs=="p" & hmodel$parstate==i) # indices into HMM parameter vector of logit baseline p for that state
+            cov.inds <- sum(hmodel$npars) + (cur.i-1)*nc + seq(length=(nc*nir)) # indices into HMM parameter vector of corresp cov effects
+            parinds <- numeric(); formstr <- character(nir)
+            for (j in 1:nir) {
+                formstr[j] <- expsum(1:((nc+1)*nir), coefs) # string of form exp(1*x1+beta1*x2*beta2*x3), exp(x4+beta*x5+...)
+                parinds <- c(parinds, p.inds[j], cov.inds[(j-1)*nc + seq(length=nc)]) # indices into HMM par vector corresp to x1,x2,x3,...
+            }
+            sumstr <- paste(formstr, collapse = " + ") # "parinds" are
+            formstr <- paste("1 / (1 + ", sumstr, ")")
             form <- as.formula(paste("~ ",formstr))
             lform <- as.formula(paste("~ log( (", formstr, ") / (1 - ", formstr, "))"))
-            res$se[res$parstate==i & res$lab=="p"][j] <- deltamethod(form, ests, cov)
-            res$lse[res$parstate==i & res$lab=="p"][j] <- deltamethod(lform, ests, cov)
-            res$strs[res$parstate==i & res$lab=="p"][j] <- paste(as.character(form), collapse="")
-            res$inds[res$parstate==i & res$lab=="p"][j] <- paste(parinds,collapse=",")
-        }
-        cur.i <- cur.i + nir
+            ests <- paramdata$params[hmmallpars][parinds]
+            cov <- paramdata$covmat[hmmallpars,hmmallpars][parinds, parinds]
+            res$se[res$parstate==i & res$lab=="pbase"] <- deltamethod(form, ests, cov)
+            res$lse[res$parstate==i & res$lab=="pbase"] <- deltamethod(lform, ests, cov)
+            res$strs[res$parstate==i & res$lab=="pbase"] <- paste(as.character(form),collapse="")
+            res$inds[res$parstate==i & res$lab=="pbase"] <- paste(parinds,collapse=",")
+            for (j in 1:nir){
+                istr <- expsum(((j-1)*(nc+1)+1):(j*(nc+1)), coefs)
+                formstr <- paste(istr, "/ (1 + ", sumstr, ")")
+                form <- as.formula(paste("~ ",formstr))
+                lform <- as.formula(paste("~ log( (", formstr, ") / (1 - ", formstr, "))"))
+                res$se[res$parstate==i & res$lab=="p"][j] <- deltamethod(form, ests, cov)
+                res$lse[res$parstate==i & res$lab=="p"][j] <- deltamethod(lform, ests, cov)
+                res$strs[res$parstate==i & res$lab=="p"][j] <- paste(as.character(form), collapse="")
+                res$inds[res$parstate==i & res$lab=="p"][j] <- paste(parinds,collapse=",")
+            }
+            cur.i <- cur.i + nir
+    }
     }
     res$LCL <- plogis(qlogis(res$est) - qnorm(0.975)*res$lse)
     res$UCL <- plogis(qlogis(res$est) + qnorm(0.975)*res$lse)

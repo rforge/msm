@@ -1067,7 +1067,9 @@ void pmax(double *x, int n, int *maxi)
     }
 }
 
-/* Calculates the most likely path through underlying states */
+/* Calculates the most likely path through underlying states
+   and "posterior" probabilities of underlying states 
+ */
 
 void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, double *pstate)
 {
@@ -1080,10 +1082,13 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
     double *lvp = Calloc(qm->nst, double);
     double *curr = Calloc (qm->nst, double);
     double *pout = Calloc(qm->nst, double);
-//    double *pstate = Calloc((d->n)*(qm->nst), double);
+    double *pfwd = Calloc((d->n)*(qm->nst), double);
+    double *pbwd = Calloc((d->n)*(qm->nst), double);
 
-    double dt, sump;
+    double dt, pall, psum;
     double *qmat, *hpars;
+    double *ucfwd = Calloc(d->n, double);
+    double *ucbwd = Calloc(d->n, double);
 
     i = 0;
     if (d->obstrue[i]) {
@@ -1108,17 +1113,18 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
       }
     }
     for (k = 0; k < qm->nst; ++k)
-    	pstate[MI(i,k,d->n)] = exp(lvold[k]); 
+    	pfwd[MI(i,k,d->n)] = exp(lvold[k]);
+    ucfwd[0] = 0;
 		  
     for (i = 1; i <= d->n; ++i)
 	{
 	    R_CheckUserInterrupt();
-#ifdef VITDEBUG
+#ifdef VITDEBUG0
 	    printf("obs %d\n", i);
 #endif
 	    if ((i < d->n) && (d->subject[i] == d->subject[i-1]))
 		{
-#ifdef VITDEBUG
+#ifdef VITDEBUG0
 		    printf("subject %d\n", d->subject[i]);
 #endif
 		    dt = d->time[i] - d->time[i-1];
@@ -1126,60 +1132,108 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 		    hpars = &(hm->pars[MI(0, i, hm->totpars)]); /* not i-1 as pre 1.2.3 */
 		    GetCensored(d->obs[i], cm, &nc, &curr);
 		    GetOutcomeProb(pout, curr, nc, hpars, hm, qm, d->obstrue[i]);
-#ifdef VITDEBUG
+#ifdef VITDEBUG0
 		    for (tru=0;tru<nc;++tru) printf("curr[%d] = %1.0lf, ",tru, curr[tru]); printf("\n");
 #endif
 		    Pmat(pmat, dt, qmat, qm->nst,
 			 (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 
-		    sump = 0;
+		    psum = 0;
 		    for (tru = 0; tru < qm->nst; ++tru)
 			{
 /* lvnew =  log prob of most likely path ending in tru at current obs.
-   kmax  = most likely state at the previous obs
+   kmax  = most likely state at the previous obs  
+   pfwd = p(data up to and including current obs, and hidden state at current obs), then scaled at each step to sum to 1 to avoid underflow.
 */
-			    pstate[MI(i,tru,d->n)] = 0;
+			    pfwd[MI(i,tru,d->n)] = 0;
 			    for (k = 0; k < qm->nst; ++k) {
 				lvp[k] = lvold[k] + log(pmat[MI(k, tru, qm->nst)]);
-				pstate[MI(i,tru,d->n)] += pstate[MI(i-1,k,d->n)] * pmat[MI(k,tru,qm->nst)];
+				pfwd[MI(i,tru,d->n)] += pfwd[MI(i-1,k,d->n)] * pmat[MI(k,tru,qm->nst)];
 			    }
 			    if (d->obstrue[i-1])
 				kmax = d->obs[i-1] - 1;
 			    else pmax(lvp, qm->nst, &kmax);
 			    lvnew[tru] = log ( pout[tru] )  +  lvp[kmax];
 			    ptr[MI(i, tru, d->n)] = kmax;
-			    pstate[MI(i,tru,d->n)] *= pout[tru];
-			    sump += pstate[MI(i,tru,d->n)];
-#ifdef VITDEBUG
+			    pfwd[MI(i,tru,d->n)] *= pout[tru];
+			    psum += pfwd[MI(i,tru,d->n)];
+#ifdef VITDEBUG0
 			    printf("true %d, pout[%d] = %lf, lvold = %lf, pmat = %lf, lvnew = %lf, ptr[%d,%d]=%d\n",
 				   tru, tru, pout[tru], lvold[tru], pmat[MI(kmax, tru, qm->nst)], lvnew[tru], i, tru, ptr[MI(i, tru, d->n)]);
 #endif
 			}
+		    ucfwd[i] = ucfwd[i-1] + log(psum);
 		    for (k = 0; k < qm->nst; ++k){
+			pfwd[MI(i,k,d->n)] /= psum;
 			lvold[k] = lvnew[k];
-			pstate[MI(i,k,d->n)] /= sump;
 		    }
 		}
 	    else
 		{
-		    /* Traceback for current individual */
+		    /* Traceback and backward algorithm for current individual
+		       pall = p(data at all times)
+		       pbwd = p(data at future times | hidden state at current obs)
+		       so that p(hidden state at current obs) = pfwd * pbwd / pall
+		     */
 		    pmax(lvold, qm->nst, &kmax);
 		    obs = i-1;
 		    fitted[obs] = (d->obstrue[obs] ? d->obs[obs]-1 : kmax);
-		    /* TODO prob of each state, as well as just one with max prob */
 
+		    pall = 0;  // compute full likelihood.  
+		    ucbwd[obs] = 0;
+		    for (k = 0; k < qm->nst; ++k){
+			pbwd[MI(obs,k,d->n)] = 1;
+			pall += pfwd[MI(obs,k,d->n)]*exp(ucfwd[obs]);
+		    }
+		    for (k = 0; k < qm->nst; ++k){
+			pstate[MI(obs,k,d->n)] = exp(log(pfwd[MI(obs,k,d->n)]) + log(pbwd[MI(obs,k,d->n)]) - log(pall) + ucfwd[obs]);
+		    }
 #ifdef VITDEBUG
 		    printf("traceback for subject %d\n", d->subject[i-1]);
 		    printf("obs=%d,fitted[%d]=%1.0lf\n",obs,obs,fitted[obs]);
+		    for (tru = 0; tru < qm->nst; ++tru){
+			printf("pfwd[%d,%d]=%f, ", obs, tru, pfwd[MI(obs,tru,d->n)]);
+			printf("pbwd[%d,%d]=%f, ", obs, tru, pbwd[MI(obs,tru,d->n)]);
+			printf("pstate[%d,%d]=%f, ", obs, tru, pstate[MI(obs,tru,d->n)]);
+			printf("\n");
+
+		    }
 #endif
 		    while   ( (obs > 0) && (d->subject[obs] == d->subject[obs-1]) )
 			{
 			    fitted[obs-1] = ptr[MI(obs, fitted[obs], d->n)];
 #ifdef VITDEBUG
 			    printf("fitted[%d] = ptr[%d,%1.0lf] = %1.0lf\n", obs-1, obs, fitted[obs], fitted[obs-1]);
-			    for (k = 0; k < qm->nst; ++k)
-				printf("pstate[%d,%d]=%f, ", obs, k, pstate[MI(obs,k,d->n)]);
-			    printf("\n");
+#endif
+
+			    dt = d->time[obs] - d->time[obs-1];
+			    qmat = &(qm->intens[MI3(0, 0, obs-1, qm->nst, qm->nst)]);
+			    hpars = &(hm->pars[MI(0, obs, hm->totpars)]);
+			    GetCensored(d->obs[obs], cm, &nc, &curr);
+			    GetOutcomeProb(pout, curr, nc, hpars, hm, qm, d->obstrue[obs]);
+			    Pmat(pmat, dt, qmat, qm->nst,
+				 (d->obstype[obs] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
+
+			    psum=0;
+			    for (tru = 0; tru < qm->nst; ++tru){
+				pbwd[MI(obs-1,tru,d->n)] = 0;
+				for (k = 0; k < qm->nst; ++k)
+				    pbwd[MI(obs-1,tru,d->n)] += pmat[MI(tru,k,qm->nst)] * pout[k] * pbwd[MI(obs,k,d->n)];
+				psum += pbwd[MI(obs-1,tru,d->n)];				
+			    }
+			    ucbwd[obs-1] = ucbwd[obs] + log(psum);
+			    for (tru = 0; tru < qm->nst; ++tru){
+				pbwd[MI(obs-1,tru,d->n)] /= psum;
+				pstate[MI(obs-1,tru,d->n)] = exp(log(pfwd[MI(obs-1,tru,d->n)]) + log(pbwd[MI(obs-1,tru,d->n)]) - log(pall) + ucfwd[obs-1] + ucbwd[obs-1]);
+#ifdef VITDEBUG
+				printf("pfwd[%d,%d]=%f, ", obs-1, tru, pfwd[MI(obs-1,tru,d->n)]);
+				printf("pbwd[%d,%d]=%f, ", obs-1, tru, pbwd[MI(obs-1,tru,d->n)]);
+				printf("pstate[%d,%d]=%f, ", obs-1, tru, pstate[MI(obs-1,tru,d->n)]);
+				printf("\n");
+#endif
+			    }
+#ifdef VITDEBUG
+			    printf("pall=%f\n",pall);
 #endif
 			    --obs;
 			}
@@ -1209,11 +1263,13 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 			    }
 			}
 			for (k = 0; k < qm->nst; ++k)
-			    pstate[MI(i,k,d->n)] = exp(lvold[k]); 
+			    pfwd[MI(i,k,d->n)] = exp(lvold[k]); 
+			ucfwd[i] = 0;
 		    }
 		}
 	}
     Free(pmat); Free(ptr); Free(lvold); Free(lvnew); Free(lvp); Free(curr); Free(pout);
+    Free(pfwd); Free(pbwd); Free(ucfwd); Free(ucbwd);
 }
 
 /* get the list element named str, or return NULL */
@@ -1253,7 +1309,7 @@ SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qm
 {
     msmdata d; qmodel qm; cmodel cm; hmodel hm;
     int do_what = INTEGER(do_what_s)[0], nopt;
-    double lik, *ret, *fitted, *pstate;
+    double lik, *ret, *fitted, *pfwd;
     SEXP ret_s;
 
 /* type coercion for all these is done in R */
@@ -1340,14 +1396,14 @@ SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qm
     }
 
     else if (do_what == DO_VITERBI) {
-	/* Return a list of a vector and a matrix */
+	/* Return a list of a vector (fitted states) and a matrix (hidden state probabilities) */
         /* see https://stat.ethz.ch/pipermail/r-devel/2013-April/066246.html */
 	ret_s = PROTECT(allocVector(VECSXP, 2));
 	SEXP fitted_s = SET_VECTOR_ELT(ret_s, 0, NEW_NUMERIC(d.n));
-	SEXP pstate_s = SET_VECTOR_ELT(ret_s, 1, allocMatrix(REALSXP, d.n, qm.nst));
+	SEXP pfwd_s = SET_VECTOR_ELT(ret_s, 1, allocMatrix(REALSXP, d.n, qm.nst));
 	fitted = REAL(fitted_s);
-	pstate = REAL(pstate_s);
-	Viterbi(&d, &qm, &cm, &hm, fitted, pstate);
+	pfwd = REAL(pfwd_s);
+	Viterbi(&d, &qm, &cm, &hm, fitted, pfwd);
 	UNPROTECT(1);
     }
 

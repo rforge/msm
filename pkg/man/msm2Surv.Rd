@@ -1,6 +1,6 @@
 \name{msm2Surv}
 \alias{msm2Surv}
-\title{Convert data for `msm' to data for `survival' and `mstate' analysis}
+\title{Convert data for `msm' to data for `survival', `mstate' or `flexsurv' analysis}
 \description{
   Converts longitudinal data for a \code{\link{msm}} model fit, where observations
   represent the exact transition times of the process, to counting process
@@ -107,6 +107,10 @@ modelling.
   Package for the Analysis of Competing Risks and Multi-State
   Models. \emph{Journal of Statistical Software}, 38(7), 1-30. 
   \url{http://www.jstatsoft.org/v38/i07}  
+
+  Jackson, C. H. (2014). flexsurv: Flexible parametric survival and
+  multi-state models.  R package version 0.5.
+
 }
 \seealso{
   \code{\link[mstate]{msprep}}, in \pkg{mstate}, which produces data in a similar format,

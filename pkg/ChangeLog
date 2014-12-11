@@ -1,3 +1,15 @@
+2014-12-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  Posterior probability of the hidden state at each time in the
+	Viterbi algorithm now conditions on all the data.
+
+	* R/msm.R,R/outputs.R(various): Bug fixes to misclassification
+	models where some states were misclassified as other states with
+	probability 1, for both ematrix and hmmCat specifications.  Thanks
+	to Li Su for the report.
+
+	* DESCRIPTION: Version 1.4.2 released to r-forge.
+
 2014-12-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/lik.c, R/outputs.R: Viterbi algorithm now also returns the

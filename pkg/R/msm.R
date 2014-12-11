@@ -408,11 +408,13 @@ msm.check.ematrix <- function(ematrix, nstates)
     invisible()
 }
 
+## FIXME should imatrix be only 
+
 msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initprobs, qmodel)
 {
     msm.check.ematrix(ematrix, qmodel$nstates)
     diag(ematrix) <- 0
-    imatrix <- ifelse(ematrix > 0, 1, 0)
+    imatrix <- ifelse(ematrix > 0 & ematrix < 1, 1, 0) # don't count as parameters if perfect misclassification (1.4.2 bug fix)
     diag(ematrix) <- 1 - rowSums(ematrix)
     if (is.null(rownames(ematrix)))
         rownames(ematrix) <- colnames(ematrix) <- paste("State", seq(qmodel$nstates))
@@ -901,7 +903,7 @@ msm.mninvlogit.transform <- function(pars, plabs, states){
         }
         else {
             psum <- tapply(exp(pars[plabs=="p"]), states[plabs=="p"], sum)
-            res[plabs=="pbase"] <- 1 / (1 + psum)
+            res[plabs=="pbase"][unique(states[plabs=="p"])] <- 1 / (1 + psum) # don't transform pbase if no p's for this state, i.e. if no/perfect misclassification
             res[plabs=="p"] <- exp(pars[plabs=="p"]) / (1 + psum[whichst])
         }
     }
@@ -1439,6 +1441,9 @@ msm.form.output <- function(x, whichp)
             for (i in 1:nrow(fixed)){
                 fixed[i,i] <- all(fixed[i,-i][model$imatrix[i,-i]==1])
             }
+            if (whichp=="misc")
+                fixed[which(x$hmodel$model==match("identity", .msm.HMODELS)),] <- TRUE
+           
             dimnames(semat)  <- dimnames(mat)
         }
         else {
