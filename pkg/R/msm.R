@@ -24,39 +24,44 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
         }
         else warning("gen.inits not supported for hidden Markov models, ignoring")
     }
-    qmodel <- msm.form.qmodel(qmatrix, qconstraint, analyticp, use.expm, phase.states)
+    qmodel <- qmodel.orig <- msm.form.qmodel(qmatrix, qconstraint, analyticp, use.expm, phase.states)
 
     if (!is.null(phase.states)) {
-        pm <- msm.form.pmodel(qmodel, phase.states, phase.inits, qconstraint, analyticp, use.expm)
-        qmodel <- pm$qmodel; hmodel <- pm$hmodel
-        emodel <- list(misc=FALSE, npars=0, ndpars=0)
-    }
-    else { 
+        qmodel <- msm.phase2qmodel(qmodel, phase.states, phase.inits, qconstraint, analyticp, use.expm)
+    } 
 ### MISCLASSIFICATION MODEL
-        if (!is.null(ematrix)) {
-            emodel <- msm.form.emodel(ematrix, econstraint, initprobs, est.initprobs, qmodel)
+    if (!is.null(ematrix)) {
+        msm.check.ematrix(ematrix, qmodel.orig$nstates)
+        if (!is.null(phase.states)){
+            stop("phase-type models with additional misclassification must be specified through \"hmodel\" with hmmCat() or hmmIdent() constructors, or as HMMs by hand") 
         }
-        else emodel <- list(misc=FALSE, npars=0, ndpars=0)
-        if (emodel$npars==0) emodel <- list(misc=FALSE, npars=0, ndpars=0) # user supplied degenerate ematrix with no misclassification
+        emodel <- msm.form.emodel(ematrix, econstraint, initprobs, est.initprobs, qmodel)
+    }
+    else emodel <- list(misc=FALSE, npars=0, ndpars=0)
+    if (emodel$npars==0) emodel <- list(misc=FALSE, npars=0, ndpars=0) # user supplied degenerate ematrix with no misclassification
 
 ### GENERAL HIDDEN MARKOV MODEL
-        if (!is.null(hmodel)) {
-            msm.check.hmodel(hmodel, qmodel$nstates)
-            if (!is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
-            hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
+    if (!is.null(hmodel)) {
+        msm.check.hmodel(hmodel, qmodel.orig$nstates)
+        if (!is.null(phase.states)){
+            hmodel.orig <- hmodel
+            hmodel <- rep(hmodel, qmodel$phase.reps)
         }
-        else {
-            if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
-            hmodel <- list(hidden=FALSE, models=rep(0, qmodel$nstates), nipars=0, nicoveffs=0, totpars=0, ncoveffs=0) # might change later if misc
-        }
-
-### CONVERT OLD STYLE MISCLASSIFICATION MODEL TO NEW GENERAL HIDDEN MARKOV MODEL
-        if (emodel$misc) {
-            hmodel <- msm.emodel2hmodel(emodel, qmodel)
-        }
-        else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
+        hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
     }
-    
+    else {
+        if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
+        if (!is.null(phase.states)){
+            hmodel <- msm.phase2hmodel(qmodel, hmodel)
+        }
+        else hmodel <- list(hidden=FALSE, models=rep(0, qmodel$nstates), nipars=0, nicoveffs=0, totpars=0, ncoveffs=0) # might change later if misc
+    }
+### CONVERT OLD STYLE MISCLASSIFICATION MODEL TO NEW GENERAL HIDDEN MARKOV MODEL
+    if (emodel$misc) {
+        hmodel <- msm.emodel2hmodel(emodel, qmodel)
+    }
+    else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
+
 ### EXACT DEATH TIMES. Logical values allowed for backwards compatibility (TRUE means final state has exact death time, FALSE means no states with exact death times)
     dmodel <- msm.form.dmodel(death, qmodel, hmodel)  # returns death, ndeath,
     if (dmodel$ndeath > 0 && exacttimes) warning("Ignoring death argument, as all states have exact entry times")
@@ -77,6 +82,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     } else covlist <- NULL # parameters will be constrained later, see msm.form.cri
     if (is.null(covariates)) covariates <- ~1
     if (emodel$misc && is.null(misccovariates)) misccovariates <- ~1
+    if (hmodel$hidden && !is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
 ### BUILD MODEL FRAME containing all data required for model fit,
 ### using all variables found in formulae.
     ## Names include factor() around covariate names, and interactions,
@@ -222,7 +228,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     }
     if (hmodel$hidden) hmodel$ranges <- msm.form.hranges(hranges, hmodel)
 ### INITIAL STATE OCCUPANCY PROBABILITIES IN HMMS
-    if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, mf)
+    if (hmodel$hidden) hmodel <- msm.form.initprobs(hmodel, initprobs, mf)
 ### FORM LIST OF INITIAL PARAMETERS, MATCHING PROVIDED INITS WITH SPECIFIED MODEL, FIXING SOME PARS IF REQUIRED
     p <- msm.form.params(qmodel, qcmodel, emodel, hmodel, fixedpars)
 
@@ -366,7 +372,7 @@ msm.form.qmodel <- function(qmatrix, qconstraint=NULL, analyticp=TRUE, use.expm=
     imatrix <- ifelse(qmatrix > 0, 1, 0)
     inits <- t(qmatrix)[t(imatrix)==1]
     npars <- sum(imatrix)
-    ## for phase-type models, leave processing qconstraint until after phased Q matrix has been formed in msm.form.pmodel.
+    ## for phase-type models, leave processing qconstraint until after phased Q matrix has been formed in msm.phase2qmodel
     if (!is.null(qconstraint) && is.null(phase.states)) { 
         if (!is.numeric(qconstraint)) stop("qconstraint should be numeric")
         if (length(qconstraint) != npars)
@@ -412,7 +418,6 @@ msm.check.ematrix <- function(ematrix, nstates)
 
 msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initprobs, qmodel)
 {
-    msm.check.ematrix(ematrix, qmodel$nstates)
     diag(ematrix) <- 0
     imatrix <- ifelse(ematrix > 0 & ematrix < 1, 1, 0) # don't count as parameters if perfect misclassification (1.4.2 bug fix)
     diag(ematrix) <- 1 - rowSums(ematrix)

@@ -591,7 +591,7 @@ print.msm <- function(x, covariates=NULL, digits=4, ...)
                 hrmessage <- paste0(" with hazard ratios for each covariate")
             else hrmessage <- ""
             q.header <- paste0("Transition intensities", hrmessage, "\n")
-            ret <- msm.form.qoutput(x, covariates, cl=cl, digits=digits, ...)
+            ret <- msm.form.qoutput(x, covariates, cl=cl, digitets=digits, ...)
             fres <- attr(ret, "formatted")
             cat("\n"); cat(q.header)
             print(fres, quote=FALSE)
@@ -613,11 +613,11 @@ print.msm <- function(x, covariates=NULL, digits=4, ...)
                     }
                 }
             }
-            else if (x$hmodel$hidden && is.null(x$qmodel$phase.states)) {
+            else if (x$hmodel$hidden && (is.null(x$hmodel$phase.only) || !x$hmodel$phase.only)){
                 cat("\n")
                 print(x$hmodel)
             }
-            if (!is.null(x$hmodel$phase.states)) {
+            if (!is.null(x$qmodel$phase.states)) {
                 cat("\nPhase-type model\n")
                 print(phasemeans.msm(x))
             }
@@ -1179,11 +1179,6 @@ logLik.msm <- function(object, by.subject=FALSE, ...)
         class(val) <- "logLik"
     }
     val
-}
-
-AIC.msm <- function(object, ..., k=2){
-    npars <- object$paramdata$nopt
-    object$minus2loglik + k*npars
 }
 
 ### Likelihood ratio test between two or more models
@@ -1860,9 +1855,8 @@ viterbi.msm <- function(x)
         fitted <- x$data$mf$"(state)"
         pstate <- NULL
     }
-    if (!is.null(x$hmodel$phase.states)){
-        fitted <- x$hmodel$phase.labs[fitted]
-        pstate <- NULL
+    if (!is.null(x$qmodel$phase.states)){
+        fitted <- x$qmodel$phase.labs[fitted]
     }
     ret <- data.frame(subject = x$data$mf$"(subject)",
                time = x$data$mf$"(time)",

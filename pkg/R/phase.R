@@ -1,15 +1,11 @@
-msm.form.pmodel <- function(qmodel, phase.states, inits, qconstraint, analyticp, use.expm){
+msm.phase2qmodel <- function(qmodel, phase.states, inits, qconstraint, analyticp, use.expm){
     if (any(!(phase.states %in% 1:qmodel$nstates))) stop("phase.states should be in 1,...,",qmodel$nstates)
     markov.states <- setdiff(1:qmodel$nstates, phase.states)
     nst <- 2*length(phase.states) + length(markov.states)
     reps <- rep(1, qmodel$nstates)
     reps[phase.states] <- 2
-    pars <- rep(1:qmodel$nstates, reps)
+    pars <- rep(1:qmodel$nstates, reps) # index of each new state in old states
 
-    ## user supplied inits: list of list(trans=scalar, exit=(nto x 2) matrix), one for
-    ## each phased state in order, where nto is number of
-    ## destination states from that phased state TODO document that
-    ### TODO document that inits for q are as usual for trans out of non-phased states, and ignored for trans out of phased states
     if (!is.null(inits)){
         if (!is.list(inits)) stop("phase.inits should be a list")
         if (!length(inits)==length(phase.states))
@@ -42,9 +38,13 @@ msm.form.pmodel <- function(qmodel, phase.states, inits, qconstraint, analyticp,
     phase1 <- which(pars%in%phase.states & !duplicated(pars))
     qmatrix.new[mpars,phase1] <- qmodel$qmatrix[markov.states,phase.states,drop=FALSE]
 
-    haux <- list(phase.states=phase.states, oldstates=pars, phase.labs=sn,
+    ## Unsure if we need to keep all of these.  TODO document them 
+    qaux <- list(phase.states=phase.states, markov.states=markov.states,
+                 phase.reps=reps, phase.pars=pars,
+                 oldstates=pars, phase.labs=sn,
+                 imatrix.orig=qmodel$imatrix, qmatrix.orig=qmodel$qmatrix,
                  pdests=list(), pdests.orig=list(),
-                 phase1.ind=numeric(), phase2.ind=numeric()) # Unsure if we need to keep all of these 
+                 phase1.ind=numeric(), phase2.ind=numeric()) 
     for (i in seq(along=phase.states)){
         ## possible destination states from current phase state in
         ## original and expanded model respectively
@@ -73,41 +73,40 @@ msm.form.pmodel <- function(qmodel, phase.states, inits, qconstraint, analyticp,
         }
         else trans <- inits[[i]]$trans
         qmatrix.new[phase1,phase2] <- trans
-        haux$pdests.orig[[i]] <- dests; haux$pdests[[i]] <- dests.new
-        haux$phase1.ind[i] <- phase1; hmod$phase2.ind[i] <- phase2
+        qaux$pdests.orig[[i]] <- dests; qaux$pdests[[i]] <- dests.new
+        qaux$phase1.ind[i] <- phase1; qaux$phase2.ind[i] <- phase2
     }
     q.new <- msm.form.qmodel(qmatrix=qmatrix.new, qconstraint=qconstraint,
                              analyticp=analyticp, use.expm=use.expm, phase.states=NULL)
-    q.new$phase.states <- phase.states
-    q.new$phase.pars <- pars
-    q.new$imatrix.orig <- qmodel$imatrix
-    q.new$qmatrix.orig <- qmodel$qmatrix
-    hmodel <- vector(nst, mode="list")
-## TODO: allow an extra HMM on top.
-## so instead of creating hmmIdents, just duplicate the outcome model for the phased state
-## also duplicate the model for covariates on the outcome models
-## hconstraint and fixedpars would apply to expanded state space
-    
-    for (i in 1:nst) hmodel[[i]] <- hmmIdent(pars[i])
-    hmod <- c(msm.form.hmodel(hmodel=hmodel,
-                              initprobs=c(1,rep(0,nst-1)), # put dummy initprobs here: actual initprobs will be defined later in msm.form.initprobs, since needs knowledge of the data
-                              est.initprobs=FALSE,
-                              qmodel=q.new),
-              haux)    
-    list(qmodel=q.new,hmodel=hmod)
+    q.new <- c(q.new, qaux)
+    q.new
+}
+
+msm.phase2hmodel <- function(qmodel, hmodel){   
+    if (is.null(hmodel)) {
+        hmodel <- vector(qmodel$nstates, mode="list")
+        for (i in 1:qmodel$nstates) hmodel[[i]] <- hmmIdent(qmodel$phase.pars[i])
+    }
+    ## dummy initprobs here: actually defined later in msm.form.initprobs, since needs knowledge of the data
+    hmodel <- c(msm.form.hmodel(hmodel=hmodel,
+                                initprobs=c(1,rep(0,qmodel$nstates-1)), 
+                                est.initprobs=FALSE,
+                                qmodel=qmodel),
+                list(phase.states=qmodel$phase.states))
+    hmodel
 }
 
 ## Convert parameters of fitted phase-type model to mixture representation
 
 phasemeans.msm <- function(x, covariates="mean", ci=c("none","normal","bootstrap"), cl=0.95, B=1000, cores=NULL){
-    ps <- x$hmodel$phase.states
+    ps <- x$qmodel$phase.states
     Q <- qmatrix.msm(x, ci="none", covariates=covariates)
     res <- matrix(nrow=length(ps), ncol=3)
     pnames <- c("Short stay mean", "Long stay mean", "Long stay probability")
-    rownames(res) <- rownames(x$qmodel$imatrix.orig)[x$hmodel$phase.states]
+    rownames(res) <- rownames(x$qmodel$imatrix.orig)[x$qmodel$phase.states]
     colnames(res) <- pnames
     for (i in seq_along(ps)){
-        p1 <- x$hmodel$phase1.ind[i]; p2 <- x$hmodel$phase2.ind[i]
+        p1 <- x$qmodel$phase1.ind[i]; p2 <- x$qmodel$phase2.ind[i]
         lam1 <- Q[p1, p2]
         mu1 <- sum(Q[p1, -c(p1, p2)])
         mu2 <- sum(Q[p2, -p2])

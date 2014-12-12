@@ -373,9 +373,9 @@ in.range <- function(x, interval, strict=FALSE) {
         ( (x >= interval[1]) & (x <= interval[2]) )
 }
 
-msm.form.initprobs <- function(hmodel, mf){
+msm.form.initprobs <- function(hmodel, initprobs, mf){
     npts <- attr(mf,"npts")
-    if (!is.null(hmodel$phase.states)) {
+    if (!is.null(hmodel$phase.states) && is.null(initprobs)) {
         hmodel$initprobs <- matrix(0, nrow=npts, ncol=hmodel$nstates)
         initstate <- mf$"(state)"[!duplicated(mf$"(subject)")]
         hmodel$initprobs[cbind(1:npts, match(initstate, hmodel$pars))] <- 1

@@ -26,7 +26,7 @@ lrtest.msm(...)
   distribution if the models are nested. An alternative for comparing
   non-nested models is Akaike's information criterion.  This can be 
   computed for one or more fitted \code{msm} models \code{x,y,...} using
-  \code{\link{AIC(x,y,...)}}.
+  \code{\link{AIC}(x,y,...)}.
 }
 \seealso{\code{\link{logLik.msm}},\code{\link{msm}}}
 \keyword{models}

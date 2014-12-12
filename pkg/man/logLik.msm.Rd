@@ -20,7 +20,7 @@
   'object' evaluated at the maximum likelihood estimates.
 
   Akaike's information criterion can also be computed using
-  \code{\link{AIC(object)}}.
+  \code{\link{AIC}(object)}.
 }
 \seealso{
   \code{\link{msm}},\code{\link{lrtest.msm}}.

@@ -1,3 +1,10 @@
+2014-12-12 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R,R/phase.R. Phase type models now allow HMM on top.  Bug
+	fixes to these models.
+
+	* DESCRIPTION: Version 1.4.3 released to r-forge.
+
 2014-12-11 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	*  Posterior probability of the hidden state at each time in the

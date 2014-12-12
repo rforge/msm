@@ -159,7 +159,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     A misclassification model, that is, a hidden Markov model where
     the outcomes are misclassified observations of the underlying
     states, can either be specified using a list of \code{\link{hmmCat}}
-    objects, or by using an \code{ematrix}.
+    or \code{\link{hmmIdent}} objects, or by using an \code{ematrix}.
 
     For example, \cr
 
@@ -628,23 +628,29 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
      This uses the technique described by Titman and Sharples (2009).  A
      hidden Markov model is automatically constructed on an expanded
      state space, where the phases correspond to the hidden states, and
-     the unphased states are assumed to be observed without error.
-     Covariates, initial values and constraints are expressed with
-     respect to the expanded state space.  \code{initprobs} is defined
-     automatically so that subjects are assumed to begin in the first of
-     the two phases.
+     the unphased states are assumed to be observed without error.  The
+     "tau" proportionality constraint described in this paper is
+     currently not supported.
 
-     This is an experimental feature, and some functions are not
-     implemented.  For example, it only applies to non-hidden Markov
-     models: an additional hidden Markov model can not be defined on top
-     of a phase-type model using this facility. Hidden semi-Markov
-     models must be specified by defining an appropriate \code{hmodel}
-     and \code{initprobs} by hand.
+     Covariates, constraints, \code{death} and \code{censor} are
+     expressed with respect to the expanded state space.  If not
+     supplied by hand, \code{initprobs} is defined automatically so that
+     subjects are assumed to begin in the first of the two phases.
 
-     Output functions are presented as if it were a hidden Markov model
-     on the expanded state space, for example, transition probabilities
-     between states, or covariate effects on transition rates, are not
-     aggregated over the hidden phases.
+     Hidden Markov models can additionally be given phased states.  The
+     user supplies an outcome distribution for each original state using
+     \code{hmodel}, which is expanded internally so that it is assumed
+     to be the same within each of the phased states.  \code{initprobs}
+     is interpreted on the expanded state space.  Misclassification
+     models defined using \code{ematrix} are not supported, and these
+     must be defined using \code{hmmCat} or \code{hmmIdent} constructors,
+     as described in the \code{hmodel} section of this help page.  Or
+     the HMM on the expanded state space can be defined by hand. 
+
+     Output functions are presented as it were a hidden Markov model on
+     the expanded state space, for example, transition probabilities
+     between states, covariate effects on transition rates, or
+     prevalence counts, are not aggregated over the hidden phases.
 
      Numerical estimation will be unstable when there is weak evidence
      for a two-phase sojourn distribution, that is, if the model is
@@ -653,7 +659,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
      See \code{\link{d2phase}} for the definition of the two-phase
      distribution and the interpretation of its parameters.
 
-     Please report any experiences of using this facility to the author!
+     This is an experimental feature, and some functions are not
+     implemented.  Please report any experiences of using this feature
+     to the author!    
      }
    
   \item{phase.inits}{ Initial values for phase-type models.  A list with
@@ -665,7 +673,13 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     first column is the transition rate from phase 1 to the destination
     state, and the second column is the transition rate from phase 2 to
     the destination state.  If there is only one destination state, then
-    this may be supplied as a vector.  }
+    this may be supplied as a vector.
+
+    In phase type models, the initial values for transition rates out of
+    non-phased states are taken from the \code{qmatrix} supplied to msm,
+    and entries of this matrix corresponding to transitions out of
+    phased states are ignored. 
+  }
 
   \item{exacttimes}{By default, the transitions of the Markov process
     are assumed to take place at unknown occasions in between the
