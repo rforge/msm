@@ -627,8 +627,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
 
      This uses the technique described by Titman and Sharples (2009).  A
      hidden Markov model is automatically constructed on an expanded
-     state space, where the phases correspond to the hidden states, and
-     the unphased states are assumed to be observed without error.  The
+     state space, where the phases correspond to the hidden states.  The
      "tau" proportionality constraint described in this paper is
      currently not supported.
 

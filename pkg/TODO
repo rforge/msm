@@ -8,10 +8,6 @@ for every release
 * PKG_CFLAGS=-g to get line numbers in valgrind  
 * undefined behaviour sanitizer: gcc 4.9, and R-3.1.2 configured with flags on, installed locally at work. turn flags on for package building in .R/Makevars
 
-* Unit tests for phase type models 
-
-
-HMMs on top of phase type models
 
 
 POSSIBLE MAJOR DEVELOPMENTS
@@ -28,6 +24,9 @@ Internationalisation.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
+
+phase type constraints. yes/no for each phased state.  regular fixedpars/constraints apply to phase-constrained pars.
+msm.rep.constraints and msm.form.params
 
 ppass.msm with time dependent covs.  method in source comment.
 
