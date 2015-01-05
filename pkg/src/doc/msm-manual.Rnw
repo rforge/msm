@@ -1725,9 +1725,10 @@ failure of the Markov assumption.  That is, the transition intensities
 may depend on the time spent in the current state (a semi-Markov
 process) or other characteristics of the process history.  Accounting
 for the process history is difficult as the process is only observed
-through a series of snapshots.  For a multi-state model with one-way
-progression through states, and frequent observations, we may be able
-to estimate the time spent in each state by each individual.
+through a series of snapshots.  Semi-Markov 
+models may in principle be fitted to this type of data using phase-type distributions.  Since
+version 1.4.1 the \Rfunarg{phase.states} option to \Rfunction{msm} can be used to 
+define some phase-type models.  See \Rfunction{help(msm)} for further details.
 
 However, if it is known that individuals who died would not have been
 followed up after a certain time, had they survived to that time, then
