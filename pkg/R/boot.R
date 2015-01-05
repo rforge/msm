@@ -99,15 +99,19 @@ boot.msm <- function(x, stat=pmatrix.msm, B=1000, file=NULL, cores=NULL){
     if (is.null(cores) || cores==1) parallel <- FALSE else parallel <- TRUE;
     if (parallel) {
         if (!is.null(cores) && cores=="default") cores <- NULL
-        require(doParallel)
+        if (requireNamespace("doParallel", quietly = TRUE)){
 ### can't get this working separated out into a function like portable.parallel(). Variable exporting / scoping doesnt' work.
-        if (.Platform$OS.type == "windows") {
-            cl <- makeCluster(cores)
-            registerDoParallel(cl)
-        } else registerDoParallel(cores=cores)
-        boot.list <- foreach(i=1:B, .packages="msm", .export=c("x",ls(.GlobalEnv))) %dopar% { boot.fn(i) }
-        if (.Platform$OS.type == "windows")
-            stopCluster(cl)
+            if (.Platform$OS.type == "windows") {
+                cl <- parallel::makeCluster(cores)
+                doParallel::registerDoParallel(cl)
+            } else doParallel::registerDoParallel(cores=cores)
+            boot.list <- foreach::"%dopar%"(foreach::foreach(i=1:B, .packages="msm", .export=c("x",ls(.GlobalEnv))),
+                                            { boot.fn(i) })
+            if (.Platform$OS.type == "windows")
+                parallel::stopCluster(cl)
+        }
+        else stop("\"parallel\" package not available")
+
     }
     else {
         boot.list <- vector(B, mode="list")

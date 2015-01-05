@@ -12,5 +12,5 @@ Description: Continuous-time Markov and hidden Markov multi-state
  covariates, which may be constant or piecewise-constant in time.
 License: GPL (>= 2)
 Imports: survival,mvtnorm,expm
-Suggests: mstate,minqa,doParallel,numDeriv,testthat,flexsurv
+Suggests: mstate,minqa,doParallel,foreach,numDeriv,testthat,flexsurv
 LazyData: yes

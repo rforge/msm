@@ -227,14 +227,16 @@ drlcv.msm <- function(msm.full,msm.coarse,tl=0.95,cores=NULL,verbose=TRUE,outfil
     if (is.null(cores) || cores==1) parallel <- FALSE else parallel <- TRUE;
     if (parallel){
         if (!is.null(cores) && cores=="default") cores <- NULL
-        require(doParallel)
+        if (requireNamespace("doParallel", quietly = TRUE)){
 ### can't get this working separated out into a function like portable.parallel(). Variable exporting / scoping doesnt' work.
-# no need to export these?   "msm.coarse", "msm.coarse.data", "msm.full", "msm.full.data","coarsening.ematrix", "initp"
-        if (.Platform$OS.type == "windows") {
-            cl <- makeCluster(cores)
-            registerDoParallel(cl)
-        } else registerDoParallel(cores=cores)
-        cv <- foreach(i=1:n, .packages="msm", .export=c(ls(.GlobalEnv))) %dopar% { cv.fn(i) }
+### no need to export these?   "msm.coarse", "msm.coarse.data", "msm.full", "msm.full.data","coarsening.ematrix", "initp"
+            if (.Platform$OS.type == "windows") {
+                cl <- parallel::makeCluster(cores)
+                doParallel::registerDoParallel(cl)
+            } else doParallel::registerDoParallel(cores=cores)
+            cv <- foreach::"%dopar%"(foreach::foreach(i=1:n, .packages="msm", .export=c(ls(.GlobalEnv))),
+                                     { cv.fn(i) })
+        } else stop("\"parallel\" package not available")
     }
     else {
         cv <- vector(mode="list", n)

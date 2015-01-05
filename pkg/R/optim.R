@@ -182,12 +182,13 @@ msm.optim.fisher <- function(p, gr, hessian, msmdata, qmodel, qcmodel, cmodel, h
 }
 
 msm.optim.bobyqa <- function(p, gr, hessian, msmdata, qmodel, qcmodel, cmodel, hmodel, ...) {
-    library(minqa)
     optim.args <- list(...)
     optim.args <- c(optim.args, list(par=p$inits, fn=lik.msm,
                                      msmdata=msmdata, qmodel=qmodel, qcmodel=qcmodel,
                                      cmodel=cmodel, hmodel=hmodel, paramdata=p))
-    opt <- do.call("bobyqa", optim.args)
+    if (requireNamespace("minqa", quietly = TRUE)){
+        opt <- do.call("bobyqa", optim.args)
+    } else stop("\"minqa\" package not available")
     if (opt$ierr %in% 1:5)
         warning(opt$msg, ". Reported estimates are not the maximum likelihood. See help(bobyqa) and help(msm).")
     if (hessian)
