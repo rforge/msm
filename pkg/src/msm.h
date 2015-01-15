@@ -53,6 +53,7 @@ struct msmdata {
     int npts;
     int ntrans;
     int npcombs;
+    int nout;
 };
 
 struct qmodel {

@@ -1,3 +1,14 @@
+2015-01-14 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	*  Correct version of the built vignette restored to the package
+	(1.5 instead of 1.3.2).
+
+	*  Experimental feature: multivariate observations in HMMs.  Start
+	by supporting multiple outcomes from the same distribution at the
+	same time, with the data supplied as a matrix.
+
+	* DESCRIPTION: Version 1.5.1 released to r-forge.
+
 2015-01-05 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.5 released to CRAN.

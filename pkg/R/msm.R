@@ -69,6 +69,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
 ### CENSORING MODEL
     cmodel <- msm.form.cmodel(censor, censor.states, qmodel$qmatrix)
 
+### SOME CHECKS    
     if (!inherits(formula, "formula")) stop("formula is not a formula")
     if (!is.null(covariates) && (!(is.list(covariates) || inherits(covariates, "formula"))))
         stop(deparse(substitute(covariates)), " should be a formula or list of formulae")
@@ -83,6 +84,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     if (is.null(covariates)) covariates <- ~1
     if (emodel$misc && is.null(misccovariates)) misccovariates <- ~1
     if (hmodel$hidden && !is.null(hcovariates)) msm.check.hcovariates(hcovariates, qmodel)
+    
 ### BUILD MODEL FRAME containing all data required for model fit,
 ### using all variables found in formulae.
     ## Names include factor() around covariate names, and interactions,
@@ -471,6 +473,7 @@ msm.check.state <- function(nstates, state, censor)
 {
     states <- c(1:nstates, censor)
     state <- na.omit(state) # NOTE added in 1.4
+    if (!is.null(ncol(state)) && ncol(state) > 1) stop("Matrix outcomes only allowed for hidden Markov models")
     if (!is.null(state)) {
         statelist <- if (nstates==2) "1, 2" else if (nstates==3) "1, 2, 3" else paste("1, 2, ... ,",nstates)
         if (length(setdiff(unique(state), states)) > 0)
@@ -485,10 +488,13 @@ msm.check.state <- function(nstates, state, censor)
 msm.check.times <- function(time, subject, state=NULL)
 {
     final.rows <- !is.na(subject) & !is.na(time)
-    if (!is.null(state)) final.rows <- final.rows & !is.na(state)
+    if (!is.null(state)) {
+        nas <- if (is.matrix(state)) apply(state, 1, function(x)all(is.na(x))) else is.na(state)
+        final.rows <- final.rows & !nas
+        state <- if (is.matrix(state)) state[final.rows, ] else state[final.rows]
+    }
     final.rows <- which(final.rows)
     time <- time[final.rows]; subject <- subject[final.rows]
-    if (!is.null(state)) state <- state[final.rows]
 ### Check if any individuals have only one observation (after excluding missing data)
 ### Note this shouldn't happen after 1.2
     subj.num <- match(subject,unique(subject)) # avoid problems with factor subjects with empty levels
@@ -527,6 +533,7 @@ msm.check.times <- function(time, subject, state=NULL)
     }
 ### Check if any consecutive observations are made at the same time, but with different states
     if (!is.null(state)){
+        if (is.matrix(state)) state <- apply(state, 1, paste, collapse=",")
         prevsubj <- c(-Inf, subj.num[seq_along(subj.num)-1])
         prevtime <- c(-Inf, time[1:length(time)-1])
         prevstate <- c(-Inf, state[1:length(state)-1])
@@ -1369,10 +1376,13 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
                   "(whicha)" = as.integer(mf.agg$"(whicha)"),
                   "(obstype)" = as.integer(mf.agg$"(obstype)"))
    mfc <- list("(subject)" = as.integer(mf$"(subject)"),  "(time)" = as.double(mf$"(time)"),
-              "(state)" = as.double(mf$"(state)"), "(obstype)" = as.integer(mf$"(obstype)"),
+               ## supply matrix outcomes to C by row so multivariate outcomes are together
+               "(state)" = as.double(t(mf$"(state)")), 
+               "(obstype)" = as.integer(mf$"(obstype)"),
               "(obstrue)" = as.integer(mf$"(obstrue)"), "(pcomb)" = as.integer(mf$"(pcomb)"))
    auxdata <- list(nagg=as.integer(nagg),n=as.integer(nrow(mf)),npts=as.integer(attr(mf,"npts")),
                    ntrans=as.integer(ntrans), npcombs=as.integer(npcombs),
+                   nout = as.integer(if(is.null(ncol(mf$"(state)"))) 1 else ncol(mf$"(state)")),
                    nliks=as.integer(get("nliks",msm.globals)),firstobs=as.integer(firstobs))
    qmodel <- list(nstates=as.integer(qmodel$nstates), npars=as.integer(qmodel$npars),
                   nopt=as.integer(qmodel$nopt), iso=as.integer(qmodel$iso),
@@ -1385,7 +1395,7 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
                   npars=as.integer(hmodel$npars), nopt=as.integer(hmodel$nopt))
    pars <- list(Q=as.double(Q),DQ=as.double(DQ),H=as.double(H),DH=as.double(DH),
                 initprobs=as.double(initprobs),nopt=as.integer(nopt))
-   .Call("msmCEntry",  as.integer(match(do.what, .msm.CTASKS) - 1),
+    .Call("msmCEntry",  as.integer(match(do.what, .msm.CTASKS) - 1),
          mfac, mfc, auxdata, qmodel, cmodel, hmodel, pars, PACKAGE="msm")
 }
 
@@ -1744,8 +1754,14 @@ na.find.msmdata <- function(object, ...) {
     omit <- FALSE
     for (j in seq(along=object)) {
         ## Drop all NAs in state, time, subject or obstrue as usual
-        if ((j %in% 1:2) || (nm[j] %in% c("(subject)","(obstrue)")))
+        if (nm[j] %in% c("(time)", "(subject)","(obstrue)"))
             omit <- omit | is.na(object[[j]])
+        if (nm[j] == "(state)") {
+            ## For matrix HMM outcomes ("states"), only drop a row if all columns are NA
+            nas <- if (is.matrix(object[[j]])) apply(object[[j]], 1, function(x)all(is.na(x)))
+                   else is.na(object[[j]])
+            omit <- omit | nas
+        }
         ## Don't drop NAs in obstype at first observation for a subject
         else if (nm[j]=="(obstype)")
             omit <- omit | (is.na(object[[j]]) & !firstobs)
@@ -1783,7 +1799,7 @@ msm.obs.to.fromto <- function(mf)
     lastsubj <- !duplicated(subj, fromLast=TRUE)
     mf.trans <- mf[!lastsubj,,drop=FALSE]   ## retains all covs corresp to the start of the transition
     names(mf.trans)[names(mf.trans)=="(state)"] <- "(fromstate)"
-    mf.trans$"(tostate)" <- state[!firstsubj]
+    mf.trans$"(tostate)" <- if(is.matrix(state)) state[!firstsubj,] else state[!firstsubj]
     mf.trans$"(obstype)" <- model.extract(mf, "obstype")[!firstsubj] # obstype matched with end of transition
     mf.trans$"(obs)" <- model.extract(mf, "obs")[!firstsubj]
     mf.trans$"(timelag)" <- diff(time)[!firstsubj[-1]]

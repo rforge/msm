@@ -4,6 +4,18 @@ USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
 
+Version 1.5.1  (2015-01-15)
+-------------
+
+o R-forge only release. 
+
+o HMMs can now have multiple observations at each time from the same
+  distribution.  The "state" in the "formula" argument of msm() is
+  supplied as a matrix.
+
+o Up-to-date version of the vignette included in the package.
+
+
 Version 1.5  (2015-01-05)
 -----------
 
@@ -13,9 +25,9 @@ o CRAN release. Includes the changes from versions 1.4.1 - 1.4.3.
 Version 1.4.3  (2014-12-12)
 -------------
 
-o Phase type models now allow an extra hidden Markov model on top.
-
 o R-forge only release. 
+
+o Phase type models now allow an extra hidden Markov model on top.
 
 
 Version 1.4.2  (2014-12-11)
