@@ -13,14 +13,8 @@
 #include <Rmath.h>
 #include <Rdefines.h>
 #define NODEBUG
-#define NOVITDEBUG
+#define NOVITDEBUG0
 #define NODERIVDEBUG
-
-linkfn LINKFNS[3][2] = {
-    {identity, identity},
-    {log, exp},
-    {logit, expit}
-};
 
 /* MUST KEEP THIS IN SAME ORDER AS .msm.HMODELPARS IN R/constants.R */
 hmmfn HMODELS[] = {
@@ -134,40 +128,77 @@ void GetCensored (double obs, cmodel *cm, int *nc, double **states)
   pout =   if i in curr 1, else 0
 */
 
-/* TODO multivariate observations 
-   curr should be pointer to first element of multivariate obs 
-   don't support cens, but should support obstrue
-   inner loop over k?  vector of independent hm->models.  would be hard to extend to multivariate models then
-   then outcome[j,k],  but j would always be 0 
-   hm->models[i] 
-   what about parameters then 
-   Or outcome[j] could be multivariate 
- */
+/* TODO does find_exactdeath_hmm need updating for multivariate observations with different models ? */
+
+/* TODO new obstrue facility 
+On entry, obstrue will contain 0 if state unknown, and state if state known
+But how do we know if there are any extra outcome data in the outcome variable?
+If this is NA, we can ignore it but still use obstrue (TODO put in na.find.msmdata)
+If this is a state (eg in misc models) prob of observing it cond on true state is 1. 
+If this is a general outcome,  get prob of observing it from HMODELS
+*/
 
 void GetOutcomeProb(double *pout, double *outcome, int nc, int nout, double *hpars, hmodel *hm, qmodel *qm, int obstrue)
 {
-    int i, j, k;
+    int i, j, k, ind;
     for (i=0; i<qm->nst; ++i) {
-	pout[i] = 0;
-	if (hm->hidden && !obstrue) {
-	    if (nout > 1) { 
-		for (k=0; k<nout; ++k)
-		    /* Multivariate obs: currently same model for each outcome variable. Generalize later.  Censored states not supported with multivariate. 
-		       TODO drop NAs. 
-		     */
-		    if (!ISNA(outcome[k]))
-			pout[i] += (HMODELS[hm->models[i]])(outcome[k], &(hpars[hm->firstpar[i]]));
-	    } else { 
+	if (hm->hidden && (obstrue==0)) { /* HMMs with true state not known */
+	    if (nout > 1) {  /* multivariate outcomes. Censored states not supported */ 
+		pout[i] = 1;
+		for (k=0; k<nout; ++k) {
+		    ind = (hm->mv ? 
+			   MI(k,i,nout) :  /* different models for different variables */
+			   i);             /* same model for all */
+		    if (!ISNA(outcome[k]) && !ISNA(hm->models[ind])){
+			pout[i] *= ((HMODELS[hm->models[ind]])(outcome[k], &(hpars[hm->firstpar[ind]])));
+		    }		    
+		}
+	    } else {  /* Standard univariate HMM (with or without censored state) */
+		pout[i] = 0;
 		for (j=0; j<nc; ++j){		    
 		    pout[i] += (HMODELS[hm->models[i]])(outcome[j], &(hpars[hm->firstpar[i]]));
-		    /*		printf("hm=%d,outcome=%f,fp=%d\n",hm->models[i],outcome[j],hm->firstpar[i]);*/
 		}
 	    }
 	}
-	else {
-	    for (j=0; j<nc; ++j)
-		if ((int) outcome[j] == i+1)
+	else {      /* True state is known at this time, and appears here as "obstrue" */
+	    if (nout > 1){
+		pout[i] = 0;
+		if (obstrue == i+1){   /* "state" data contain an actual observation. 
+					  get its distribution here conditional on the supplied true state */
 		    pout[i] = 1;
+		    for (k=0; k<nout; ++k) {
+			ind = (hm->mv ? MI(k,i,nout) : i);
+			if (!ISNA(outcome[k]) && !ISNA(hm->models[ind])){
+			    pout[i] *= ((HMODELS[hm->models[ind]])(outcome[k], &(hpars[hm->firstpar[ind]])));
+			}		    
+
+		    }
+		}
+	    } else {
+		pout[i] = 0;
+		if (hm->hidden && nc == 1){ /* "state" data contain an actual observation. 
+				 get its distribution here conditional on the supplied true state */
+		    if (obstrue == i+1){
+			pout[i] = (HMODELS[hm->models[i]])(outcome[0], &(hpars[hm->firstpar[i]]));
+		    } 
+		    /* 
+		       hidden, nc > 1 and obstrue
+		       PREV AND CURR: handled by final block ??? 
+
+		       hidden, nc = 1 and obstrue
+		       PREV: final block
+		       CURR: uses HMODELS
+
+		     */
+
+
+		} else {  /* "state" data contain a censor indicator */
+		    for (j=0; j<nc; ++j){
+			if ((int) outcome[j] == i+1)
+			    pout[i] = 1;
+		    }
+		}
+	    }
 	}
     }
 }
@@ -185,22 +216,55 @@ void GetOutcomeProb(double *pout, double *outcome, int nc, int nout, double *hpa
  one pr for a given x.  */
 
 void GetDOutcomeProb(double *dpout, /* qm->nst x hm->nopt */
-		     double *outcome, int nc, double *hpars, hmodel *hm, qmodel *qm, int obsno, int obstrue)
+		     double *outcome, int nc, int nout, double *hpars, hmodel *hm, qmodel *qm, int obsno, int obstrue)
 {
-    int i, j, k, l;
+    int i, j, k, l, r, s, ind;
     int p=0; /* indexes parameters up to totpars */
-    double *dptmp = Calloc(hm->totpars, double); /* will only use hm->npars[i] slots for each i */
+    double *pout, *dptmp = Calloc(hm->totpars, double); /* will only use hm->npars[i] slots for each i */
     for (i=0; i<qm->nst; ++i) {
 	for (l=0; l<hm->nopt; ++l)
 	    dpout[MI(i,l,qm->nst)] = 0;
 	if (hm->hidden && !obstrue) {
-	    for (j=0; j<nc; ++j){
-		(DHMODELS[hm->models[i]])(outcome[j], &(hpars[hm->firstpar[i]]), dptmp);
-		for (k=0; k<hm->npars[i]; ++k){
-		    for (l=0; l<hm->nopt; ++l){
-//			printf("i=%d,k=%d,l=%d,dptmp=%f,dpars=%f\n",i,k,l,dptmp[k],hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)]);
-			dpout[MI(i,l,qm->nst)] += dptmp[k] *
-			    hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
+	    if (nout > 1) {  /* multivariate outcomes. Censored states not supported			
+				TODO.  This is fiddlier than first thought.
+				not considered what hm->dpars should be, particularly with constraints 
+			     */ 
+		pout = Calloc(nout, double);
+		for (r=0; r<nout; ++r) { 
+		    ind = (hm->mv ? MI(r,i,nout) : i);
+		    pout[r] = ((HMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]])));
+//		    printf("i=%d,outcome[%d]=%f,pout[%d]=%f,",i,r,outcome[r],r,pout[r]);
+		}
+//		printf("\n");
+		for (r=0; r<nout; ++r)
+		    if (!ISNA(outcome[r])){
+			ind = (hm->mv ? MI(r,i,nout) : i);
+			if (!ISNA(hm->models[ind])){
+			    (DHMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]]), dptmp);
+			    for (k=0; k<hm->npars[i]; ++k){
+				for (s=0; s<nout; ++s)
+				    if (r != s) dptmp[k] *= pout[s];
+				for (l=0; l<hm->nopt; ++l){
+				    dpout[MI(i,l,qm->nst)] += dptmp[k] * hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
+				}
+				/* printf("MI=%d,hm=%d,fp=%d,hp=%f,outcome=%2.0f,dptmp=%f,dpout=%14.10lf\n",MI(r,i,nout),hm->models[MI(r,i,nout)], hm->firstpar[MI(r,i,nout)], hpars[hm->firstpar[MI(r,i,nout)]+1], outcome[r],dptmp[k],dpout[MI(i,1,qm->nst)]);    */
+			    }
+			    /* for (k=0; k<hm->npars[i]; ++k) */
+			    /* 	printf("i=%d,outcome[%d]=%f,dptmp[%d]=%f,",i,r,outcome[r],k,dptmp[k]); */
+			    /* printf("\n"); */
+			}
+		    }
+		Free(pout);
+	    }
+	    else { 
+		for (j=0; j<nc; ++j){
+		    (DHMODELS[hm->models[i]])(outcome[j], &(hpars[hm->firstpar[i]]), dptmp);
+		    for (k=0; k<hm->npars[i]; ++k){
+			for (l=0; l<hm->nopt; ++l){
+			    dpout[MI(i,l,qm->nst)] += dptmp[k] *
+				hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
+			}
+			/* printf("i=%d,hm=%d,fp=%d,hp=%f,outcome=%2.0f,dptmp=%f,dpout=%14.10lf\n",i,hm->models[i],hm->firstpar[i],hpars[hm->firstpar[i]+1],outcome[j],dptmp[k],dpout[MI(i,1,qm->nst)]);   */
 		    }
 		}
 	    }
@@ -343,7 +407,7 @@ double likhidden(int pt, /* ordinal subject ID */
     /* Likelihood for individual's first observation */
     hpars = &(hm->pars[MI(0, d->firstobs[pt], hm->totpars)]);
     if (d->nout > 1) outcome = &d->obs[MI(0, d->firstobs[pt], d->nout)];
-    else {
+    else {  /* TODO these four lines or similar are pasted a few times */
 	GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
 	outcome = curr;
     }
@@ -396,7 +460,7 @@ void init_hmm_deriv(double *curr, int nc, int pt, int obsno, double *hpars,
     double *dpout = Calloc(n * nhp, double);
     int cens_not_hmm = (cm->ncens > 0 && !hm->hidden);
     GetOutcomeProb(pout, curr, nc, d->nout, hpars, hm, qm, d->obstrue[obsno]);
-    GetDOutcomeProb(dpout, curr, nc, hpars, hm, qm, obsno, d->obstrue[obsno]);
+    GetDOutcomeProb(dpout, curr, nc, d->nout, hpars, hm, qm, obsno, d->obstrue[obsno]);
     for (p=0; p<nqp; ++p){
 	dpok[p] = 0;
 	for (i = 0; i < n; ++i)
@@ -404,9 +468,11 @@ void init_hmm_deriv(double *curr, int nc, int pt, int obsno, double *hpars,
     }
     suma = 0;
     for (i = 0; i < n; ++i) {
+	/* printf("pout[%d]=%f, ", i, pout[i]); */
 	a[i] = (cens_not_hmm ? pout[i] : hm->initp[MI(pt,i,d->npts)] * pout[i]);
 	suma += a[i];
     }
+    /* printf("\n"); */
     *pok = (cens_not_hmm ? 1 : suma);
     for (i = 0; i < n; ++i)
 	xi[i] = a[i] / (*pok);
@@ -439,7 +505,7 @@ void update_hmm_deriv(double *curr, int nc, int obsno,
     double *pout = Calloc(n, double);
     double *dpout = Calloc(n * nhp, double);
     GetOutcomeProb(pout, curr, nc, d->nout, hpars, hm, qm, d->obstrue[obsno]);
-    GetDOutcomeProb(dpout, curr, nc, hpars, hm, qm, obsno, d->obstrue[obsno]);
+    GetDOutcomeProb(dpout, curr, nc, d->nout, hpars, hm, qm, obsno, d->obstrue[obsno]);
     if (d->obstype[obsno] == OBS_DEATH)
 	ideath = find_exactdeath_hmm(curr, obsno, d, qm, hm);
     for (i=0; i<n; ++i){
@@ -525,24 +591,36 @@ void hmm_deriv(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pm
     double *dxinew = Calloc(n * np, double);
     double *dxiold = Calloc(n * np, double);
     double *dpok = Calloc(np, double);
-    double *qmat, *dqmat, *hpars=NULL;
+    double *qmat, *dqmat, *hpars=NULL, *outcome=NULL;
     if (hm->hidden) hpars = &(hm->pars[MI(0, d->firstobs[pt], hm->totpars)]);
-    GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
+    if (d->nout > 1) outcome = &d->obs[MI(0, d->firstobs[pt], d->nout)];
+    else { 
+	GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
+	outcome = curr;
+    }
     // Get lik and deriv at first obs
-    init_hmm_deriv(curr, nc, pt, d->firstobs[pt], hpars,
+    init_hmm_deriv(outcome, nc, pt, d->firstobs[pt], hpars,
 		   aold, phiold, xiold, dxiold,
 		   d, qm, cm, hm, &pok, dpok);
     lp = log(pok);
-    for (p=0; p<np; ++p)
+    /* for (i=0;i<d->nout;++i) printf("outcome[%d]=%f,",i,outcome[i]); printf("\n"); */
+    for (p=0; p<np; ++p){
 	dlp[p] = dpok[p] / pok;
+	/* printf("k=0,dpok[%d]=%f,pok=%f,dlp[%d]=%f,",p,dpok[p],pok,p,dlp[p]); */
+    }
+    /* printf("\n"); */
     // Subsequent observations, using forward algorithm
     for (k=1; k<nobspt; ++k) {
 	obsno = d->firstobs[pt] + k;
 	qmat = &(qm->intens[MI3(0, 0, obsno-1, n, n)]);
 	dqmat = &(qm->dintens[MI4(0, 0, 0, obsno - 1, n, n, nqp)]);
 	hpars = &(hm->pars[MI(0, obsno, hm->totpars)]);
-	GetCensored((double)d->obs[obsno], cm, &nc, &curr);
-	update_hmm_deriv(curr, nc, obsno,
+	if (d->nout > 1) outcome = &d->obs[MI(0, obsno, d->nout)];
+	else { 
+	    GetCensored((double)d->obs[obsno], cm, &nc, &curr);
+	    outcome = curr;
+	}
+	update_hmm_deriv(outcome, nc, obsno,
 			 pmat, dpmat, qmat, dqmat, hpars,
 			 aold, phiold, xiold, dxiold,
 			 anew, phinew, xinew, dxinew,
@@ -558,8 +636,11 @@ void hmm_deriv(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pm
 	    }
 	}
 	lp += log(pok);
-	for (p=0; p<np; ++p)
+	for (p=0; p<np; ++p){
 	    dlp[p] += dpok[p] / pok;
+	    /* printf("k=%d,dlp[%d]=%f,",k,p,dlp[p]); */
+	}
+	/* printf("\n"); */
     }
     lp *= -2;
     //    printf("lp=%lf\n",lp);
@@ -583,7 +664,7 @@ void hmm_info(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pma
     double *dxinew = Calloc(n * np, double);
     double *dxiold = Calloc(n * np, double);
     double *dpok = Calloc(np, double);
-    double *qmat, *dqmat, *hpars=NULL;
+    double *qmat, *dqmat, *hpars=NULL, *outcome;
     if (hm->hidden) hpars = &(hm->pars[MI(0, d->firstobs[pt], hm->totpars)]);
     for (p=0; p<np; ++p)
 	for (q=0; q<np; ++q)
@@ -600,8 +681,12 @@ void hmm_info(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pma
 //		printf("k=0,j=%d,dpok[%d]=%f,dpok[%d]=%f,pok=%f,info=%f\n",j,p,dpok[p],q,dpok[q],pok,info[MI(q,p,np)]);
 	    }
     }
-    GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
-    init_hmm_deriv(curr, nc, pt, d->firstobs[pt], hpars,
+    if (d->nout > 1) outcome = &d->obs[MI(0, d->firstobs[pt], d->nout)];
+    else { 
+	GetCensored((double)d->obs[d->firstobs[pt]], cm, &nc, &curr);
+	outcome = curr;
+    }
+    init_hmm_deriv(outcome, nc, pt, d->firstobs[pt], hpars,
 		   aold, phiold, xiold, dxiold, // use actual observation to update these
 		   d, qm, cm, hm, &pok, dpok);
     // Subsequent observations, using forward algorithm
@@ -625,8 +710,12 @@ void hmm_info(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pma
 //		    printf("k=%d,j=%d,dpok[%d]=%f,dpok[%d]=%f,pok=%f,info=%f\n",k,j,p,dpok[p],q,dpok[q],pok,info[MI(q,p,np)]);
 		}
 	}
-	GetCensored((double)d->obs[obsno], cm, &nc, &curr); // update using observed data
-	update_hmm_deriv(curr, nc, obsno, pmat, dpmat, qmat, dqmat, hpars,
+	if (d->nout > 1) outcome = &d->obs[MI(0, obsno, d->nout)];
+	else {
+	    GetCensored((double)d->obs[obsno], cm, &nc, &curr); // update using observed data
+	    outcome = curr;
+	}
+	update_hmm_deriv(outcome, nc, obsno, pmat, dpmat, qmat, dqmat, hpars,
 			 aold, phiold, xiold, dxiold,
 			 anew, phinew, xinew, dxinew,
 			 d, qm, hm, &pok, dpok);
@@ -1107,7 +1196,7 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
     double *lvold = Calloc(qm->nst, double);
     double *lvnew = Calloc(qm->nst, double);
     double *lvp = Calloc(qm->nst, double);
-    double *curr = Calloc (qm->nst, double);
+    double *curr = Calloc (qm->nst, double), *outcome;
     double *pout = Calloc(qm->nst, double);
     double *pfwd = Calloc((d->n)*(qm->nst), double);
     double *pbwd = Calloc((d->n)*(qm->nst), double);
@@ -1120,14 +1209,18 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
     i = 0;
     if (d->obstrue[i]) {
       for (k = 0; k < qm->nst; ++k)
-	lvold[k] = (k+1 == d->obs[i] ? 0 : R_NegInf);
+	lvold[k] = (k+1 == d->obstrue[i] ? 0 : R_NegInf);
     }
     else {
-      GetCensored(d->obs[i], cm, &nc, &curr);
+      if (d->nout > 1) outcome = &d->obs[MI(0, i, d->nout)];
+      else {
+        GetCensored(d->obs[i], cm, &nc, &curr);
+        outcome = curr; 
+      }
       /* initial observation is a censored state. No HMM here, so initprobs not needed */
       if (nc > 1) {
 	for (k = 0, j = 0; k < qm->nst; ++k) {
-	  if (k+1 == curr[j]) {
+	  if (k+1 == outcome[j]) {
 	    lvold[k] = 0;
 	    ++j;
 	  }
@@ -1157,10 +1250,14 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 		    dt = d->time[i] - d->time[i-1];
 		    qmat = &(qm->intens[MI3(0, 0, i-1, qm->nst, qm->nst)]);
 		    hpars = &(hm->pars[MI(0, i, hm->totpars)]); /* not i-1 as pre 1.2.3 */
-		    GetCensored(d->obs[i], cm, &nc, &curr);
-		    GetOutcomeProb(pout, curr, nc, d->nout, hpars, hm, qm, d->obstrue[i]);
+		    if (d->nout > 1) outcome = &d->obs[MI(0, i, d->nout)];
+		    else {
+			GetCensored(d->obs[i], cm, &nc, &curr);
+			outcome = curr;
+		    }
+		    GetOutcomeProb(pout, outcome, nc, d->nout, hpars, hm, qm, d->obstrue[i]);
 #ifdef VITDEBUG0
-		    for (tru=0;tru<nc;++tru) printf("curr[%d] = %1.0lf, ",tru, curr[tru]); printf("\n");
+		    for (tru=0;tru<nc;++tru) printf("outcome[%d] = %1.0lf, ",tru, outcome[tru]); printf("\n");
 #endif
 		    Pmat(pmat, dt, qmat, qm->nst,
 			 (d->obstype[i] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
@@ -1178,7 +1275,8 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 				pfwd[MI(i,tru,d->n)] += pfwd[MI(i-1,k,d->n)] * pmat[MI(k,tru,qm->nst)];
 			    }
 			    if (d->obstrue[i-1])
-				kmax = d->obs[i-1] - 1;
+//				kmax = d->obs[MI(0, i-1, d->nout)] - 1;
+				kmax = d->obstrue[i-1] - 1;
 			    else pmax(lvp, qm->nst, &kmax);
 			    lvnew[tru] = log ( pout[tru] )  +  lvp[kmax];
 			    ptr[MI(i, tru, d->n)] = kmax;
@@ -1204,7 +1302,8 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 		     */
 		    pmax(lvold, qm->nst, &kmax);
 		    obs = i-1;
-		    fitted[obs] = (d->obstrue[obs] ? d->obs[obs]-1 : kmax);
+//		    fitted[obs] = (d->obstrue[obs] ? d->obs[MI(0,obs,d->nout)]-1 : kmax);
+		    fitted[obs] = (d->obstrue[obs] ? d->obstrue[obs]-1 : kmax);
 
 		    pall = 0;  // compute full likelihood.  
 		    ucbwd[obs] = 0;
@@ -1236,8 +1335,12 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 			    dt = d->time[obs] - d->time[obs-1];
 			    qmat = &(qm->intens[MI3(0, 0, obs-1, qm->nst, qm->nst)]);
 			    hpars = &(hm->pars[MI(0, obs, hm->totpars)]);
-			    GetCensored(d->obs[obs], cm, &nc, &curr);
-			    GetOutcomeProb(pout, curr, nc, d->nout, hpars, hm, qm, d->obstrue[obs]);
+			    if (d->nout > 1) outcome = &d->obs[MI(0, obs, d->nout)];
+			    else {
+				GetCensored(d->obs[obs], cm, &nc, &curr);
+				outcome = curr;
+			    }
+			    GetOutcomeProb(pout, outcome, nc, d->nout, hpars, hm, qm, d->obstrue[obs]);
 			    Pmat(pmat, dt, qmat, qm->nst,
 				 (d->obstype[obs] == OBS_EXACT), qm->iso, qm->perm,  qm->qperm, qm->expm);
 
@@ -1270,14 +1373,19 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 		    if (i < d->n) {
 			if (d->obstrue[i]) {
 			    for (k = 0; k < qm->nst; ++k)
-				lvold[k] = (k+1 == d->obs[i] ? 0 : R_NegInf);
+//				lvold[k] = (k+1 == d->obs[MI(0,i,d->nout)] ? 0 : R_NegInf);
+				lvold[k] = (k+1 == d->obstrue[i] ? 0 : R_NegInf);
 			}
 			else {
-			    GetCensored(d->obs[i], cm, &nc, &curr);
+			    if (d->nout > 1) outcome = &d->obs[MI(0, i, d->nout)];
+			    else {
+				GetCensored(d->obs[i], cm, &nc, &curr);
+				outcome = curr;
+			    }
 			    /* initial observation is a censored state. No HMM here, so initprobs not needed */
 			    if (nc > 1) {
 				for (k = 0, j = 0; k < qm->nst; ++k) {
-				    if (k+1 == curr[j]) {
+				    if (k+1 == outcome[j]) {
 					lvold[k] = 0;
 					++j;
 				    }
@@ -1380,6 +1488,7 @@ SEXP msmCEntry(SEXP do_what_s, SEXP mf_agg_s, SEXP mf_s, SEXP auxdata_s, SEXP qm
     cm.index = list_int_vec(cmodel_s,"index");
 
     hm.hidden = list_int(hmodel_s,"hidden");
+    hm.mv = list_int(hmodel_s,"mv");
     hm.models = list_int_vec(hmodel_s,"models");
     hm.totpars = list_int(hmodel_s,"totpars");
     hm.npars = list_int_vec(hmodel_s,"npars");

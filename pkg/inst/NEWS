@@ -3,6 +3,16 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.5.2  (2015-02-17)
+-------------
+
+o Multivariate observations with different distributions for each
+  outcome.
+
+o obstrue can now contain the actual true state, instead of an
+  indicator.  This allows the information from HMM outcomes generated
+  conditionally on this state to be included in the model.
+
 
 Version 1.5.1  (2015-01-15)
 -------------

@@ -109,6 +109,8 @@ simmulti.msm(data, qmatrix, covariates=NULL, death = FALSE,  start,
   \item{state}{Simulated (true) state at the corresponding time}
   \item{obs}{Observed outcome at the corresponding time, if
     \code{ematrix} or \code{hmodel} was supplied}
+  \item{keep}{Row numbers of the original data.  Useful when
+    \code{drop.absorb=TRUE}, to show which rows were not dropped}
   plus any supplied covariates.
 }
 \details{

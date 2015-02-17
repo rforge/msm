@@ -38,7 +38,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     careful to choose the correct \code{obstype}.
 
     For hidden Markov models, \code{state} refers to the outcome
-    variable, which need not be a discrete state.
+    variable, which need not be a discrete state.   It may also be a
+    matrix, giving multiple observations at each time (see
+    \code{\link{hmmMV}}). 
   }
 
   \item{subject}{Vector of subject identification numbers for the data
@@ -131,11 +133,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   }
 
   \item{hmodel}{
-    Specification of the hidden Markov model.  This should be a list of
-    return values from the constructor functions described in the
-    \code{\link{hmm-dists}} help
-    page.  Each element of the list corresponds to the outcome model
-    conditionally on the corresponding underlying state.
+    Specification of the hidden Markov model (HMM).  This should be a
+    list of return values from HMM constructor functions.  Each element
+    of the list corresponds to the outcome model conditionally on the
+    corresponding underlying state.  Univariate constructors are
+    described in the\code{\link{hmm-dists}} help page.  These may also
+    be grouped together to specify a multivariate HMM with a set of
+    conditionally independent univariate outcomes at each time, as
+    described in \code{\link{hmmMV}}.
 
     For example, consider a three-state hidden Markov model.  Suppose
     the observations in underlying state 1 are
@@ -154,7 +159,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     parameter appears in \code{hmodel}.
 
     See the \code{\link{hmm-dists}} help page
-    for details of the constructor functions for each available distribution.
+    for details of the constructor functions for each univariate distribution.
 
     A misclassification model, that is, a hidden Markov model where
     the outcomes are misclassified observations of the underlying
@@ -409,7 +414,8 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       of parameter appears in the whole model, and give the
       corresponding mininum amd maximum allowable values for that
       parameter.  Maximum likelihood estimation is performed with these
-      parameters constrained in these ranges (through a log or logit transformation).
+      parameters constrained in these ranges (through a log or
+      logit-type  transformation).
       Lower bounds of \code{-Inf} and upper bounds of \code{Inf} can
       be given if the parameter is unbounded above or below.
 
@@ -763,11 +769,9 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     non-invertible or not positive definite.}
 
   \item{use.deriv}{If \code{TRUE} then analytic first derivatives are
-    used in the optimisation of the likelihood, when an appropriate
-    quasi-Newton optimisation method, such as BFGS, is being used.  Note
-    that the default for \code{\link{optim}} is a Nelder-Mead method
-    which cannot use derivatives. However, these derivatives, if
-    supplied, are always used to calculate the Hessian. }
+    used in the optimisation of the likelihood, where available and an
+    appropriate quasi-Newton optimisation method, such as BFGS, is being
+    used.  Analytic derivatives are not available for all models. }
 
   \item{use.expm}{If \code{TRUE} then any matrix exponentiation needed to
     calculate the likelihood is done using the \pkg{expm} package.

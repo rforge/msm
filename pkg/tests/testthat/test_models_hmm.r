@@ -30,6 +30,16 @@ test_that("HMM with obstrue",{
     hmodel32 <- list(hmmNorm(mean=100, sd=16), hmmNorm(mean=54, sd=18), hmmIdent(3))
     (fev3.hid <- msm(fev2 ~ days, subject=ptnum, obstrue=obstrue, data=fev, qmatrix=three.q, death=3, hmodel=hmodel32, fixedpars=TRUE))
     expect_equal(52388.7381942858, fev3.hid$minus2loglik, tol=1e-06)
+
+    fev$obstrue <- "foo"
+    expect_error(fev3.hid <- msm(fev2 ~ days, subject=ptnum, obstrue=obstrue, data=fev, qmatrix=three.q, death=3, hmodel=hmodel32, fixedpars=TRUE), "obstrue should be logical or numeric")
+    fev$obstrue <- as.numeric(fev$fev==999); fev$obstrue[1] <- 10
+    expect_error(fev3.hid <- msm(fev2 ~ days, subject=ptnum, obstrue=obstrue, data=fev, qmatrix=three.q, death=3, hmodel=hmodel32, fixedpars=TRUE), "Interpreting \"obstrue\" as containing true states, but it contains values not in 0,1,...,3")
+
+    ## can supply true state in obstrue
+    fev$obstrue <- as.numeric(fev$fev==999); fev$obstrue[fev$obstrue==1] <- 3
+    fev3.hid <- msm(fev2 ~ days, subject=ptnum, obstrue=obstrue, data=fev, qmatrix=three.q, death=3, hmodel=hmodel32, fixedpars=TRUE)
+    expect_equal(52388.7381942858, fev3.hid$minus2loglik, tol=1e-06)
 })
 
 test_that("HMM normal likelihoods: FEV data: covariate on outcome",{

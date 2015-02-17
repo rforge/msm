@@ -47,7 +47,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
             hmodel.orig <- hmodel
             hmodel <- rep(hmodel, qmodel$phase.reps)
         }
-        hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs, qmodel)
+        hmodel <- msm.form.hmodel(hmodel, hconstraint, initprobs, est.initprobs)
     }
     else {
         if (!is.null(hcovariates)) stop("hcovariates have been specified, but no hmodel")
@@ -110,13 +110,12 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
             stop("state variable should be numeric or a factor with ordinal numbers as levels")
         else mf$"(state)" <- as.numeric(as.character(mf$"(state)"))
     }
-    if (!(hmodel$hidden || emodel$misc))
-        msm.check.state(qmodel$nstates, mf$"(state)", cmodel$censor)
+    msm.check.state(qmodel$nstates, mf$"(state)", cmodel$censor, hmodel)
     if (is.null(mf$"(subject)")) mf$"(subject)" <- rep(1, nrow(mf))
     msm.check.times(mf$"(time)", mf$"(subject)", mf$"(state)")
     obstype <- if (missing(obstype)) NULL else eval(substitute(obstype), data, parent.frame()) # handle separately to allow passing a scalar (1, 2 or 3)
     mf$"(obstype)" <- msm.form.obstype(mf, obstype, dmodel, exacttimes)
-    mf$"(obstrue)" <- msm.form.obstrue(mf, hmodel)
+    mf$"(obstrue)" <- msm.form.obstrue(mf, hmodel, cmodel)
     mf$"(obs)" <- seq_len(nrow(mf)) # row numbers before NAs omitted, for reporting in msm.check.*
     basenames <- c("(state)","(time)","(subject)","(obstype)","(obstrue)","(obs)")
     attr(mf, "covnames") <- setdiff(names(mf), basenames)
@@ -207,12 +206,14 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     }
 ### MODEL FOR COVARIATES ON GENERAL HIDDEN PARAMETERS
     if (!is.null(hcovariates)) {
+        if (hmodel$mv) stop("hcovariates not supported for multivariate hidden Markov models")
         hmodel <- msm.form.hcmodel(hmodel, mm.hcov, hcovinits, hconstraint)
         if (emodel$misc)
             hmodel$covconstr <- msm.form.hcovconstraint(miscconstraint, hmodel)
     }
     else if (hmodel$hidden) {
-        hmodel <- c(hmodel, list(ncovs=rep(rep(0, hmodel$nstates), hmodel$npars), ncoveffs=0))
+        npars <- if(hmodel$mv) colSums(hmodel$npars) else hmodel$npars
+        hmodel <- c(hmodel, list(ncovs=rep(rep(0, hmodel$nstates), npars), ncoveffs=0))
         class(hmodel) <- "hmodel"
     }
     if (!is.null(initcovariates)) {
@@ -469,18 +470,27 @@ msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initp
 ### Check elements of state vector. For simple models and misc models specified with ematrix
 ### No check is performed for hidden models
 
-msm.check.state <- function(nstates, state, censor)
+msm.check.state <- function(nstates, state, censor, hmodel)
 {
-    states <- c(1:nstates, censor)
-    state <- na.omit(state) # NOTE added in 1.4
-    if (!is.null(ncol(state)) && ncol(state) > 1) stop("Matrix outcomes only allowed for hidden Markov models")
-    if (!is.null(state)) {
-        statelist <- if (nstates==2) "1, 2" else if (nstates==3) "1, 2, 3" else paste("1, 2, ... ,",nstates)
-        if (length(setdiff(unique(state), states)) > 0)
-            stop("State vector contains elements not in ",statelist)
-        miss.state <- setdiff(states, unique(state))
-        if (length(miss.state) > 0)
-            warning("State vector doesn't contain observations of ",paste(miss.state, collapse=","))
+    if (hmodel$hidden){
+        if (!is.null(ncol(state))) {
+            pl1 <- if (ncol(state) > 1) "s" else ""
+            pl2 <- if (max(hmodel$nout) > 1) "s" else ""
+            if ((ncol(state) != max(hmodel$nout)) && (max(hmodel$nout) > 1))
+                stop(sprintf("outcome matrix in data has %d column%s, but outcome models have a maximum of %d dimension%s", ncol(state), pl1, max(hmodel$nout), pl2))
+        }
+    }  else { 
+        states <- c(1:nstates, censor)
+        state <- na.omit(state) # NOTE added in 1.4
+        if (!is.null(ncol(state)) && ncol(state) > 1) stop("Matrix outcomes only allowed for hidden Markov models")
+        if (!is.null(state)) {
+            statelist <- if (nstates==2) "1, 2" else if (nstates==3) "1, 2, 3" else paste("1, 2, ... ,",nstates)
+            if (length(setdiff(unique(state), states)) > 0)
+                stop("State vector contains elements not in ",statelist)
+            miss.state <- setdiff(states, unique(state))
+            if (length(miss.state) > 0)
+                warning("State vector doesn't contain observations of ",paste(miss.state, collapse=","))
+        }
     }
     invisible()
 }
@@ -491,7 +501,7 @@ msm.check.times <- function(time, subject, state=NULL)
     if (!is.null(state)) {
         nas <- if (is.matrix(state)) apply(state, 1, function(x)all(is.na(x))) else is.na(state)
         final.rows <- final.rows & !nas
-        state <- if (is.matrix(state)) state[final.rows, ] else state[final.rows]
+        state <- if (is.matrix(state)) state[final.rows, ,drop=FALSE] else state[final.rows]
     }
     final.rows <- which(final.rows)
     time <- time[final.rows]; subject <- subject[final.rows]
@@ -563,7 +573,9 @@ msm.form.obstype <- function(mf, obstype, dmodel, exacttimes)
     obstype
 }
 
-msm.form.obstrue <- function(mf, hmodel) {
+### On exit, obstrue will contain the true state (if known) or 0 (if unknown)
+
+msm.form.obstrue <- function(mf, hmodel, cmodel) {
     obstrue <- mf$"(obstrue)"
     if (!is.null(obstrue)) {
         if (!hmodel$hidden) {
@@ -571,9 +583,28 @@ msm.form.obstrue <- function(mf, hmodel) {
             obstrue <- rep(1, nrow(mf))
         }
         else if (!is.numeric(obstrue) && !is.logical(obstrue)) stop("obstrue should be logical or numeric")
+        else {
+            if (is.logical(obstrue) || all(na.omit(obstrue) %in% 0:1)){
+                ## obstrue is an indicator: actual state is supplied in the outcome vector
+                ## (typically misclassification models)
+                obstrue <- ifelse(obstrue, mf$"(state)", 0)
+            } else {
+                ## obstrue contains the actual state (used when we have another outcome conditionally on this)
+                if (!all(na.omit(obstrue) %in% 0:hmodel$nstates)){
+                    stop("Interpreting \"obstrue\" as containing true states, but it contains values not in 0,1,...,", hmodel$nstates)
+                }
+                obstrue[is.na(obstrue)] <- 0 # true state assumed unknown if NA
+            }
+        }
     }
     else if (hmodel$hidden) obstrue <- rep(0, nrow(mf))
-    else obstrue <- rep(1, nrow(mf))
+    else obstrue <- mf$"(state)"
+    if (cmodel$ncens > 0){
+        ## If censoring and obstrue, put the first of the possible states into obstrue
+        ## Used in Viterbi
+        for (i in seq_along(cmodel$censor))
+            obstrue[obstrue==cmodel$censor[i] & obstrue > 0] <- cmodel$states[cmodel$index[i]]
+    }
     obstrue
 }
 
@@ -968,7 +999,7 @@ msm.form.params <- function(qmodel, qcmodel, emodel, hmodel, fixedpars)
     ## Covariates on initial state occupancy probabilities.
     nipc <- hmodel$nicoveffs
     npars <- ni + nc + nh + nhc + nip + nipc
-    inits <- c(qmodel$inits, qcmodel$inits, hmodel$pars, unlist(hmodel$coveffect))
+    inits <- as.numeric(c(qmodel$inits, qcmodel$inits, hmodel$pars, unlist(hmodel$coveffect)))
     plabs <- c(rep("qbase",ni), rep("qcov", nc), hmodel$plabs, rep("hcov", nhc))
     if (nip > 0) {
         inits <- c(inits, hmodel$initprobs)
@@ -1352,14 +1383,13 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
     initprobs <- msm.initprobs2mat(hmodel, pars, msmdata$mm.icov, msmdata$mf)
 
    mf <- msmdata$mf; mf.agg <- msmdata$mf.agg
-   ## In R, work with states / parameter indices / model indices 1, ... n. In C, work with 0, ... n-1
+   ## In R, ordinal variables indexed from 1.  In C, these are indexed from 0.
    mf.agg$"(fromstate)" <- mf.agg$"(fromstate)" - 1
    mf.agg$"(tostate)" <- mf.agg$"(tostate)" - 1
    firstobs <- c(which(!duplicated(model.extract(mf, "subject"))), nrow(mf)+1) - 1
    mf$"(subject)" <- match(mf$"(subject)", unique(mf$"(subject)"))
    ntrans <- sum(duplicated(model.extract(mf, "subject")))
    hmodel$models <- hmodel$models - 1
-   hmodel$links <- hmodel$links - 1
    nagg <- if(is.null(mf.agg)) 0 else nrow(mf.agg)
    mf$"(pcomb)" <- mf$"(pcomb)" - 1
    npcombs <- length(unique(na.omit(model.extract(mf, "pcomb"))))
@@ -1377,6 +1407,7 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
                   "(obstype)" = as.integer(mf.agg$"(obstype)"))
    mfc <- list("(subject)" = as.integer(mf$"(subject)"),  "(time)" = as.double(mf$"(time)"),
                ## supply matrix outcomes to C by row so multivariate outcomes are together
+               ## Also, state data for misclassification HMMs are indexed from 1 not 0 in C
                "(state)" = as.double(t(mf$"(state)")), 
                "(obstype)" = as.integer(mf$"(obstype)"),
               "(obstrue)" = as.integer(mf$"(obstrue)"), "(pcomb)" = as.integer(mf$"(pcomb)"))
@@ -1390,7 +1421,8 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
                   expm=as.integer(qmodel$expm))
    cmodel <- list(ncens=as.integer(cmodel$ncens), censor=as.integer(cmodel$censor),
                   states=as.integer(cmodel$states), index=as.integer(cmodel$index - 1))
-   hmodel <- list(hidden=as.integer(hmodel$hidden), models=as.integer(hmodel$models),
+   hmodel <- list(hidden=as.integer(hmodel$hidden), mv=as.integer(hmodel$mv),
+                  models=as.integer(hmodel$models),
                   totpars=as.integer(hmodel$totpars), firstpar=as.integer(hmodel$firstpar),
                   npars=as.integer(hmodel$npars), nopt=as.integer(hmodel$nopt))
    pars <- list(Q=as.double(Q),DQ=as.double(DQ),H=as.double(H),DH=as.double(DH),
@@ -1561,7 +1593,7 @@ crudeinits.msm <- function(formula, subject, qmatrix, data=NULL, censor=NULL, ce
     notna <- !is.na(subject) & !is.na(time) & !is.na(state)
     subject <- subject[notna]; time <- time[notna]; state <- state[notna]
     msm.check.qmatrix(qmatrix)
-    msm.check.state(nrow(qmatrix), state, cens$censor)
+    msm.check.state(nrow(qmatrix), state, cens$censor, list(hidden=FALSE))
     msm.check.times(time, subject, state)
     nocens <- (! (state %in% cens$censor) )
     state <- state[nocens]; subject <- subject[nocens]; time <- time[nocens]
@@ -1799,7 +1831,7 @@ msm.obs.to.fromto <- function(mf)
     lastsubj <- !duplicated(subj, fromLast=TRUE)
     mf.trans <- mf[!lastsubj,,drop=FALSE]   ## retains all covs corresp to the start of the transition
     names(mf.trans)[names(mf.trans)=="(state)"] <- "(fromstate)"
-    mf.trans$"(tostate)" <- if(is.matrix(state)) state[!firstsubj,] else state[!firstsubj]
+    mf.trans$"(tostate)" <- if(is.matrix(state)) state[!firstsubj,,drop=FALSE] else state[!firstsubj]
     mf.trans$"(obstype)" <- model.extract(mf, "obstype")[!firstsubj] # obstype matched with end of transition
     mf.trans$"(obs)" <- model.extract(mf, "obs")[!firstsubj]
     mf.trans$"(timelag)" <- diff(time)[!firstsubj[-1]]
