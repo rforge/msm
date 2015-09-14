@@ -17,7 +17,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
       hcovariates = NULL, hcovinits = NULL, hconstraint = NULL, hranges=NULL,
       qconstraint=NULL, econstraint=NULL, initprobs = NULL,
       est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
-      death = FALSE, exacttimes = FALSE, censor=NULL,
+      deathexact = NULL, death=NULL, exacttimes = FALSE, censor=NULL,
       censor.states=NULL, pci=NULL, phase.states=NULL, phase.inits=NULL,
       cl = 0.95, fixedpars = NULL, center=TRUE,
       opt.method="optim", hessian=NULL, use.deriv=TRUE,
@@ -218,19 +218,19 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     be of this type.  The obstype value for the first observation
     from each subject is not used.
 
-    This is a generalisation of the \code{death} and \code{exacttimes}
+    This is a generalisation of the \code{deathexact} and \code{exacttimes}
     arguments to allow different schemes per observation.
-    \code{obstype} overrides both \code{death} and \code{exacttimes}.
+    \code{obstype} overrides both \code{deathexact} and \code{exacttimes}.
 
     \code{exacttimes=TRUE} specifies that all observations are of
     obstype 2.
 
-    \code{death = death.states} specifies that all observations of
-    \code{death.states} are of type 3.  \code{death =
+    \code{deathexact = death.states} specifies that all observations of
+    \code{death.states} are of type 3.  \code{deathexact =
       TRUE} specifies that all observations in the final absorbing state
     are of type 3.
   }
-
+  
   \item{obstrue}{A vector of logicals (\code{TRUE} or \code{FALSE}) or
   numerics (1 or 0) specifying which observations (\code{TRUE}, 1) are
   observations of the underlying state without error, and which
@@ -258,6 +258,11 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     additive age and treatment effects on the state 2 - state 3
     transition, but no covariates on any other transitions that are
     allowed by the \code{qmatrix}.
+
+    If covariates are time dependent, they are assumed to be constant in
+    between the times they are observed, and the transition probability
+    between a pair of times \eqn{(t1, t2)} is assumed to depend on the
+    covariate value at \eqn{t1}.   
   }
 
   \item{covinits}{Initial values for log-linear effects of covariates on the
@@ -505,37 +510,41 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
     \code{initcovinits} is not specified, all covariate effects are
     initialised to zero.}
 
-  \item{death}{Vector of indices of absorbing states whose time of entry
+  \item{deathexact}{Vector of indices of absorbing states whose time of entry
     is known exactly, but the individual is assumed to be in an unknown
     transient state ("alive") at the previous instant.  This is the
     usual situation for times of death in chronic disease monitoring
-    data.  For example, if you specify \code{death = c(4, 5)} then
+    data.  For example, if you specify \code{deathexact = c(4, 5)} then
     states 4 and 5 are assumed to be exactly-observed death states.
 
     See the \code{obstype} argument.  States of this kind correspond to
-    \code{obstype=3}. \code{death = TRUE} indicates that the final
-    absorbing state is of this kind, and \code{death = FALSE} (the
-    default) indicates that there is no state of this kind.
+    \code{obstype=3}. \code{deathexact = TRUE} indicates that the final
+    absorbing state is of this kind, and \code{deathexact = FALSE} or
+    \code{deathexact = NULL} (the default) indicates that there is no
+    state of this kind.
 
-    The \code{death} argument is overridden by \code{obstype} or
+    The \code{deathexact} argument is overridden by \code{obstype} or
     \code{exacttimes}.
 
-    Note that you do not always supply a \code{death} argument, even if
+    Note that you do not always supply a \code{deathexact} argument, even if
     there are states that correspond to deaths, because they do
     not necessarily have
     \code{obstype=3}.  If the state is known between the time of death
     and the previous observation, then you should specify
     \code{obstype=2} for the death times, or \code{exacttimes=TRUE} if
-    the state is known at all times, and the \code{death} argument is
+    the state is known at all times, and the \code{deathexact} argument is
     ignored.
   }
+
+  \item{death}{Old name for the \code{deathexact} argument. 
+    Overridden by \code{deathexact} if both are supplied. Deprecated.}
 
   \item{censor}{ A state, or vector of states, which indicates
     censoring.  Censoring means that the observed state is known only to be
     one of a particular set of states. For example, \code{censor=999}
     indicates that all observations of \code{999} in the vector of observed
     states are censored states.  By default, this means that the true
-    state could have been anything other than an absorbing state. To
+    state could have been any of the transient (non-absorbing) states. To
     specify corresponding true states explicitly, use a \code{censor.states}
     argument.
 
@@ -637,7 +646,7 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
      "tau" proportionality constraint described in this paper is
      currently not supported.
 
-     Covariates, constraints, \code{death} and \code{censor} are
+     Covariates, constraints, \code{deathexact} and \code{censor} are
      expressed with respect to the expanded state space.  If not
      supplied by hand, \code{initprobs} is defined automatically so that
      subjects are assumed to begin in the first of the two phases.
@@ -957,7 +966,7 @@ c(0, 0.25, -0.5, 0.25), c(0, 0, 0, 0))
 statetable.msm(state, PTNUM, data=cav)
 crudeinits.msm(state ~ years, PTNUM, data=cav, qmatrix=twoway4.q)
 cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                 qmatrix = twoway4.q, death = 4, 
+                 qmatrix = twoway4.q, deathexact = 4, 
                  control = list ( trace = 2, REPORT = 1 )  )
 cav.msm
 qmatrix.msm(cav.msm)

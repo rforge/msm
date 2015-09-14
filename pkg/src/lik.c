@@ -14,6 +14,7 @@
 #include <Rdefines.h>
 #define NODEBUG
 #define NOVITDEBUG0
+#define NOVITDEBUG
 #define NODERIVDEBUG
 
 /* MUST KEEP THIS IN SAME ORDER AS .msm.HMODELPARS IN R/constants.R */
@@ -1201,10 +1202,11 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
     double *pfwd = Calloc((d->n)*(qm->nst), double);
     double *pbwd = Calloc((d->n)*(qm->nst), double);
 
-    double dt, pall, psum;
+    double dt, logpall, psum;
     double *qmat, *hpars;
     double *ucfwd = Calloc(d->n, double);
     double *ucbwd = Calloc(d->n, double);
+    double *maxpu = Calloc(d->n, double);
 
     i = 0;
     if (d->obstrue[i]) {
@@ -1305,14 +1307,15 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 //		    fitted[obs] = (d->obstrue[obs] ? d->obs[MI(0,obs,d->nout)]-1 : kmax);
 		    fitted[obs] = (d->obstrue[obs] ? d->obstrue[obs]-1 : kmax);
 
-		    pall = 0;  // compute full likelihood.  
+		    logpall = 0;  // compute full likelihood.  
 		    ucbwd[obs] = 0;
 		    for (k = 0; k < qm->nst; ++k){
 			pbwd[MI(obs,k,d->n)] = 1;
-			pall += pfwd[MI(obs,k,d->n)]*exp(ucfwd[obs]);
+			logpall += pfwd[MI(obs,k,d->n)];
 		    }
+		    logpall = log(logpall) + ucfwd[obs];
 		    for (k = 0; k < qm->nst; ++k){
-			pstate[MI(obs,k,d->n)] = exp(log(pfwd[MI(obs,k,d->n)]) + log(pbwd[MI(obs,k,d->n)]) - log(pall) + ucfwd[obs]);
+			pstate[MI(obs,k,d->n)] = exp(log(pfwd[MI(obs,k,d->n)]) + log(pbwd[MI(obs,k,d->n)]) - logpall + ucfwd[obs]);
 		    }
 #ifdef VITDEBUG
 		    printf("traceback for subject %d\n", d->subject[i-1]);
@@ -1320,6 +1323,9 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 		    for (tru = 0; tru < qm->nst; ++tru){
 			printf("pfwd[%d,%d]=%f, ", obs, tru, pfwd[MI(obs,tru,d->n)]);
 			printf("pbwd[%d,%d]=%f, ", obs, tru, pbwd[MI(obs,tru,d->n)]);
+			printf("ucfwd[%d]=%f, ", obs, ucfwd[obs]);
+			printf("ucbwd[%d]=%f, ", obs, ucfwd[obs]);
+			printf("logpall=%f,",logpall);
 			printf("pstate[%d,%d]=%f, ", obs, tru, pstate[MI(obs,tru,d->n)]);
 			printf("\n");
 
@@ -1354,16 +1360,19 @@ void Viterbi(msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, double *fitted, dou
 			    ucbwd[obs-1] = ucbwd[obs] + log(psum);
 			    for (tru = 0; tru < qm->nst; ++tru){
 				pbwd[MI(obs-1,tru,d->n)] /= psum;
-				pstate[MI(obs-1,tru,d->n)] = exp(log(pfwd[MI(obs-1,tru,d->n)]) + log(pbwd[MI(obs-1,tru,d->n)]) - log(pall) + ucfwd[obs-1] + ucbwd[obs-1]);
+				pstate[MI(obs-1,tru,d->n)] = exp(log(pfwd[MI(obs-1,tru,d->n)]) + log(pbwd[MI(obs-1,tru,d->n)]) - logpall + ucfwd[obs-1] + ucbwd[obs-1]);
 #ifdef VITDEBUG
 				printf("pfwd[%d,%d]=%f, ", obs-1, tru, pfwd[MI(obs-1,tru,d->n)]);
 				printf("pbwd[%d,%d]=%f, ", obs-1, tru, pbwd[MI(obs-1,tru,d->n)]);
+				printf("ucfwd[%d]=%f, ", obs, ucfwd[obs]);
+				printf("ucbwd[%d]=%f, ", obs, ucfwd[obs]);
+				printf("logpall=%f,",logpall);
 				printf("pstate[%d,%d]=%f, ", obs-1, tru, pstate[MI(obs-1,tru,d->n)]);
 				printf("\n");
 #endif
 			    }
 #ifdef VITDEBUG
-			    printf("pall=%f\n",pall);
+			    printf("logpall=%f\n",logpall);
 #endif
 			    --obs;
 			}

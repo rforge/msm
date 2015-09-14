@@ -14,6 +14,11 @@ version number not updated in vignette.  It still has 1.3.2 on CRAN.
 Need to delete the one in inst/doc before rebuilding package
 
 
+
+
+if no censor.states, why not default to all transient states, even if no absorbing?  May be useful for time dependent covs. 
+
+
 POSSIBLE MAJOR DEVELOPMENTS
 
 MCMC estimation.  Done basic JAGS interface, but convergence
@@ -28,6 +33,10 @@ Internationalisation.
 
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
+
+Return inf lik instead of halting when overflow occurs?  see tests/rory.r for test case where this doesn't help 
+
+Predict HMM pars and init probs for given covariate values 
 
 phase type constraints. yes/no for each phased state.  regular fixedpars/constraints apply to phase-constrained pars.
 msm.rep.constraints and msm.form.params

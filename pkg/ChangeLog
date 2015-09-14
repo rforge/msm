@@ -1,3 +1,22 @@
+2015-09-14 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c: More underflow correction for probabilities of hidden
+	states in viterbi.msm. Thanks to Hannah Linder for the report.
+
+	* R/msm.R: "death" argument in msm() is deprecated and renamed to
+	"deathexact".
+
+	* R/msm.R: censor.states now defaults to all transient states if
+	not supplied, instead of complaining, even if there is no
+	absorbing state.  Thanks to Jonathan Williams for the report.
+
+	* DESCRIPTION: Version 1.5.3 released to r-forge.
+
+2015-04-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/msm.R(statetable.msm): Code simplified, now row names work
+	with factor states.
+
 2015-02-17 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* DESCRIPTION: Version 1.5.2 released to r-forge.

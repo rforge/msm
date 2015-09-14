@@ -1065,25 +1065,23 @@ transitions, and initial values. We are ready to run \Rfunction{msm}.
 
 <<>>=
 cav.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                    qmatrix = Q, death = 4)
+                    qmatrix = Q, deathexact = 4)
 @
 
 In this example the day of death is assumed to be recorded exactly, as
 is usual in studies of chronic diseases.  At the previous instant
 before death the state of the patient is unknown.  Thus we specify
-\Rfunarg{death = 4}, to indicate to \Rfunction{msm} that the
+\Rfunarg{deathexact = 4}, to indicate to \Rfunction{msm} that the
 entry times into state 4 are observed in this manner.
 If the model had
 five states, and states 4 and 5 were two competing causes of death with
-times recorded exactly in this way, then we would specify \Rfunarg{death =
+times recorded exactly in this way, then we would specify \Rfunarg{deathexact =
   c(4,5)}.
 
 By default, the data are assumed to represent snapshots of the process
 at arbitrary times.  However, observations can also represent exact
 times of transition, ``exact death times'', or a mixture of these. See the
-\Rfunarg{obstype} argument to \Rfunction{msm}.  Note you do not always have to specify \Rfunarg{death},
-even if there are states which correspond to death.  This is
-only used for states whose entry time is observed in this specific way.
+\Rfunarg{obstype} argument to \Rfunction{msm}.  
 
 While the \Rfunction{msm} function runs, it searches for the maximum
 of the likelihood of the unknown parameters.  Internally, it uses the
@@ -1161,7 +1159,7 @@ intensities are modelled in terms of sex.
 \paragraph{Model 2: sex as a covariate}
 <<>>=
 cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                     qmatrix = Q, death = 4, covariates = ~ sex)
+                     qmatrix = Q, deathexact = 4, covariates = ~ sex)
 @
 
 Printing the \Robject{msm} object now displays the estimated covariate
@@ -1202,7 +1200,7 @@ intensities have covariates on them.
 \paragraph{Model 2a: transition-specific covariates}
 <<eval=FALSE>>=
 cavsex.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                  qmatrix = Q, death = 4,
+                  qmatrix = Q, deathexact = 4,
                   covariates = list("1-2" = ~ sex, "1-4" = ~sex) )
 @
 
@@ -1216,7 +1214,7 @@ transition rates have common covariate effects.
 
 <<eval=FALSE>>=
 cav3.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                qmatrix = Q, death = 4,
+                qmatrix = Q, deathexact = 4,
                 covariates = ~ sex,
                 constraint = list(sex=c(1,2,3,1,2,3,2)) )
 @
@@ -1256,7 +1254,7 @@ respectively).
 \paragraph{Model 4: fixed parameters}
 <<eval=FALSE>>=
 cav4.msm <- msm( state ~ years, subject=PTNUM, data = cav,
-                qmatrix = Q, death = 4,
+                qmatrix = Q, deathexact = 4,
                 control = list(trace=2, REPORT=1),
                 fixedpars = c(6, 7) )
 @
@@ -1971,7 +1969,7 @@ ematrix <- rbind(c(0, 0.1, 0, 0),
                  c(0, 0.1, 0, 0),
                  c(0, 0, 0, 0))
 cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
-                   qmatrix = Qm, ematrix = ematrix, death = 4,
+                   qmatrix = Qm, ematrix = ematrix, deathexact = 4,
                    obstrue = firstobs)
 cavmisc.msm
 @
@@ -2004,7 +2002,7 @@ this can be changed with the \Rfunarg{misccovinits} argument).
 <<>>=
 cavmiscsex.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                       qmatrix = Qm, ematrix = ematrix,
-                      death = 4, misccovariates = ~sex,
+                      deathexact = 4, misccovariates = ~sex,
                       obstrue=firstobs)
 @
 <<>>=
@@ -2349,7 +2347,7 @@ hmodel1 <- list(hmmNorm(mean=100, sd=16), hmmNorm(mean=54, sd=18),
                 hmmIdent(999))
 
 fev1.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
-                death=3, hmodel=hmodel1,
+                deathexact=3, hmodel=hmodel1,
                 hcovariates=list(~acute, ~acute, NULL),
                 hcovinits = list(-8, -8, NULL),
                 hconstraint = list(acute = c(1,1)))
@@ -2404,7 +2402,7 @@ hmodel2 <- list(hmmMETNorm(mean=90, sd=16, sderr=8,
                 hmmIdent(999))
 
 fev2.msm <- msm(fev ~ days, subject=ptnum, data=fev, qmatrix=three.q,
-                death=3, hmodel=hmodel2,
+                deathexact=3, hmodel=hmodel2,
                 hcovariates=list(~acute, ~acute, NULL),
                 hcovinits = list(-8, -8, NULL),
                 hconstraint = list(sderr = c(1,1), acute = c(1,1)),
@@ -2477,7 +2475,7 @@ cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
                                     hmmCat(c(0.1, 0.8, 0.1, 0)),
                                     hmmCat(c(0, 0.1, 0.9, 0)),
                                     hmmIdent(4)),
-                     qmatrix = Qm, obstrue=firstobs, death = 4)
+                     qmatrix = Qm, obstrue=firstobs, deathexact = 4)
 cavmisc.msm
 \end{Scode}
 

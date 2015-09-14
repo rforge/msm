@@ -5,7 +5,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
                 hcovariates = NULL, hcovinits = NULL, hconstraint = NULL, hranges=NULL,
                 qconstraint=NULL, econstraint=NULL, initprobs = NULL,
                 est.initprobs=FALSE, initcovariates = NULL, initcovinits = NULL,
-                death = FALSE, exacttimes = FALSE, censor=NULL,
+                deathexact = NULL, death = NULL, exacttimes = FALSE, censor=NULL,
                 censor.states=NULL, pci=NULL, phase.states=NULL,
                 phase.inits = NULL, # TODO merge with inits eventually
                 cl = 0.95, fixedpars = NULL, center=TRUE,
@@ -63,6 +63,7 @@ msm <- function(formula, subject=NULL, data=list(), qmatrix, gen.inits=FALSE,
     else emodel <- list(misc=FALSE, npars=0, ndpars=0, nipars=0, nicoveffs=0)
 
 ### EXACT DEATH TIMES. Logical values allowed for backwards compatibility (TRUE means final state has exact death time, FALSE means no states with exact death times)
+    if (!is.null(deathexact)) death <- deathexact
     dmodel <- msm.form.dmodel(death, qmodel, hmodel)  # returns death, ndeath,
     if (dmodel$ndeath > 0 && exacttimes) warning("Ignoring death argument, as all states have exact entry times")
 
@@ -416,8 +417,6 @@ msm.check.ematrix <- function(ematrix, nstates)
         stop("Not all elements of ematrix are between 0 and 1")
     invisible()
 }
-
-## FIXME should imatrix be only 
 
 msm.form.emodel <- function(ematrix, econstraint=NULL, initprobs=NULL, est.initprobs, qmodel)
 {
@@ -843,6 +842,7 @@ msm.form.dmodel <- function(death, qmodel, hmodel)
 {
     nstates <- qmodel$nstates
     statelist <- if (nstates==2) "1, 2" else if (nstates==3) "1, 2, 3" else paste("1, 2, ... ,",nstates)
+    if (is.null(death)) death <- FALSE
     if (is.logical(death) && death==TRUE)
         states <- nstates
     else if (is.logical(death) && death==FALSE)
@@ -881,16 +881,8 @@ msm.form.cmodel <- function(censor=NULL, censor.states=NULL, qmatrix)
                 warning("more than one type of censoring given, but censor.states not supplied. Assuming only one type of censoring")
                 ncens <- 1; censor <- censor[1]
             }
-            absorbing <- absorbing.msm(qmatrix=qmatrix)
-            if (!length(absorbing)) {
-                warning("No absorbing state and no censor.states supplied. Ignoring censoring.")
-                ncens <- 0
-            }
-            else {
-                transient <- setdiff(seq(length=nrow(qmatrix)), absorbing)
-                censor.states <- transient
-                states.index <- c(1, length(censor.states)+1)
-            }
+            censor.states <- transient.msm(qmatrix=qmatrix)
+            states.index <- c(1, length(censor.states)+1)
         }
         else {
             if (ncens == 1) {
@@ -1543,7 +1535,7 @@ msm.form.houtput <- function(hmodel, p, msmdata)
             }
         }
     }
-    hmodel$initpmat <- msm.initprobs2mat(hmodel, p$estimates.t, msmdata$mm.icov, msmdata$mf)
+    hmodel$initpmat <- msm.initprobs2mat(hmodel, p$estimates, msmdata$mm.icov, msmdata$mf)
     if (hmodel$foundse) {
         hmodel$ci <- p$ci[!(p$plabs %in% c("qbase","qcov","hcov","initpbase","initp","initp0","initpcov")), , drop=FALSE]
         hmodel$covci <- p$ci[p$plabs %in% c("hcov"), ]

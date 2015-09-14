@@ -3,6 +3,19 @@
 USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
+Version 1.5.3  (2015-09-14)
+-------------
+
+o More underflow correction for probabilities of hidden states in
+  viterbi.msm. Thanks to Hannah Linder for the report.
+
+o "death" argument in msm() is deprecated and renamed to "deathexact".
+
+o censor.states now defaults to all transient states if not supplied,
+  instead of complaining, even if there is no absorbing state.  Thanks
+  to Jonathan Williams for the report.
+
+
 Version 1.5.2  (2015-02-17)
 -------------
 
