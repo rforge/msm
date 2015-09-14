@@ -237,6 +237,14 @@ msm ( formula, subject=NULL, data = list(), qmatrix, gen.inits = FALSE,
   (\code{FALSE}, 0) are realisations of a hidden Markov model. Only
   used in misclassification or hidden Markov models.
 
+  In HMMs with where the response is from a general distribution, and
+  the hidden state is known at some times, then the actual state data at
+  these times can be supplied in \code{obstrue}.  Elements of
+  \code{obstrue} at times when the hidden state is unknown are set to
+  \code{NA}.  This allows the information from HMM outcomes generated
+  conditionally on the known state to be included in the model, thus
+  improving the estimation of the HMM outcome distributions.
+  
   In HMMs where there are also censored states, \code{obstrue} should be
   set to 1 for observed states which are \emph{censored} but not
   \emph{misclassified}.

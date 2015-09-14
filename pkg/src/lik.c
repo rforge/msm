@@ -182,17 +182,6 @@ void GetOutcomeProb(double *pout, double *outcome, int nc, int nout, double *hpa
 		    if (obstrue == i+1){
 			pout[i] = (HMODELS[hm->models[i]])(outcome[0], &(hpars[hm->firstpar[i]]));
 		    } 
-		    /* 
-		       hidden, nc > 1 and obstrue
-		       PREV AND CURR: handled by final block ??? 
-
-		       hidden, nc = 1 and obstrue
-		       PREV: final block
-		       CURR: uses HMODELS
-
-		     */
-
-
 		} else {  /* "state" data contain a censor indicator */
 		    for (j=0; j<nc; ++j){
 			if ((int) outcome[j] == i+1)

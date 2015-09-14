@@ -2479,6 +2479,20 @@ cavmisc.msm <- msm(state ~ years, subject = PTNUM, data = cav,
 cavmisc.msm
 \end{Scode}
 
+
+\subsubsection{Hidden Markov models with multivariate outcomes}
+
+Since version 1.5.2, \Rpackage{msm} can fit models where at each time
+point, there are multiple outcomes generated conditionally on a single
+hidden Markov state.  The outcomes must be independent conditionally
+on the hidden state, but they may be generated from the same or
+different univariate distributions.
+
+See \Rfunction{help(hmmMV)} for detailed documentation and a worked
+example.
+
+
+
 \subsubsection{Defining a new hidden Markov model distribution}
 
 Suppose the hidden Markov model outcome distributions supplied with

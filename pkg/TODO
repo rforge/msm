@@ -14,11 +14,6 @@ version number not updated in vignette.  It still has 1.3.2 on CRAN.
 Need to delete the one in inst/doc before rebuilding package
 
 
-
-
-if no censor.states, why not default to all transient states, even if no absorbing?  May be useful for time dependent covs. 
-
-
 POSSIBLE MAJOR DEVELOPMENTS
 
 MCMC estimation.  Done basic JAGS interface, but convergence
