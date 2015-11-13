@@ -1,7 +1,11 @@
 deriv.supported <- function(msmdata, hmodel, cmodel){
     (!hmodel$hidden || (hmodel$hidden &&
-                        (is.null(ncol(msmdata$mf$"(state)")) || (ncol(msmdata$mf$"(state)")==1)) &&
+                        ## Models where derivatives not supported: 
+                        ## multiple outcomes 
+#                        (is.null(ncol(msmdata$mf$"(state)")) || (ncol(msmdata$mf$"(state)")==1)) &&
+                        ## unknown initial state probs
                         !hmodel$est.initprobs &&
+                        ## constraints on misclassification / categorical outcome probabilities
                         (!any(duplicated(hmodel$constr[hmodel$plabs=="p"]))) &&
                         (!any(duplicated(hmodel$covconstr[.msm.HMODELS[hmodel$models[hmodel$coveffstate]]=="categorical"]))) &&
                         all(.msm.HMODELS[hmodel$models %in% .msm.HMODELS.DERIV]) 

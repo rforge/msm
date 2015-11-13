@@ -27,8 +27,6 @@ persp.msm,
 phasemeans.msm,    
 plot.msm,
 plotprog.msm,
-plot.prevalence.msm,
-plot.survfit.msm,
 pmatrix.msm,
 pmatrix.piecewise.msm,
 pnext.msm,
@@ -117,3 +115,5 @@ S3method(print, msm.est)
 S3method("[", msm.est)
 S3method(print, pearson.msm)
 
+S3method(plot, prevalence.msm)
+S3method(plot, survfit.msm)

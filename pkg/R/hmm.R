@@ -93,13 +93,12 @@ msm.form.univhmodel <- function(hmodel){
          firstpar=firstpar, locpars=locpars)
 }
 
-    ### CHANGES NEEDED 
-    ### models should be matrix instead of vector, new dim given by nout   (same for labels)
-    ### npars was vector with one for each state.  now matrix
-    ### pars was ragged array, mapped to states with parstate.  should still be.  (same for plabs)
-    ### need new vector parout to map pars to outcomes. 
-    ### firstpar, used in C to point to first parameters for a univariate model.  was one for each state.  now needs to be a matrix
-
+### CHANGES FROM UNIVARIATE TO MULTIVARIATE OUTCOME HMMS
+### models should be matrix instead of vector, new dim given by nout   (same for labels)
+### npars was vector with one for each state.  now matrix
+### pars was ragged array, mapped to states with parstate.  should still be.  (same for plabs)
+### need new vector parout to map pars to outcomes. 
+### firstpar, used in C to point to first parameters for a univariate model.  was one for each state.  now needs to be a matrix
 
 msm.form.mvhmodel <- function(hmodel){
     nst <- length(hmodel)    

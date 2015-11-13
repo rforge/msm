@@ -533,7 +533,7 @@ msm.form.qoutput <- function(x, covariates="mean", cl=0.95, digits=4, ...){
         hrs <- mattotrans(x, x$Qmatrices[[nm]], x$QmatricesL[[nm]], x$QmatricesU[[nm]], x$QmatricesFixed[[nm]], keep.diag=FALSE)
         hrs[,1:3] <- exp(hrs[,1:3])
         ret[nm] <- matrix(ncol=3, nrow=nrow(ret), dimnames=list(NULL,colnames(hrs)[1:3]))
-        ret[nd,nm] <- hrs[,1:3]
+        ret[nd,nm] <- hrs[,1:3,drop=FALSE]
         fres[nd,1+i] <- format.ci(hrs[,1], hrs[,2], hrs[,3], hrs[,4], digits=digits, ...)
     }
     attr(ret, "formatted") <- fres # as strings with formatted CIs instead of numbers

@@ -1,3 +1,19 @@
+2015-11-10 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* src/lik.c: Several bug fixes in calculation of the derivatives
+	for multivariate HMMs.
+
+	* R/msm.R(msm.form.obstrue): Better detection of when obstrue is
+	supplied as an indicator or a true state + NA.
+
+	* DESCRIPTION: Version 1.6 released to r-forge and CRAN.
+
+2015-10-07 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/outputs.R(msm.form.qoutput): Bug fix for printing model output
+	when only one transition rate is affected by covariates.  Thanks
+	to Jordi Blanch for the report.
+
 2015-09-14 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/lik.c: More underflow correction for probabilities of hidden

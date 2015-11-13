@@ -131,7 +131,7 @@ void GetCensored (double obs, cmodel *cm, int *nc, double **states)
 
 /* TODO does find_exactdeath_hmm need updating for multivariate observations with different models ? */
 
-/* TODO new obstrue facility 
+/* New obstrue facility 
 On entry, obstrue will contain 0 if state unknown, and state if state known
 But how do we know if there are any extra outcome data in the outcome variable?
 If this is NA, we can ignore it but still use obstrue (TODO put in na.find.msmdata)
@@ -171,8 +171,7 @@ void GetOutcomeProb(double *pout, double *outcome, int nc, int nout, double *hpa
 			ind = (hm->mv ? MI(k,i,nout) : i);
 			if (!ISNA(outcome[k]) && !ISNA(hm->models[ind])){
 			    pout[i] *= ((HMODELS[hm->models[ind]])(outcome[k], &(hpars[hm->firstpar[ind]])));
-			}		    
-
+			}
 		    }
 		}
 	    } else {
@@ -194,7 +193,7 @@ void GetOutcomeProb(double *pout, double *outcome, int nc, int nout, double *hpa
 }
 
 /* Get derivative of each state i outcome probability w.r.t. HMM pars
- HMM outcome dist is f(x | p1(a1,b11,b12..), p2(a1,b11,b12),....)
+   HMM outcome dist is f(x | p1(a1,b11,b12..), p2(a1,b11,b12),....)
  Need derivs wrt subparameters a1,b11,etc.
  First get derivs wrt p1,p2... from DHMODELS (dptmp).
 
@@ -211,39 +210,54 @@ void GetDOutcomeProb(double *dpout, /* qm->nst x hm->nopt */
     int i, j, k, l, r, s, ind;
     int p=0; /* indexes parameters up to totpars */
     double *pout, *dptmp = Calloc(hm->totpars, double); /* will only use hm->npars[i] slots for each i */
+#ifdef DERIVDEBUG
+    printf("GetDOutcomeProb:\n");
+#endif
     for (i=0; i<qm->nst; ++i) {
 	for (l=0; l<hm->nopt; ++l)
 	    dpout[MI(i,l,qm->nst)] = 0;
-	if (hm->hidden && !obstrue) {
+	if (hm->hidden && (!obstrue || (obstrue==(i+1)))) {
 	    if (nout > 1) {  /* multivariate outcomes. Censored states not supported			
 				TODO.  This is fiddlier than first thought.
-				not considered what hm->dpars should be, particularly with constraints 
-			     */ 
+				not considered what hm->dpars should be, particularly with constraints  */ 
 		pout = Calloc(nout, double);
-		for (r=0; r<nout; ++r) { 
+		for (r=0; r<nout; ++r) {
+		    pout[r] = 0; 
 		    ind = (hm->mv ? MI(r,i,nout) : i);
-		    pout[r] = ((HMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]])));
-//		    printf("i=%d,outcome[%d]=%f,pout[%d]=%f,",i,r,outcome[r],r,pout[r]);
-		}
-//		printf("\n");
-		for (r=0; r<nout; ++r)
-		    if (!ISNA(outcome[r])){
-			ind = (hm->mv ? MI(r,i,nout) : i);
-			if (!ISNA(hm->models[ind])){
-			    (DHMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]]), dptmp);
-			    for (k=0; k<hm->npars[i]; ++k){
-				for (s=0; s<nout; ++s)
-				    if (r != s) dptmp[k] *= pout[s];
-				for (l=0; l<hm->nopt; ++l){
-				    dpout[MI(i,l,qm->nst)] += dptmp[k] * hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
-				}
-				/* printf("MI=%d,hm=%d,fp=%d,hp=%f,outcome=%2.0f,dptmp=%f,dpout=%14.10lf\n",MI(r,i,nout),hm->models[MI(r,i,nout)], hm->firstpar[MI(r,i,nout)], hpars[hm->firstpar[MI(r,i,nout)]+1], outcome[r],dptmp[k],dpout[MI(i,1,qm->nst)]);    */
-			    }
-			    /* for (k=0; k<hm->npars[i]; ++k) */
-			    /* 	printf("i=%d,outcome[%d]=%f,dptmp[%d]=%f,",i,r,outcome[r],k,dptmp[k]); */
-			    /* printf("\n"); */
-			}
+		    if (!ISNA(outcome[r]) && !ISNA(hm->models[ind])){
+			pout[r] = ((HMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]])));
 		    }
+		}
+		for (r=0; r<nout; ++r){
+		    ind = (hm->mv ? MI(r,i,nout) : i);
+		    if (!ISNA(outcome[r]) && !ISNA(hm->models[ind])){
+			(DHMODELS[hm->models[ind]])(outcome[r], &(hpars[hm->firstpar[ind]]), dptmp);
+			for (k=0; k<hm->npars[ind]; ++k){
+			    for (s=0; s<nout; ++s)
+				if (r != s && !ISNA(outcome[s])) dptmp[k] *= pout[s];
+			    for (l=0; l<hm->nopt; ++l){
+				dpout[MI(i,l,qm->nst)] += dptmp[k] * hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
+#ifdef DERIVDEBUG
+				    printf("dpars[%d,%d]=%.2f,", p+k, l, hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)]);
+#endif
+			    }
+#ifdef DERIVDEBUG
+			    printf("\n");
+#endif
+#ifdef DERIVDEBUG
+			    printf("MI=%d,hm=%d,fp=%d,hp=%f,outcome=%2.0f,dptmp=%f\n",
+				   ind,hm->models[ind], hm->firstpar[ind], hpars[hm->firstpar[ind]+1], outcome[r],dptmp[k]);
+#endif
+			}
+#ifdef DERIVDEBUG
+			for (l=0; l<hm->nopt; ++l)
+			    printf("dpout[%d,%d]=%f,",i,l,dpout[MI(i,l,qm->nst)]);
+			printf("\n");
+#endif
+		    }
+		    if (hm->mv) p += hm->npars[ind];
+		}
+		if (!hm->mv) p += hm->npars[i];
 		Free(pout);
 	    }
 	    else { 
@@ -254,14 +268,19 @@ void GetDOutcomeProb(double *dpout, /* qm->nst x hm->nopt */
 			    dpout[MI(i,l,qm->nst)] += dptmp[k] *
 				hm->dpars[MI3(p+k,l,obsno,hm->totpars,hm->nopt)];
 			}
-			/* printf("i=%d,hm=%d,fp=%d,hp=%f,outcome=%2.0f,dptmp=%f,dpout=%14.10lf\n",i,hm->models[i],hm->firstpar[i],hpars[hm->firstpar[i]+1],outcome[j],dptmp[k],dpout[MI(i,1,qm->nst)]);   */
 		    }
 		}
+		p += hm->npars[i];
 	    }
 	}
-	else for (l=0; l<hm->nopt; ++l)
-		 dpout[MI(i,l,qm->nst)] = 0;
-	p += hm->npars[i];
+	else {
+	    for (l=0; l<hm->nopt; ++l)
+		dpout[MI(i,l,qm->nst)] = 0;	    
+	    if (nout > 1 && hm->mv)
+		for (r=0; r<nout; ++r)
+		    p += hm->npars[MI(r,i,nout)];
+	    else p += hm->npars[i];
+	}
     }
     Free(dptmp);
 }
@@ -403,8 +422,10 @@ double likhidden(int pt, /* ordinal subject ID */
     }
     GetOutcomeProb(pout, outcome, nc, d->nout, hpars, hm, qm, d->obstrue[d->firstobs[pt]]);
     /* Likelihood contribution for initial observation */
+//    printf("\nlikhidden:\n");
     for (i = 0; i < qm->nst; ++i) {
 	cump[i] = pout[i];
+//	printf("pout[%d]=%.4f\n",i,pout[i]);
 	/* Ignore initprobs if observation is known to be the true state
 	   or TODO, can we set it in R to one for obs state, zero for others? */
 	if (!d->obstrue[d->firstobs[pt]]) cump[i] = cump[i]*hm->initp[MI(pt,i,d->npts)];
@@ -415,6 +436,7 @@ double likhidden(int pt, /* ordinal subject ID */
     }
     lweight=0;
     /* Matrix product loop to accumulate the likelihood for subsequent observations */
+
     for (obsno = d->firstobs[pt]+1; obsno <= d->firstobs[pt+1] - 1; ++obsno)
     {
 	R_CheckUserInterrupt();
@@ -426,6 +448,7 @@ double likhidden(int pt, /* ordinal subject ID */
 	update_likhidden(outcome, nc, obsno, d, qm, hm, cump, newp, &lweight,
 			 &pmat[MI3(0,0,d->pcomb[obsno],qm->nst,qm->nst)]);
     }
+
     for (i = 0, lik = 0; i < qm->nst; ++i) {
 	lik = lik + cump[i];
     }
@@ -457,9 +480,15 @@ void init_hmm_deriv(double *curr, int nc, int pt, int obsno, double *hpars,
 	    phi[MI(i,p,n)] = 0;
     }
     suma = 0;
+#ifdef DERIVDEBUG
+    printf("init_hmm_deriv:\n");
+#endif
     for (i = 0; i < n; ++i) {
 	/* printf("pout[%d]=%f, ", i, pout[i]); */
 	a[i] = (cens_not_hmm ? pout[i] : hm->initp[MI(pt,i,d->npts)] * pout[i]);
+#ifdef DERIVDEBUG
+	printf("i=%d,initp=%f,pout=%f,a=%f\n", i, hm->initp[MI(pt,i,d->npts)], pout[i], a[i]);
+#endif
 	suma += a[i];
     }
     /* printf("\n"); */
@@ -470,6 +499,9 @@ void init_hmm_deriv(double *curr, int nc, int pt, int obsno, double *hpars,
 	dpok[nqp+p] = 0;
 	for (i = 0; i < n; ++i){
 	    phi[MI(i,nqp+p,n)] = (cens_not_hmm ? 0 : hm->initp[MI(pt,i,d->npts)] * dpout[MI(i,p,n)]);
+#ifdef DERIVDEBUG
+	    printf("p=%d,i=%d,initp=%f,dpout=%f,phi=%f\n", p, i, hm->initp[MI(pt,i,d->npts)], dpout[MI(i,p,n)], phi[MI(i,nqp+p,n)]);
+#endif
 	    dpok[nqp+p] += phi[MI(i,nqp+p,n)];
 	}
     }
@@ -477,7 +509,8 @@ void init_hmm_deriv(double *curr, int nc, int pt, int obsno, double *hpars,
 	sumphi = 0;
 	for (j=0; j<n; ++j) sumphi += phi[MI(j,p,n)];
 	for (i = 0; i < n; ++i){
-	    dxi[MI(i,p,n)] = ((*pok)*phi[MI(i,p,n)] - a[i]*sumphi) / (*pok);
+	    /* Note the denominator should be squared here, error in Titman (2009) */
+	    dxi[MI(i,p,n)] = ((*pok)*phi[MI(i,p,n)] - a[i]*sumphi) / ((*pok)*(*pok));
 	}
     }
     Free(pout); Free(dpout);
@@ -498,6 +531,9 @@ void update_hmm_deriv(double *curr, int nc, int obsno,
     GetDOutcomeProb(dpout, curr, nc, d->nout, hpars, hm, qm, obsno, d->obstrue[obsno]);
     if (d->obstype[obsno] == OBS_DEATH)
 	ideath = find_exactdeath_hmm(curr, obsno, d, qm, hm);
+#ifdef DERIVDEBUG
+    printf("update_hmm_deriv:\n");
+#endif
     for (i=0; i<n; ++i){
 	anew[i] = 0;
 	if (d->obstype[obsno] == OBS_DEATH)
@@ -520,7 +556,9 @@ void update_hmm_deriv(double *curr, int nc, int obsno,
 		else
 		    phinew[MI(i,p,n)] += ptrans * (phiold[MI(j,p,n)]*pout[i] + aold[j]*dhp) + aold[j]*pout[i]*dptrans; /* error in Titman 2009 */
 	    }
-	    //	    printf("i=%d,j=%d,anew=%f,ideath=%d,ptrans=%f\n",i,j,anew[0],ideath,ptrans);
+#ifdef DERIVDEBUG
+	    printf("i=%d,j=%d,anew=%f,ideath=%d,ptrans=%f\n",i,j,anew[0],ideath,ptrans);
+#endif
 	}
     }
     suma = 0;
@@ -543,7 +581,9 @@ void update_hmm_deriv(double *curr, int nc, int obsno,
 	for (s=0; s<n; ++s) {
 	    if (d->obstype[obsno] == OBS_DEATH){
 		qs = qmat[MI(s,ideath,n)];
-		//		printf("s=%d,ideath=%d,MI=%d,qs=%f\n",s,ideath,MI(s,ideath,n),qs);
+#ifdef DERIVDEBUG
+		printf("s=%d,ideath=%d,MI=%d,qs=%f\n",s,ideath,MI(s,ideath,n),qs);
+#endif
 	    }
 	    ptrans = pmat[MI3(j, s, d->pcomb[obsno], n,n)];
 	    if (d->obstype[obsno] == OBS_DEATH)
@@ -560,7 +600,9 @@ void update_hmm_deriv(double *curr, int nc, int obsno,
 		else
 		    dpok[p] += dxiold[MI(j,p,n)] * ptrans * pout[s]  +  xiold[j] * dptrans * pout[s]  + xiold[j] * ptrans * dhp;
 	    }
-	    //	    printf("j=%d,s=%d,qs=%f,pok=%f,xiold=%f,dpok[0]=%f,dpok[1]=%f\n",j,s,qs,*pok,xiold[j],dpok[0],dpok[1]);
+#ifdef DERIVDEBUG
+	    printf("j=%d,s=%d,qs=%f,pok=%f,xiold=%f,dpok[0]=%f,dpok[1]=%f\n",j,s,qs,*pok,xiold[j],dpok[0],dpok[1]);
+#endif
 	}
     }
     Free(pout); Free(dpout);
@@ -594,12 +636,18 @@ void hmm_deriv(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pm
 		   d, qm, cm, hm, &pok, dpok);
     lp = log(pok);
     /* for (i=0;i<d->nout;++i) printf("outcome[%d]=%f,",i,outcome[i]); printf("\n"); */
+#ifdef DERIVDEBUG
+    printf("hmm_deriv:\n");
+#endif
     for (p=0; p<np; ++p){
 	dlp[p] = dpok[p] / pok;
-	/* printf("k=0,dpok[%d]=%f,pok=%f,dlp[%d]=%f,",p,dpok[p],pok,p,dlp[p]); */
+#ifdef DERIVDEBUG
+	printf("k=0,dpok[%d]=%f,pok=%f,dlp[%d]=%f\n",p,dpok[p],pok,p,dlp[p]);
+#endif
     }
     /* printf("\n"); */
     // Subsequent observations, using forward algorithm
+    
     for (k=1; k<nobspt; ++k) {
 	obsno = d->firstobs[pt] + k;
 	qmat = &(qm->intens[MI3(0, 0, obsno-1, n, n)]);
@@ -628,12 +676,17 @@ void hmm_deriv(int pt, msmdata *d, qmodel *qm, cmodel *cm, hmodel *hm, Array3 pm
 	lp += log(pok);
 	for (p=0; p<np; ++p){
 	    dlp[p] += dpok[p] / pok;
-	    /* printf("k=%d,dlp[%d]=%f,",k,p,dlp[p]); */
+#ifdef DERIVDEBUG
+	    printf("k=%d,dlp[%d]=%f,",k,p,dlp[p]); 
+#endif
+	
+#ifdef DERIVDEBUG
+	printf("\n"); 
+#endif
 	}
-	/* printf("\n"); */
     }
+	
     lp *= -2;
-    //    printf("lp=%lf\n",lp);
     Free(curr); Free(aold); Free(anew); Free(phiold); Free(phinew); Free(xiold); Free(xinew); Free(dxiold); Free(dxinew); Free(dpok);
 }
 
@@ -919,9 +972,6 @@ void derivsimple(msmdata *d, qmodel *qm,  cmodel *cm, hmodel *hm, double *deriv)
 	    for (p = 0; p < np; ++p) {
 		if (pm > 0)
 		    deriv[p] += d->nocc[i] * dp[p] / pm;
-#ifdef DERIVDEBUG
-		printf("%d, %d, %d, %d, %6.4f, %d, %d, %lf, %lf\n", i, p, d->fromstate[i], d->tostate[i], d->timelag[i], d->obstypea[i], d->nocc[i], dp[p], -2 * d->nocc[i] * dp[p]/pm);
-#endif
 	    }
     }
     for (p = 0; p < np; ++p) {

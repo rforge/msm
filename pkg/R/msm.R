@@ -573,6 +573,7 @@ msm.form.obstype <- function(mf, obstype, dmodel, exacttimes)
 }
 
 ### On exit, obstrue will contain the true state (if known) or 0 (if unknown)
+### Any NAs should be replaced by 0 - logically if you don't know whether the state is known or not, that means you don't know the state
 
 msm.form.obstrue <- function(mf, hmodel, cmodel) {
     obstrue <- mf$"(obstrue)"
@@ -583,9 +584,12 @@ msm.form.obstrue <- function(mf, hmodel, cmodel) {
         }
         else if (!is.numeric(obstrue) && !is.logical(obstrue)) stop("obstrue should be logical or numeric")
         else {
-            if (is.logical(obstrue) || all(na.omit(obstrue) %in% 0:1)){
+            if (is.logical(obstrue) || (all(na.omit(obstrue) %in% 0:1) && !any(is.na(obstrue)))){
                 ## obstrue is an indicator: actual state is supplied in the outcome vector
                 ## (typically misclassification models)
+                ## interpret presence of NAs as indicating true state supplied here
+                if (!is.null(ncol(mf$"(state)")) && ncol(mf$"(state)") > 1)
+                    stop("obstrue must contain NA or the true state for a multiple outcome HMM, not an 0/1 indicator")
                 obstrue <- ifelse(obstrue, mf$"(state)", 0)
             } else {
                 ## obstrue contains the actual state (used when we have another outcome conditionally on this)
@@ -1417,7 +1421,7 @@ Ccall.msm <- function(params, do.what="lik", msmdata, qmodel, qcmodel, cmodel, h
                   models=as.integer(hmodel$models),
                   totpars=as.integer(hmodel$totpars), firstpar=as.integer(hmodel$firstpar),
                   npars=as.integer(hmodel$npars), nopt=as.integer(hmodel$nopt))
-   pars <- list(Q=as.double(Q),DQ=as.double(DQ),H=as.double(H),DH=as.double(DH),
+    pars <- list(Q=as.double(Q),DQ=as.double(DQ),H=as.double(H),DH=as.double(DH),
                 initprobs=as.double(initprobs),nopt=as.integer(nopt))
     .Call("msmCEntry",  as.integer(match(do.what, .msm.CTASKS) - 1),
          mfac, mfc, auxdata, qmodel, cmodel, hmodel, pars, PACKAGE="msm")
@@ -1777,8 +1781,8 @@ na.find.msmdata <- function(object, ...) {
     nm <- names(object)
     omit <- FALSE
     for (j in seq(along=object)) {
-        ## Drop all NAs in state, time, subject or obstrue as usual
-        if (nm[j] %in% c("(time)", "(subject)","(obstrue)"))
+        ## Drop all NAs in time, subject as usual
+        if (nm[j] %in% c("(time)", "(subject)"))
             omit <- omit | is.na(object[[j]])
         if (nm[j] == "(state)") {
             ## For matrix HMM outcomes ("states"), only drop a row if all columns are NA
@@ -1793,7 +1797,8 @@ na.find.msmdata <- function(object, ...) {
         else if (j %in% attr(object, "icovi"))
             omit <- omit | (is.na(object[[j]]) & firstobs)
         ## Don't drop NAs in covariates at last observation for a subject
-        else
+        ## Note NAs in obstrue should have previously been replaced by zeros in msm.form.obstrue, so could assert for this here. 
+        else if (nm[j]!="(obstrue)")
             omit <- omit | (is.na(object[[j]]) & !lastobs)
     }
     ## Drop obs with only one subject remaining after NAs have been omitted
