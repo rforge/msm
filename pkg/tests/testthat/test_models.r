@@ -155,11 +155,14 @@ test_that("piecewise constant intensities with pci",{
                     pci = c(5), covinits = list("timeperiod[5,Inf)"=rep(0.01,7)),
                     )
     expect_equal(4906.01423796805, cav5.msm$minus2loglik, tol=1e-06)
+
     cav10.msm <- msm( state ~ years, subject=PTNUM, data = cav,
                      qmatrix = twoway4.q, deathexact = TRUE, pci = c(5,10), fixedpars=TRUE,
                      covinits = list("timeperiod[5,10)"=rep(0.01,7), "timeperiod[10,Inf)"=rep(0.01,7)),
                      )
     expect_equal(4905.61646158639, cav10.msm$minus2loglik, tol=1e-06)
+    
+
 })
 
 test_that("piecewise constant intensities with pci, cut points outside data",{
