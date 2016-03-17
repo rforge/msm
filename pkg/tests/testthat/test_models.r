@@ -551,7 +551,7 @@ test_that("error handling: obstype",{
     expect_error(cav.msm <- msm(state~years, subject=PTNUM, data = cav, qmatrix = twoway4.q, obstype=rep(4, nrow(cav)), deathexact = TRUE, fixedpars=TRUE),"elements of obstype should be 1, 2, or 3")
     obstype <- rep(1, nrow(cav))
     obstype[c(1,8)] <- 5
-    expect_that(cav.msm <- msm(state~years, subject=PTNUM, data = cav, qmatrix = twoway4.q, obstype=obstype, deathexact = TRUE, fixedpars=TRUE), not(throws_error())) # no error: obstype for first subject doesn't matter
+    expect_error(cav.msm <- msm(state~years, subject=PTNUM, data = cav, qmatrix = twoway4.q, obstype=obstype, deathexact = TRUE, fixedpars=TRUE), NA) # no error: obstype for first subject doesn't matter
     obstype[2] <- 5
     expect_error(cav.msm <- msm(state~years, subject=PTNUM, data = cav, qmatrix = twoway4.q, obstype=obstype, deathexact = TRUE, fixedpars=TRUE),"elements of obstype should be 1, 2, or 3") # error
 })
@@ -595,7 +595,7 @@ expect_error(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav, qmatrix =
 test_that("error handling: initprobs",{
     expect_error(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav, qmatrix = oneway4.q, ematrix=ematrix, initprobs="poo", fixedpars=TRUE),"initprobs should be numeric")
     expect_error(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav, qmatrix = oneway4.q, ematrix=ematrix, initprobs=c(1,2), fixedpars=TRUE),"initprobs vector of length 2, should be vector of length 4 or a matrix")
-    expect_that(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav, qmatrix = oneway4.q, ematrix=ematrix, initprobs=c(2,1,1,1), fixedpars=TRUE), not(throws_error())) # scaled to sum to 1.
+    expect_error(cav.msm <- msm( state ~ years, subject=PTNUM, data = cav, qmatrix = oneway4.q, ematrix=ematrix, initprobs=c(2,1,1,1), fixedpars=TRUE), NA) # scaled to sum to 1.
 })
 
 test_that("error handling: check states",{

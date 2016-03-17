@@ -1,3 +1,18 @@
+2016-03-09 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* R/pearson.R: Bug fix for dropping censored states.
+
+	* DESCRIPTION: Version 1.6.2 released to r-forge.
+
+2016-03-09 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* DESCRIPTION: Version 1.6.1 released to CRAN.
+
+2016-03-07 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
+
+	* tests: tests updated to work with the development version of
+	testthat.
+
 2016-02-18 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
 	* src/lik.c,R/msm.R: Bug fix and documentation clarification for
@@ -7,6 +22,8 @@
 	information if all panel data.
 
 	* R/msm.R: Bug fix for printing CIs with pci and all fixedpars.
+
+	* DESCRIPTION: Version 1.6.1 released to r-forge.
 
 2015-11-17 Chris Jackson  <chris.jackson@mrc-bsu.cam.ac.uk>
 
