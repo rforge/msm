@@ -24,6 +24,8 @@ Internationalisation.
 
 SOME OTHER SUGGESTIONS: not all may be sensible.
 
+Handle NA or NaN arg or params in ptnorm, pmenorm, pmeunif and their q fns, and qpexp
+
 Return inf lik instead of halting when overflow occurs?  see tests/rory.r for test case where this doesn't help 
 
 Predict HMM pars and init probs for given covariate values 
