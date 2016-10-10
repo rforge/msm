@@ -4,6 +4,13 @@ USER-VISIBLE CHANGES (for detailed changes see ChangeLog in the source package)
 --------------------
 
 
+Version 1.6.4  (2016-10-02)
+-------------
+
+o CRAN release.  Vignette source included in vignettes directory, on
+  request of CRAN.
+
+
 Version 1.6.3  (2016-06-03)
 -------------
 

@@ -9,10 +9,6 @@ vignettes/.+\.log
 vignettes/.+\.toc
 vignettes/.+\.bbl
 vignettes/.+\.blg
-vignettes/msm\.bib
-vignettes/Sweave-local\.sty
-vignettes/figures
-vignettes/msm-manual.Rnw
 inst/doc/msm-manual.Rnw
 Rplots\.ps
 tests/slow
@@ -35,3 +31,5 @@ chm
 \.RData
 \.build.timestamp
 TODO
+_region_.tex
+src/doc
